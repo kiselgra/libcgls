@@ -12,6 +12,8 @@ AC_CONFIG_FILES(Makefile src/Makefile doc/Makefile doc/doxyfile doc/doxygen_main
 # Checks for programs.
 AC_PROG_CXX
 AC_PROG_CC
+AC_PROG_CC_C99
+AM_PROG_CC_C_O
 
 # when using flex/bison:
 # AC_PROG_LEX

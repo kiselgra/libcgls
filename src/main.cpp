@@ -3,12 +3,15 @@
 #include <GL/freeglut.h>
 #include <iostream>
 
+#include "drawelement.h"
+
 #include "cmdline.h"
 
 using namespace std;
 
 mesh_ref cube;
 shader_ref cube_shader;
+drawelement_ref de;
 
 void display() {
 	glClearColor(0,0,0.25,1);
@@ -68,6 +71,7 @@ void actual_main()
 
     cube = make_cube("test cube", 0);
     cube_shader = find_shader("diffuse-pl");
+	de = make_drawelement("testcube", cube, cube_shader);
 
 	enter_glut_main_loop();
 

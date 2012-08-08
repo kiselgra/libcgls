@@ -24,6 +24,7 @@ AC_PROG_LIBTOOL
 
 # Checks for libraries.
 AC_CHECK_LIB([cgl], [main])
+AC_CHECK_LIB([glut], [main])
 
 # Checks for header files.
 AC_HEADER_STDC

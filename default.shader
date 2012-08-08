@@ -29,7 +29,8 @@
 		out_col += vec4(color * light_col * n_dot_l, 0.);
 	}
 }
-#:inputs (list "in_pos" "in_norm")>
+#:inputs (list "in_pos" "in_norm")
+#:uniforms (list "proj" "view" "model" "color" "light_dir" "light_col")>
 
 
 

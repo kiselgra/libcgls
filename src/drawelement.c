@@ -15,6 +15,7 @@ struct drawelement {
 	mesh_ref mesh;
 	shader_ref shader;
 	struct handler_node *handler_chain;
+	matrix4x4f trafo;
 };
 
 #define TYPE drawelement
@@ -44,16 +45,60 @@ drawelement_ref make_drawelement(const char *modelname, mesh_ref mr, shader_ref 
 	de->shader = sr;
 
 	de->handler_chain = 0;
+	make_unit_matrix4x4f(&de->trafo);
+
+	return ref;
+}
+
+matrix4x4f* drawelement_trafo(drawelement_ref ref) {
+	struct drawelement *de = drawelements + ref.id;
+	return &de->trafo;
 }
 
 // uniform handlers
 
-// bool de
+#define str_eq(X, Y) (strcmp(X, Y) == 0)
+
+bool default_uniform_handler_for_default_matrices(drawelement_ref ref, const char *uniform, int location) {
+	printf("  ; handling uniform %s\n", uniform);
+	if (str_eq(uniform, "proj"))
+		glUniformMatrix4fv(location, 1, GL_FALSE, projection_matrix_of_cam(current_camera())->col_major);
+	else if (str_eq(uniform, "view"))
+		glUniformMatrix4fv(location, 1, GL_FALSE, gl_view_matrix_of_cam(current_camera())->col_major);
+	else if (str_eq(uniform, "normal_matrix"))
+		glUniformMatrix4fv(location, 1, GL_FALSE, gl_normal_matrix_for_view_of(current_camera())->col_major);
+	else if (str_eq(uniform, "model"))
+		glUniformMatrix4fv(location, 1, GL_FALSE, drawelement_trafo(ref)->col_major);
+	else
+		return false;
+	return true;
+}
+
+void prepend_uniform_handler(drawelement_ref ref, uniform_setter_t handler) {
+	struct drawelement *de = drawelements+ref.id;
+	struct handler_node *cdr = de->handler_chain;
+	de->handler_chain = malloc(sizeof(struct handler_node));
+	de->handler_chain->handler = handler;
+	de->handler_chain->next = cdr;
+}
+
+// 
 
 void render_drawelement(drawelement_ref ref) {
 	struct drawelement *de = drawelements + ref.id;
 
 	bind_shader(de->shader);
+
+	for (int i = 0; i < shader_uniforms(de->shader); ++i) {
+		const char *name = shader_uniform_name_by_id(de->shader, i);
+		int loc = shader_uniform_location_by_id(de->shader, i);
+		struct handler_node *run = de->handler_chain;
+		while (run && !run->handler(ref, name, loc))
+			run = run->next;
+		if (!run)
+			printf("WARNING: cannot find a handler for uniform %s of shader %s when attached to drawelement %s.\n", 
+					name, shader_name(de->shader), de->name);
+	}
 
 	bind_mesh_to_gl(de->mesh);
 	draw_mesh(de->mesh, GL_TRIANGLES);

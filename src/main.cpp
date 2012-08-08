@@ -2,6 +2,7 @@
 
 #include <GL/freeglut.h>
 #include <iostream>
+#include <string.h>
 
 #include "drawelement.h"
 
@@ -20,6 +21,7 @@ void display() {
 	glEnable(GL_DEPTH_TEST);
 
 
+	/*
 	bind_shader(cube_shader);
 
 	uniform_matrix4x4f(cube_shader, "proj", projection_matrix_of_cam(current_camera()));
@@ -39,7 +41,9 @@ void display() {
 
 
 	unbind_shader(cube_shader);
+	*/
 
+	render_drawelement(de);
 
 
 	swap_buffers();
@@ -63,6 +67,14 @@ void keyboard(unsigned char key, int x, int y) {
 	else standard_keyboard(key, x, y);
 }
 
+bool custom_light_handler(drawelement_ref ref, const char *uniform, int location) {
+	if (strcmp(uniform, "light_dir") == 0)         glUniform3f(location, 0, -1, -0.2);
+	else if (strcmp(uniform, "light_col") == 0)    glUniform3f(location, 1, 0.9, 0.1);
+	else if (strcmp(uniform, "color") == 0)        glUniform3f(location, .9, .9, .9);
+	else return false;
+	return true;
+}
+
 void actual_main() 
 {
 	register_display_function(display);
@@ -71,7 +83,10 @@ void actual_main()
 
     cube = make_cube("test cube", 0);
     cube_shader = find_shader("diffuse-pl");
+
 	de = make_drawelement("testcube", cube, cube_shader);
+	prepend_uniform_handler(de, default_uniform_handler_for_default_matrices);
+	prepend_uniform_handler(de, custom_light_handler);
 
 	enter_glut_main_loop();
 

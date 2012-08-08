@@ -13,12 +13,13 @@ typedef struct {
 
 
 
-typedef bool (*uniform_setter_t)(drawelement_ref drawelement, shader_ref shader);
-
+typedef bool (*uniform_setter_t)(drawelement_ref drawelement, const char *uniform, int location);
+bool default_uniform_handler_for_default_matrices(drawelement_ref ref, const char *uniform, int location);
 
 
 drawelement_ref make_drawelement(const char *modelname, mesh_ref mr, shader_ref sr);
 
+void prepend_uniform_handler(drawelement_ref ref, uniform_setter_t handler);
 void render_drawelement(drawelement_ref ref);
 
 

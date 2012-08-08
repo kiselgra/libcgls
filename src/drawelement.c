@@ -47,6 +47,9 @@ drawelement_ref make_drawelement(const char *modelname, mesh_ref mr, shader_ref 
 	de->handler_chain = 0;
 	make_unit_matrix4x4f(&de->trafo);
 
+// 	printf("create drawelement %s.\n", de->name);
+// 	printf("       drawelement %s.\n", modelname);
+// 	printf("       drawelement %s.\n", mesh_name(mr));
 	return ref;
 }
 
@@ -60,7 +63,6 @@ matrix4x4f* drawelement_trafo(drawelement_ref ref) {
 #define str_eq(X, Y) (strcmp(X, Y) == 0)
 
 bool default_matrix_uniform_handler(drawelement_ref ref, const char *uniform, int location) {
-	printf("  ; handling uniform %s\n", uniform);
 	if (str_eq(uniform, "proj"))
 		glUniformMatrix4fv(location, 1, GL_FALSE, projection_matrix_of_cam(current_camera())->col_major);
 	else if (str_eq(uniform, "view"))
@@ -107,3 +109,16 @@ void render_drawelement(drawelement_ref ref) {
 
 	unbind_shader(de->shader);
 }
+
+drawelement_ref find_drawelement(const char *name) {
+	drawelement_ref ref = { -1 };
+	if (strlen(name) == 0) return ref;
+	for (int i = 0; i < next_index; ++i) {
+		if (strcmp(drawelements[i].name, name) == 0) {
+			ref.id = i;
+			return ref;
+		}
+	}
+	return ref;
+}
+

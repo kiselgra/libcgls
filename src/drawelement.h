@@ -21,6 +21,7 @@ drawelement_ref make_drawelement(const char *modelname, mesh_ref mr, shader_ref 
 
 void prepend_uniform_handler(drawelement_ref ref, uniform_setter_t handler);
 void render_drawelement(drawelement_ref ref);
+drawelement_ref find_drawelement(const char *name);
 
 
 #ifdef __cplusplus

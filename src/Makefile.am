@@ -4,6 +4,7 @@ bin_PROGRAMS = viewer-cgls
 # libconfigfiles_la_SOURCES = grammar.yy  lexer.ll  parser.h  token.h lexer.h config_creator.h configfile.h configfile.cpp
 viewer_cgls_SOURCES = 	main.cpp \
 						drawelement.c drawelement.h \
+						objloader.c objloader.h \
 						cmdline.cpp cmdline.h
 
 # for bison/flex

@@ -10,3 +10,4 @@ libtool
 ltmain.sh
 stamp-h1
 depcomp
+install-sh

@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "drawelement.h"
+#include "objloader.h"
 
 #include "cmdline.h"
 
@@ -20,7 +21,8 @@ void display() {
 
 	glEnable(GL_DEPTH_TEST);
 
-	render_drawelement(de);
+// 	render_drawelement(de);
+	render_drawelement(find_drawelement("bunny/bunny/Bunny5k"));
 
 	swap_buffers();
 }
@@ -60,11 +62,17 @@ void actual_main()
 	register_keyboard_function(keyboard);
 
     cube = make_cube("test cube", 0);
-    cube_shader = find_shader("diffuse-pl");
+    cube_shader = find_shader("diffuse-dl");
 
 	de = make_drawelement("testcube", cube, cube_shader);
 	prepend_uniform_handler(de, default_matrix_uniform_handler);
 	prepend_uniform_handler(de, custom_light_handler);
+
+	load_objfile_and_create_objects_with_separate_vbos("/home/kai/render-data/models/bunny-5000.obj", "bunny");
+	drawelement_ref b = find_drawelement("bunny/bunny/Bunny5k");
+	prepend_uniform_handler(b, default_matrix_uniform_handler);
+	prepend_uniform_handler(b, custom_light_handler);
+
 
 	enter_glut_main_loop();
 

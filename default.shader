@@ -1,4 +1,4 @@
-#<make-shader "diffuse-pl"
+#<make-shader "diffuse-dl"
 #:vertex-shader #{
 #version 150 core
 	in vec3 in_pos;

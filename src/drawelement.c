@@ -59,7 +59,7 @@ matrix4x4f* drawelement_trafo(drawelement_ref ref) {
 
 #define str_eq(X, Y) (strcmp(X, Y) == 0)
 
-bool default_uniform_handler_for_default_matrices(drawelement_ref ref, const char *uniform, int location) {
+bool default_matrix_uniform_handler(drawelement_ref ref, const char *uniform, int location) {
 	printf("  ; handling uniform %s\n", uniform);
 	if (str_eq(uniform, "proj"))
 		glUniformMatrix4fv(location, 1, GL_FALSE, projection_matrix_of_cam(current_camera())->col_major);
@@ -74,6 +74,7 @@ bool default_uniform_handler_for_default_matrices(drawelement_ref ref, const cha
 	return true;
 }
 
+// may also be abused to get called just before the drawelement is rendered. ;)
 void prepend_uniform_handler(drawelement_ref ref, uniform_setter_t handler) {
 	struct drawelement *de = drawelements+ref.id;
 	struct handler_node *cdr = de->handler_chain;

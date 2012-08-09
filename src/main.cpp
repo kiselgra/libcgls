@@ -55,6 +55,20 @@ bool custom_light_handler(drawelement_ref ref, const char *uniform, int location
 	return true;
 }
 
+void adjust_view(const vec3f *bb_min, const vec3f *bb_max, vec3f *cam_pos, float *distance) {
+	vec3f bb_center, tmp;
+	sub_components_vec3f(&tmp, bb_max, bb_min);
+	div_vec3f_by_scalar(&tmp, &tmp, 2);
+	add_components_vec3f(&bb_center, &tmp, bb_min);
+	
+	sub_components_vec3f(&tmp, bb_max, bb_min);
+	*distance = length_of_vec3f(&tmp);
+	make_vec3f(&tmp, 0, 0, *distance);
+	add_components_vec3f(cam_pos, &bb_center, &tmp);
+
+	cgl_cam_move_factor = *distance / 20.0f;
+}
+
 void actual_main() 
 {
 	register_display_function(display);
@@ -68,14 +82,26 @@ void actual_main()
 	prepend_uniform_handler(de, default_matrix_uniform_handler);
 	prepend_uniform_handler(de, custom_light_handler);
 
-	load_objfile_and_create_objects_with_separate_vbos("/home/kai/render-data/models/bunny-5000.obj", "bunny");
+	vec3f min, max;
+	load_objfile_and_create_objects_with_separate_vbos("/home/kai/render-data/models/bunny-5000.obj", "bunny", &min, &max);
 	drawelement_ref b = find_drawelement("bunny/bunny/Bunny5k");
 	prepend_uniform_handler(b, default_matrix_uniform_handler);
 	prepend_uniform_handler(b, custom_light_handler);
+	cout << "bb: [" << min.x << " : " << max.x << "]  x  [" << min.y << " : " << max.y << "]  x  [" << min.z << " : " << max.z << "]" << endl;
 
+	vec3f cam_pos, cam_dir = { 0, 0, -1 }, cam_up = { 0, 1, 0 };
+	float cam_distance_to_bb_center;
+	adjust_view(&min, &max, &cam_pos, &cam_distance_to_bb_center);
+	change_lookat_of_cam(current_camera(), &cam_pos, &cam_dir, &cam_up);
+
+	float near = camera_near(current_camera()),
+	      far = camera_far(current_camera());
+	while (near > cam_distance_to_bb_center/100.0f) near /= 10.0f;
+	while (far < cam_distance_to_bb_center*2.0f) far *= 2.0f;
+	change_projection_of_cam(current_camera(), camera_fovy(current_camera()), camera_aspect(current_camera()), near, far);
+	recompute_gl_matrices_of_cam(current_camera());
 
 	enter_glut_main_loop();
-
 }
 
 int main(int argc, char **argv)

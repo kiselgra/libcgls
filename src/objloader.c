@@ -7,7 +7,8 @@
 #include <stdio.h>
 
 // objectname may be 0, in which case the filename will be used to prefix the generated objects.
-void load_objfile_and_create_objects_with_separate_vbos(const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max) {
+void load_objfile_and_create_objects_with_separate_vbos(const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max, 
+                                                        void (*make_drawelem)(const char*, mesh_ref)) {
 	obj_data objdata;
 	const char *modelname = object_name ? object_name : filename;
 	load_objfile(modelname, filename, &objdata);
@@ -51,15 +52,15 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 		add_index_buffer_to_mesh(m, verts, indices, GL_STATIC_DRAW);
 		unbind_mesh_from_gl(m);
 
-		shader_ref s = find_shader("diffuse-dl");
-		make_drawelement(modelname, m, s);
+// 		shader_ref s = find_shader("diffuse-dl");
+// 		make_drawelement(modelname, m, s);
+		make_drawelem(modelname, m);
 	
 		free(v);
 		free(n);
 		free(t);
 		free(indices);
 
-		// - return bb
 		// - create material
 		// - call mesh created handler (with mesh and mat, should create shader and de)
 	}
@@ -76,5 +77,5 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 			if (objdata.vertex_data[i].z > bb_max->z) bb_max->z = objdata.vertex_data[i].z;
 		}
 	}
-
 }
+

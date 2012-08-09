@@ -1,19 +1,18 @@
 #include <libcgl/libcgl.h>
 
 #include <GL/freeglut.h>
-#include <iostream>
 #include <string.h>
+
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "drawelement.h"
 #include "objloader.h"
+#include "scene.h"
 
 #include "cmdline.h"
 
-using namespace std;
-
-mesh_ref cube;
-shader_ref cube_shader;
-drawelement_ref de;
+scene_ref the_scene;
 
 void display() {
 	glClearColor(0,0,0.25,1);
@@ -21,16 +20,13 @@ void display() {
 
 	glEnable(GL_DEPTH_TEST);
 
-// 	render_drawelement(de);
-	render_drawelement(find_drawelement("bunny/bunny/Bunny5k"));
+	render_scene(the_scene);
 
 	swap_buffers();
 }
 
 void idle() {
-	glutPostRedisplay();
-}
-
+	glutPostRedisplay(); } 
 void keyboard(unsigned char key, int x, int y) {
 	if (key == 'c') {
 		vec3f cam_pos, cam_dir, cam_up;
@@ -38,9 +34,9 @@ void keyboard(unsigned char key, int x, int y) {
 		extract_pos_vec3f_of_matrix(&cam_pos, lookat_matrix);
 		extract_dir_vec3f_of_matrix(&cam_dir, lookat_matrix);
 		extract_up_vec3f_of_matrix(&cam_up, lookat_matrix);
-		cout << "--pos " << cam_pos.x << "," << cam_pos.y << "," << cam_pos.z << " ";
-		cout << "--dir " << cam_dir.x << "," << cam_dir.y << "," << cam_dir.z << " ";
-		cout << "--up " << cam_up.x << "," << cam_up.y << "," << cam_up.z << endl;
+		printf("--pos %f,%f,%f ", cam_pos.x, cam_pos.y, cam_pos.z);
+		printf("--dir %f,%f,%f ", cam_dir.x, cam_dir.y, cam_dir.z);
+		printf("--up %f,%f,%f\n", cam_up.x, cam_up.y, cam_up.z);
 	}
 	else standard_keyboard(key, x, y);
 }
@@ -68,26 +64,29 @@ void adjust_view(const vec3f *bb_min, const vec3f *bb_max, vec3f *cam_pos, float
 
 	cgl_cam_move_factor = *distance / 20.0f;
 }
-
+	
 void actual_main() 
 {
 	register_display_function(display);
 	register_idle_function(idle);
 	register_keyboard_function(keyboard);
 
-    cube = make_cube("test cube", 0);
-    cube_shader = find_shader("diffuse-dl");
-
-	de = make_drawelement("testcube", cube, cube_shader);
-	prepend_uniform_handler(de, default_matrix_uniform_handler);
-	prepend_uniform_handler(de, custom_light_handler);
+	scene_ref scene = make_scene(0);
+	the_scene = scene;
+	int drawelements = 0;
+	void create_drawelement(const char *modelname, mesh_ref mesh) {
+		shader_ref s = find_shader("diffuse-dl");
+		drawelement_ref de = make_drawelement(modelname, mesh, s);
+		prepend_uniform_handler(de, default_matrix_uniform_handler);
+		prepend_uniform_handler(de, custom_light_handler);
+		scene_add_drawelement(scene, de);
+		++drawelements;
+	}
 
 	vec3f min, max;
-	load_objfile_and_create_objects_with_separate_vbos("/home/kai/render-data/models/bunny-5000.obj", "bunny", &min, &max);
-	drawelement_ref b = find_drawelement("bunny/bunny/Bunny5k");
-	prepend_uniform_handler(b, default_matrix_uniform_handler);
-	prepend_uniform_handler(b, custom_light_handler);
-	cout << "bb: [" << min.x << " : " << max.x << "]  x  [" << min.y << " : " << max.y << "]  x  [" << min.z << " : " << max.z << "]" << endl;
+	load_objfile_and_create_objects_with_separate_vbos("/home/kai/render-data/models/bunny-5000.obj", "bunny", &min, &max, create_drawelement);
+	printf("created %d drawelement%s.\n", drawelements, drawelements>1?"s":"");
+	printf("bb: [%.3f : %.3f]  x  [%.3f : %.3f]  x  [%.3f : %.3f]\n", min.x, max.x, min.y, max.y, min.z, max.z);
 
 	vec3f cam_pos, cam_dir = { 0, 0, -1 }, cam_up = { 0, 1, 0 };
 	float cam_distance_to_bb_center;
@@ -108,8 +107,9 @@ int main(int argc, char **argv)
 {	
 	parse_cmdline(argc, argv);
 	
-	std::string home(getenv("HOME"));
-	append_image_path((home+"/render-data/images/").c_str());
+	char *renderdata;
+	asprintf(&renderdata, "%s/render-data/images", getenv("HOME"));
+	append_image_path(renderdata);
 
 	int guile_mode = guile_cfg_only;
 	startup_cgl("name", 3, 3, argc, argv, 1366, 768, actual_main, guile_mode, false, "default.scm");

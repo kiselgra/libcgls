@@ -1,21 +1,24 @@
 #ifndef __CMDLINE_H__ 
 #define __CMDLINE_H__ 
 
-#include <string>
+#include <string.h>
 
 //! \brief Translated command line options
-struct Cmdline
+typedef struct
 {
 	bool verbose;	//!< wheather or not to be verbose
+} Cmdline;
 
-	Cmdline() : verbose(false)
-	{
-	}
-};
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-extern Cmdline cmdline;
+	extern Cmdline cmdline;
+	int parse_cmdline(int argc, char **argv);
 
-int parse_cmdline(int argc, char **argv);
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 

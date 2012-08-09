@@ -59,7 +59,7 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 
 		// - return bb
 		// - create material
-		// - call mesh created handler
+		// - call mesh created handler (with mesh and mat, should create shader and de)
 	}
 
 }

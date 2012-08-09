@@ -84,7 +84,8 @@ void actual_main()
 	}
 
 	vec3f min, max;
-	load_objfile_and_create_objects_with_separate_vbos("/home/kai/render-data/models/bunny-5000.obj", "bunny", &min, &max, create_drawelement);
+	const char *file = basename(cmdline.filename); // the gnu version.
+	load_objfile_and_create_objects_with_separate_vbos(cmdline.filename, file, &min, &max, create_drawelement);
 	printf("created %d drawelement%s.\n", drawelements, drawelements>1?"s":"");
 	printf("bb: [%.3f : %.3f]  x  [%.3f : %.3f]  x  [%.3f : %.3f]\n", min.x, max.x, min.y, max.y, min.z, max.z);
 
@@ -108,7 +109,7 @@ int main(int argc, char **argv)
 	parse_cmdline(argc, argv);
 	
 	char *renderdata;
-	asprintf(&renderdata, "%s/render-data/images", getenv("HOME"));
+	int n = asprintf(&renderdata, "%s/render-data/images", getenv("HOME"));
 	append_image_path(renderdata);
 
 	int guile_mode = guile_cfg_only;

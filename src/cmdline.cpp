@@ -4,6 +4,7 @@
 #include <argp.h>
 #include <string>
 #include <iostream>
+#include <stdlib.h>
 
 
 
@@ -48,6 +49,9 @@ static error_t parse_options(int key, char *arg, argp_state *state)
 	
 	case ARGP_KEY_ARG:		// process arguments. 
 							// state->arg_num gives number of current arg
+				if (cmdline.filename)
+					fprintf(stderr, "ERROR: you can display only one model at a time.\n");
+				cmdline.filename = strdup(arg);
 		break;
 
 	default:
@@ -61,7 +65,13 @@ static struct argp parser = { options, parse_options, args_doc, doc };
 
 int parse_cmdline(int argc, char **argv)
 {
+	cmdline.filename = 0;
 	int ret = argp_parse(&parser, argc, argv, /*ARGP_NO_EXIT*/0, 0, 0);
+
+	if (cmdline.filename == 0) {
+		fprintf(stderr, "ERROR: no model file specified. exiting...\n");
+		exit(EXIT_FAILURE);
+	}
 	return ret;
 }
 	

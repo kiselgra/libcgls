@@ -7,6 +7,7 @@
 typedef struct
 {
 	bool verbose;	//!< wheather or not to be verbose
+	const char *filename;
 } Cmdline;
 
 #ifdef __cplusplus

@@ -1,3 +1,5 @@
+#include "drawelement.h"
+
 #include <libcgl/libcgl.h>
 
 #include <stdlib.h>
@@ -5,7 +7,7 @@
 #include <stdio.h>
 
 // objectname may be 0, in which case the filename will be used to prefix the generated objects.
-void load_objfile_and_create_objects_with_separate_vbos(const char *filename, const char *object_name) {
+void load_objfile_and_create_objects_with_separate_vbos(const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max) {
 	obj_data objdata;
 	const char *modelname = object_name ? object_name : filename;
 	load_objfile(modelname, filename, &objdata);
@@ -60,6 +62,19 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 		// - return bb
 		// - create material
 		// - call mesh created handler (with mesh and mat, should create shader and de)
+	}
+	
+	if (bb_min && bb_max) {
+		*bb_min = objdata.vertex_data[0]; 
+		*bb_max = objdata.vertex_data[0];
+		for (int i = 0; i < objdata.vertices; ++i) {
+			if (objdata.vertex_data[i].x < bb_min->x) bb_min->x = objdata.vertex_data[i].x;
+			if (objdata.vertex_data[i].y < bb_min->y) bb_min->y = objdata.vertex_data[i].y;
+			if (objdata.vertex_data[i].z < bb_min->z) bb_min->z = objdata.vertex_data[i].z;
+			if (objdata.vertex_data[i].x > bb_max->x) bb_max->x = objdata.vertex_data[i].x;
+			if (objdata.vertex_data[i].y > bb_max->y) bb_max->y = objdata.vertex_data[i].y;
+			if (objdata.vertex_data[i].z > bb_max->z) bb_max->z = objdata.vertex_data[i].z;
+		}
 	}
 
 }

@@ -8,3 +8,5 @@ doc:
 run:
 	cd src; make
 	./src/viewer-cgls
+
+EXTRA_DIST = default.scm default.shader

@@ -5,7 +5,7 @@ bin_PROGRAMS = viewer-cgls
 viewer_cgls_SOURCES = 	main.c \
 						drawelement.c drawelement.h \
 						objloader.c objloader.h \
-						scene.c \
+						scene.c scene.h \
 						cmdline.cpp cmdline.h
 
 # for bison/flex

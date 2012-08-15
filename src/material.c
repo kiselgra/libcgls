@@ -1,22 +1,10 @@
+#include "material.h"
+#include "drawelement.h"
+
 #include <string.h>
 #include <stdlib.h>
 
 #include <stdio.h>
-
-/* a *very* simple material definition, suited to standard gl rendering. 
- * extensible the good ol' c way.
- */
-
-typedef struct {
-	int id;
-} material_ref;
-
-
-#include <libcgl/libcgl.h>
-
-#include "slist.h"
-
-define_slist(texture_node, const char *name; texture_ref ref; int unit);
 
 /* material. 
  *
@@ -31,7 +19,7 @@ define_slist(texture_node, const char *name; texture_ref ref; int unit);
 struct material {
 	char *name;
 	vec4f k_amb, k_diff, k_spec;
-	struct texture_node *textures;
+	struct texture_node *textures, *back;
 	// blend stuff?
 	void *aux;
 };
@@ -41,15 +29,115 @@ struct material {
 #define REF material_ref
 #include <libcgl/mm.h>
 
-material_ref make_material(char *name, vec4f *amb, vec4f *diff, vec4f *spec) {
+material_ref make_material(const char *name, vec4f *amb, vec4f *diff, vec4f *spec) {
 	material_ref ref = allocate_ref();
 	struct material *mat = materials+ref.id;
+	
+	mat->name = strdup(name);
 
 	mat->k_amb = *amb;
 	mat->k_diff = *diff;
 	mat->k_spec = *spec;
 
-	mat->textures = 0;
+	mat->textures = mat->back = 0;
 	mat->aux = 0;
 	return ref;
 }
+
+material_ref make_material3f(const char *name, vec3f *amb, vec3f *diff, vec3f *spec) {
+	vec4f a = { amb->x, amb->y, amb->z };
+	vec4f d = { diff->x, diff->y, diff->z };
+	vec4f s = { spec->x, spec->y, spec->z };
+	return make_material(name, &a, &d, &s);
+}
+
+material_ref find_material(const char *name) {
+	material_ref ref = { -1 };
+	if (!name || strlen(name) == 0) return ref;
+	for (int i = 0; i < next_index; ++i)
+		if (strcmp(materials[i].name, name) == 0) {
+			ref.id = i;
+			return ref;
+		}
+	return ref;
+}
+
+vec4f* material_ambient_color(material_ref ref) {
+	struct material *mat = materials+ref.id;
+	return &mat->k_amb;
+}
+
+vec4f* material_diffuse_color(material_ref ref) {
+	struct material *mat = materials+ref.id;
+	return &mat->k_diff;
+}
+
+vec4f* material_specular_color(material_ref ref) {
+	struct material *mat = materials+ref.id;
+	return &mat->k_spec;
+}
+
+struct texture_node* material_textures(material_ref ref) {
+	struct material *mat = materials+ref.id;
+	return mat->textures;
+}
+
+void material_add_texture(material_ref ref, texture_ref tex) {
+	struct material *mat = materials+ref.id;
+	struct texture_node *new_node = malloc(sizeof(struct texture_node));
+	int unit = 0;
+	if (mat->textures == 0)
+		mat->textures = new_node;
+	else {
+		mat->back->next = new_node; 
+		unit = mat->back->unit;
+	}
+	mat->back = new_node;
+	mat->back->ref = tex;
+	mat->back->unit = unit;
+	mat->back->name = strdup(texture_name(tex));
+	mat->back->next = 0;
+}
+
+void* material_aux(material_ref ref) {
+	struct material *mat = materials+ref.id;
+	return mat->aux;
+}
+
+void material_set_aux(material_ref ref, void *aux) {
+	struct material *mat = materials+ref.id;
+	mat->aux = aux;
+}
+
+// uniform handlers
+
+#define str_eq(X, Y) (strcmp(X, Y) == 0)
+#define mat drawelement_material(ref)
+
+bool default_material_uniform_handler(drawelement_ref ref, const char *uniform, int location) {
+	if (str_eq(uniform, "ambient_color"))
+		glUniform4fv(location, 1, (float*)material_ambient_color(mat));
+	else if (str_eq(uniform, "diffuse_color"))
+		glUniform4fv(location, 1, (float*)material_diffuse_color(mat));
+	else if (str_eq(uniform, "specular_color"))
+		glUniform4fv(location, 1, (float*)material_specular_color(mat));
+	else {
+		for (struct texture_node *run = material_textures(mat); run; run = run->next)
+			if (str_eq(uniform, run->name)) {
+				bind_texture(run->ref, run->unit);
+				return true;
+			}
+		if (strlen(uniform) == 4 && uniform[3] >= '0' && uniform[3] <= '9' && strncmp(uniform, "tex", 3) == 0) {
+			int nr = uniform[3] - '0';
+			for (struct texture_node *run = material_textures(mat); run; run = run->next)
+				if (nr == 0) {
+					bind_texture(run->ref, run->unit);
+					return true;
+				}
+		}
+		return false;
+	}
+	return true;
+}
+
+

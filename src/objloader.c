@@ -1,4 +1,6 @@
 #include "drawelement.h"
+#include "basename.h"
+
 
 #include <libcgl/libcgl.h>
 
@@ -8,10 +10,25 @@
 
 // objectname may be 0, in which case the filename will be used to prefix the generated objects.
 void load_objfile_and_create_objects_with_separate_vbos(const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max, 
-                                                        void (*make_drawelem)(const char*, mesh_ref)) {
+                                                        void (*make_drawelem)(const char*, mesh_ref, material_ref)) {
 	obj_data objdata;
 	const char *modelname = object_name ? object_name : filename;
 	load_objfile(modelname, filename, &objdata);
+
+	// convert the materials
+	// note: the material names are already prefixed with the model's base name.
+	for (int i = 0; i < objdata.number_of_materials; ++i) {
+		obj_mtl *m = objdata.materials+i;
+		material_ref mat = make_material3f(m->name, &m->col_amb, &m->col_diff, &m->col_spec);
+		tex_params_t p = default_tex_params();
+		printf("created material %s, id %d.\n", m->name, mat.id);
+		if (m->tex_a) material_add_texture(mat, make_texture(basename(m->tex_a), m->tex_a, GL_TEXTURE_2D, &p));
+		if (m->tex_d) material_add_texture(mat, make_texture(basename(m->tex_d), m->tex_d, GL_TEXTURE_2D, &p));
+		if (m->tex_s) material_add_texture(mat, make_texture(basename(m->tex_s), m->tex_s, GL_TEXTURE_2D, &p));
+		if (m->tex_a) printf("adding texture %s to material %s.\n", m->tex_a, m->name);
+		if (m->tex_d) printf("adding texture %s to material %s.\n", m->tex_d, m->name);
+		if (m->tex_s) printf("adding texture %s to material %s.\n", m->tex_s, m->name);
+	}
 
 	// todo: vertex-buffer sharing
 	for (int i = 0; i < objdata.number_of_groups; ++i) {
@@ -54,7 +71,10 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 
 // 		shader_ref s = find_shader("diffuse-dl");
 // 		make_drawelement(modelname, m, s);
-		make_drawelem(modelname, m);
+		printf("looking for material %s.\n", group->mtl->name);
+		material_ref mat = find_material(group->mtl->name);
+		printf("found: %d.\n", mat.id);
+		make_drawelem(modelname, m, mat);
 	
 		free(v);
 		free(n);

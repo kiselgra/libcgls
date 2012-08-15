@@ -14,6 +14,7 @@ struct drawelement {
 	char *shortname, *name;
 	mesh_ref mesh;
 	shader_ref shader;
+	material_ref material;
 	struct handler_node *handler_chain;
 	matrix4x4f trafo;
 };
@@ -23,7 +24,7 @@ struct drawelement {
 #define REF drawelement_ref
 #include <libcgl/mm.h>
 
-drawelement_ref make_drawelement(const char *modelname, mesh_ref mr, shader_ref sr) {
+drawelement_ref make_drawelement(const char *modelname, mesh_ref mr, shader_ref sr, material_ref matr) {
 	drawelement_ref ref = allocate_ref();
 	struct drawelement *de = drawelements+ref.id;
 
@@ -43,6 +44,7 @@ drawelement_ref make_drawelement(const char *modelname, mesh_ref mr, shader_ref 
 		
 	de->mesh = mr;
 	de->shader = sr;
+	de->material = matr;
 
 	de->handler_chain = 0;
 	make_unit_matrix4x4f(&de->trafo);
@@ -57,6 +59,22 @@ matrix4x4f* drawelement_trafo(drawelement_ref ref) {
 	struct drawelement *de = drawelements + ref.id;
 	return &de->trafo;
 }
+
+mesh_ref drawelement_mesh(drawelement_ref ref) {
+	struct drawelement* de = drawelements+ref.id;
+	return de->mesh;
+}
+
+shader_ref drawelement_shader(drawelement_ref ref) {
+	struct drawelement* de = drawelements+ref.id;
+	return de->shader;
+}
+
+material_ref drawelement_material(drawelement_ref ref) {
+	struct drawelement* de = drawelements+ref.id;
+	return de->material;
+}
+
 
 // uniform handlers
 

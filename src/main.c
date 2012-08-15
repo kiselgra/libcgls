@@ -1,3 +1,10 @@
+#include "drawelement.h"
+#include "objloader.h"
+#include "scene.h"
+#include "basename.h"
+
+#include "cmdline.h"
+
 #include <libcgl/libcgl.h>
 
 #include <GL/freeglut.h>
@@ -5,12 +12,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-
-#include "drawelement.h"
-#include "objloader.h"
-#include "scene.h"
-
-#include "cmdline.h"
 
 scene_ref the_scene;
 
@@ -45,8 +46,7 @@ void keyboard(unsigned char key, int x, int y) {
 // then this could be part of a scene description
 bool custom_light_handler(drawelement_ref ref, const char *uniform, int location) {
 	if (strcmp(uniform, "light_dir") == 0)         glUniform3f(location, 0, -1, -0.2);
-	else if (strcmp(uniform, "light_col") == 0)    glUniform3f(location, 1, 0.9, 0.1);
-	else if (strcmp(uniform, "color") == 0)        glUniform3f(location, .9, .9, .9);
+	else if (strcmp(uniform, "light_col") == 0)    glUniform3f(location, 1, 0.9, 0.9);
 	else return false;
 	return true;
 }
@@ -74,9 +74,10 @@ void actual_main()
 	scene_ref scene = make_scene(0);
 	the_scene = scene;
 	int drawelements = 0;
-	void create_drawelement(const char *modelname, mesh_ref mesh) {
+	void create_drawelement(const char *modelname, mesh_ref mesh, material_ref mat) {
 		shader_ref s = find_shader("diffuse-dl");
-		drawelement_ref de = make_drawelement(modelname, mesh, s);
+		drawelement_ref de = make_drawelement(modelname, mesh, s, mat);
+		prepend_uniform_handler(de, default_material_uniform_handler);
 		prepend_uniform_handler(de, default_matrix_uniform_handler);
 		prepend_uniform_handler(de, custom_light_handler);
 		scene_add_drawelement(scene, de);
@@ -111,6 +112,7 @@ int main(int argc, char **argv)
 	char *renderdata;
 	int n = asprintf(&renderdata, "%s/render-data/images", getenv("HOME"));
 	append_image_path(renderdata);
+	free(renderdata);
 
 	int guile_mode = guile_cfg_only;
 	startup_cgl("name", 3, 3, argc, argv, 1366, 768, actual_main, guile_mode, false, "default.scm");

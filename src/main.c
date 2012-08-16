@@ -47,6 +47,7 @@ void keyboard(unsigned char key, int x, int y) {
 bool custom_light_handler(drawelement_ref ref, const char *uniform, int location) {
 	if (strcmp(uniform, "light_dir") == 0)         glUniform3f(location, 0, -1, -0.2);
 	else if (strcmp(uniform, "light_col") == 0)    glUniform3f(location, 1, 0.9, 0.9);
+	else if (strcmp(uniform, "hemi_dir") == 0)     glUniform3f(location, cmdline.hemi_dir.x, cmdline.hemi_dir.y, cmdline.hemi_dir.z);
 	else return false;
 	return true;
 }
@@ -75,7 +76,9 @@ void actual_main()
 	the_scene = scene;
 	int drawelements = 0;
 	void create_drawelement(const char *modelname, mesh_ref mesh, material_ref mat) {
-		shader_ref s = find_shader("diffuse-dl");
+		shader_ref s;
+		if (material_textures(mat)) s = find_shader("diffuse-dl+tex");
+		else                        s = find_shader("diffuse-dl");
 		drawelement_ref de = make_drawelement(modelname, mesh, s, mat);
 		prepend_uniform_handler(de, default_material_uniform_handler);
 		prepend_uniform_handler(de, default_matrix_uniform_handler);
@@ -111,6 +114,7 @@ int main(int argc, char **argv)
 	
 	char *renderdata;
 	int n = asprintf(&renderdata, "%s/render-data/images", getenv("HOME"));
+	n = asprintf(&renderdata, "%s/render-data/images/wikimedia", getenv("HOME"));
 	append_image_path(renderdata);
 	free(renderdata);
 

@@ -18,4 +18,14 @@
 
 (load "default.shader")
 
+(format #t "----> bla~%")
+(let ((home (getenv "HOME")))
+(format #t "----> bla~%")
+  (append-image-path (string-append home "/render-data/images"))
+(format #t "----> bla~%")
+  (append-image-path (string-append home "/render-data/images/wikimedia"))
+(format #t "----> bla~%")
+  (append-image-path (string-append home "/render-data/images/sponza")))
+(format #t "----> bla~%")
+
 (format #t "Leaving ~a.~%" (current-filename))

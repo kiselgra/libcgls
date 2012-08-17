@@ -116,16 +116,8 @@ int main(int argc, char **argv)
 {	
 	parse_cmdline(argc, argv);
 	
-	char *renderdata;
-	int n = asprintf(&renderdata, "%s/render-data/images", getenv("HOME"));
-	append_image_path(renderdata);
-	n = asprintf(&renderdata, "%s/render-data/images/wikimedia", getenv("HOME"));
-	append_image_path(renderdata);
-	n = asprintf(&renderdata, "%s/render-data/images/sponza", getenv("HOME"));
-	append_image_path(renderdata);
-	free(renderdata);
-
-	int guile_mode = guile_cfg_only;
+// 	int guile_mode = guile_cfg_only;
+	int guile_mode = with_guile;
 	startup_cgl("name", 3, 3, argc, argv, 1366, 768, actual_main, guile_mode, false, "default.scm");
 
 	return 0;

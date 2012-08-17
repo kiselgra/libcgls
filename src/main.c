@@ -115,6 +115,7 @@ int main(int argc, char **argv)
 	char *renderdata;
 	int n = asprintf(&renderdata, "%s/render-data/images", getenv("HOME"));
 	n = asprintf(&renderdata, "%s/render-data/images/wikimedia", getenv("HOME"));
+	n = asprintf(&renderdata, "%s/render-data/images/sponza", getenv("HOME"));
 	append_image_path(renderdata);
 	free(renderdata);
 

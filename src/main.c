@@ -77,8 +77,12 @@ void actual_main()
 	int drawelements = 0;
 	void create_drawelement(const char *modelname, mesh_ref mesh, material_ref mat) {
 		shader_ref s;
-		if (material_textures(mat)) s = find_shader("diffuse-dl+tex");
-		else                        s = find_shader("diffuse-dl");
+		if (cmdline.hemi)
+			if (material_textures(mat)) s = find_shader("diffuse-hemi+tex");
+			else                        s = find_shader("diffuse-hemi");
+		else
+			if (material_textures(mat)) s = find_shader("diffuse-dl+tex");
+			else                        s = find_shader("diffuse-dl");
 		drawelement_ref de = make_drawelement(modelname, mesh, s, mat);
 		prepend_uniform_handler(de, default_material_uniform_handler);
 		prepend_uniform_handler(de, default_matrix_uniform_handler);

@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-void load_objfile_and_create_objects_with_separate_vbos(const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max, void (*make_drawelem)(const char*, mesh_ref, material_ref));
+void load_objfile_and_create_objects_with_separate_vbos(const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max, void (*make_drawelem)(const char*, mesh_ref, material_ref), material_ref fallback_material);
 
 #ifdef __cplusplus
 }

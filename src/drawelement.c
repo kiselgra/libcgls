@@ -10,12 +10,24 @@ struct handler_node {
 	uniform_setter_t handler;
 };
 
+#ifdef WITH_GUILE
+#include <libguile.h>
+struct scheme_handler_node {
+	struct scheme_handler_node *next;
+	SCM handler;
+};
+#endif
+
+
 struct drawelement {
 	char *shortname, *name;
 	mesh_ref mesh;
 	shader_ref shader;
 	material_ref material;
 	struct handler_node *handler_chain;
+#ifdef WITH_GUILE
+	struct scheme_handler_node *scheme_handler_chain;
+#endif
 	matrix4x4f trafo;
 };
 
@@ -47,12 +59,20 @@ drawelement_ref make_drawelement(const char *modelname, mesh_ref mr, shader_ref 
 	de->material = matr;
 
 	de->handler_chain = 0;
+#ifdef WITH_GUILE
+	de->scheme_handler_chain = 0;
+#endif
 	make_unit_matrix4x4f(&de->trafo);
 
 // 	printf("create drawelement %s.\n", de->name);
 // 	printf("       drawelement %s.\n", modelname);
 // 	printf("       drawelement %s.\n", mesh_name(mr));
 	return ref;
+}
+
+const char* drawelement_name(drawelement_ref ref) {
+	struct drawelement *de = drawelements + ref.id;
+	return de->name;
 }
 
 matrix4x4f* drawelement_trafo(drawelement_ref ref) {
@@ -94,6 +114,8 @@ bool default_matrix_uniform_handler(drawelement_ref ref, const char *uniform, in
 	return true;
 }
 
+#undef str_eq
+
 // may also be abused to get called just before the drawelement is rendered. ;)
 void prepend_uniform_handler(drawelement_ref ref, uniform_setter_t handler) {
 	struct drawelement *de = drawelements+ref.id;
@@ -116,6 +138,13 @@ void render_drawelement(drawelement_ref ref) {
 		struct handler_node *run = de->handler_chain;
 		while (run && !run->handler(ref, name, loc))
 			run = run->next;
+#ifdef WITH_GUILE
+		struct scheme_handler_node *s_run = de->scheme_handler_chain;
+		SCM s_name = scm_from_locale_string(name);
+		while (s_run && scm_is_false(scm_call_3(s_run->handler, scm_from_int(ref.id), s_name, scm_from_int(loc))))
+			s_run = s_run->next;
+		if (s_run) run = (void*)1; // this is not very nice...
+#endif
 		if (!run)
 			printf("WARNING: cannot find a handler for uniform %s of shader %s when attached to drawelement %s.\n", 
 					name, shader_name(de->shader), de->name);
@@ -139,4 +168,53 @@ drawelement_ref find_drawelement(const char *name) {
 	}
 	return ref;
 }
+
+#ifdef WITH_GUILE
+
+// drawelement_ref make_drawelement(const char *modelname, mesh_ref mr, shader_ref sr, material_ref matr) {
+SCM_DEFINE(s_make_drawelement, "make-drawelement", 4, 0, 0, (SCM name, SCM mesh, SCM shader, SCM material), "") {
+	char *n = scm_to_locale_string(name);
+	mesh_ref me = { scm_to_int(mesh) };
+	shader_ref sh = { scm_to_int(shader) };
+	material_ref ma = { scm_to_int(material) };
+	drawelement_ref ref = make_drawelement(n, me, sh, ma);
+	free(n);
+	return scm_from_int(ref.id);
+}
+
+SCM_DEFINE(s_prepend_uniform_handler, "prepend-uniform-handler", 2, 0, 0, (SCM id, SCM handler), "") {
+	struct drawelement *de = drawelements+scm_to_int(id);
+	if (scm_is_symbol(handler)) {
+		char *symbol = scm_to_locale_string(scm_symbol_to_string(handler));
+		drawelement_ref ref = { scm_to_int(id) };
+		if (strcmp(symbol, "default-material-uniform-handler") == 0)
+			prepend_uniform_handler(ref, default_material_uniform_handler);
+		else if (strcmp(symbol, "default-matrix-uniform-handler") == 0)
+			prepend_uniform_handler(ref, default_matrix_uniform_handler);
+		else
+			scm_throw(scm_from_locale_symbol("prepend-uniform-handler-error"), scm_list_2(scm_from_locale_string("invalid key"), handler));
+	}
+	else {
+		struct scheme_handler_node *node = malloc(sizeof(struct scheme_handler_node));
+		node->next = de->scheme_handler_chain;
+		de->scheme_handler_chain = node;
+		node->handler = handler;
+	}
+	return SCM_BOOL_T;
+}
+
+SCM_DEFINE(s_glUniform3f, "gl:uniform3f", 4, 0, 0, (SCM loc, SCM x, SCM y, SCM z), "") {
+	int l = scm_to_int(loc);
+	float X = scm_to_double(x),
+		  Y = scm_to_double(y),
+		  Z = scm_to_double(z);
+	glUniform3f(l, X, Y, Z);
+	return SCM_BOOL_T;
+}
+
+void register_scheme_functions_for_drawelement() {
+#include "drawelement.x"
+}
+
+#endif
 

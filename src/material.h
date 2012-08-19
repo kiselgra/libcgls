@@ -19,6 +19,7 @@ define_slist(texture_node, const char *name; texture_ref ref; int unit);
 material_ref make_material(const char *name, vec4f *amb, vec4f *diff, vec4f *spec);
 material_ref make_material3f(const char *name, vec3f *amb, vec3f *diff, vec3f *spec);
 material_ref find_material(const char *name);
+const char* material_name(material_ref ref);
 
 vec4f* material_ambient_color(material_ref ref);
 vec4f* material_diffuse_color(material_ref ref);

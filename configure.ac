@@ -26,6 +26,16 @@ AC_PROG_LIBTOOL
 AC_CHECK_LIB([cgl], [main])
 AC_CHECK_LIB([glut], [main])
 
+ifdef([GUILE_FLAGS], [can_use_guile="yes"], [can_use_guile="no"])
+if test "x$can_use_guile" = "xyes" ; then
+	GUILE_FLAGS
+	GUILE_DEF="-DWITH_GUILE"
+else
+	GUILE_DEF=""
+fi
+AC_SUBST([GUILE_DEF])
+AM_CONDITIONAL([CAN_USE_GUILE], [test "x$can_use_guile" = "xyes"])
+
 # Checks for header files.
 AC_HEADER_STDC
 AC_CHECK_HEADERS([inttypes.h stdlib.h string.h unistd.h])

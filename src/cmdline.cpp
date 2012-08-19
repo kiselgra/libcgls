@@ -90,3 +90,32 @@ int parse_cmdline(int argc, char **argv)
 	
 Cmdline cmdline;
 
+
+#ifdef WITH_GUILE
+
+#include <libguile.h>
+#include <libcgl/scheme.h>
+
+extern "C" {
+
+	SCM_DEFINE(s_cmdline, "query-cmdline", 1, 0, 0, (SCM what), "") {
+		if (!scm_is_symbol(what))
+			scm_throw(scm_from_locale_symbol("cmdline-error"), scm_list_2(what, scm_from_locale_string("is not a symbol")));
+		char *w = scm_to_locale_string(scm_symbol_to_string(what));
+		string s = w;
+		free(w);
+		if (s == "hemi")	return (cmdline.hemi ? SCM_BOOL_T : SCM_BOOL_F);
+		else if (s == "hemi-dir") return vec3f_to_list(&cmdline.hemi_dir);
+		else if (s == "model") return scm_from_locale_string(cmdline.filename);
+
+		scm_throw(scm_from_locale_symbol("cmdline-error"), 
+		          scm_list_2(what, 
+		                    scm_from_locale_string("invalid option. use hemi, hemi-dir, model")));
+	}
+
+	void register_scheme_functions_for_cmdline() {
+		#include "cmdline.x"
+	}
+}
+
+#endif

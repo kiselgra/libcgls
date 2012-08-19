@@ -62,6 +62,11 @@ material_ref find_material(const char *name) {
 	return ref;
 }
 
+const char* material_name(material_ref ref) {
+	struct material *mat = materials+ref.id;
+	return mat->name;
+}
+
 vec4f* material_ambient_color(material_ref ref) {
 	struct material *mat = materials+ref.id;
 	return &mat->k_amb;
@@ -140,4 +145,48 @@ bool default_material_uniform_handler(drawelement_ref ref, const char *uniform, 
 	return true;
 }
 
+#undef mat
+#undef str_eq
+
+#ifdef WITH_GUILE
+
+#include <libguile.h>
+
+SCM_DEFINE(s_make_material, "make-material", 4, 0, 0, (SCM name, SCM amb, SCM diff, SCM spec), "") {
+	vec4f a = list_to_vec4f(amb),
+		  d = list_to_vec4f(diff),
+		  s = list_to_vec4f(spec);
+	char *n = scm_to_locale_string(name);
+	material_ref ref = make_material(n, &a, &d, &s);
+	free(n);
+	return scm_from_int(ref.id);
+}
+
+SCM_DEFINE(s_find_material, "find-material", 1, 0, 0, (SCM name), "") {
+	char *n = scm_to_locale_string(name);
+	material_ref ref = find_material(n);
+	free(n);
+	return scm_from_int(ref.id);
+}
+
+SCM_DEFINE(s_valid_material_p, "valid-material?", 1, 0, 0, (SCM id), "") {
+	int i = scm_to_int(id);
+	return i >= 0 ? SCM_BOOL_T : SCM_BOOL_F;
+}
+
+SCM_DEFINE(s_material_name, "material-name", 1, 0, 0, (SCM id), "") {
+	material_ref ref = { scm_to_int(id) };
+	return scm_from_locale_string(material_name(ref));
+}
+
+SCM_DEFINE(s_material_textures, "material-has-textures?", 1, 0, 0, (SCM id), "") {
+	material_ref ref = { scm_to_int(id) };
+	return material_textures(ref) ? SCM_BOOL_T : SCM_BOOL_F;
+}
+
+void register_scheme_functions_for_material() {
+#include "material.x"
+}
+
+#endif
 

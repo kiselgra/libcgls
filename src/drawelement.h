@@ -23,6 +23,7 @@ bool default_material_uniform_handler(drawelement_ref ref, const char *uniform, 
 
 drawelement_ref make_drawelement(const char *modelname, mesh_ref mr, shader_ref sr, material_ref matr);
 
+const char* drawelement_name(drawelement_ref ref);
 matrix4x4f* drawelement_trafo(drawelement_ref ref);
 mesh_ref drawelement_mesh(drawelement_ref ref);
 shader_ref drawelement_shader(drawelement_ref ref);

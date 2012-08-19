@@ -1,5 +1,7 @@
 #include "drawelement.h"
 #include "basename.h"
+#include "scene.h"
+#include "cmdline.h"
 
 
 #include <libcgl/libcgl.h>
@@ -10,7 +12,7 @@
 
 // objectname may be 0, in which case the filename will be used to prefix the generated objects.
 void load_objfile_and_create_objects_with_separate_vbos(const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max, 
-                                                        void (*make_drawelem)(const char*, mesh_ref, material_ref)) {
+                                                        void (*make_drawelem)(const char*, mesh_ref, material_ref), material_ref fallback_material) {
 	obj_data objdata;
 	const char *modelname = object_name ? object_name : filename;
 	load_objfile(modelname, filename, &objdata);
@@ -33,7 +35,7 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 	// todo: vertex-buffer sharing
 	for (int i = 0; i < objdata.number_of_groups; ++i) {
 		obj_group *group = objdata.groups + i;
-		printf("group %d: %s.\n", i, group->name);
+// 		printf("group %d: %s.\n", i, group->name);
 
 		int pos = 1,
 			norm = 1,
@@ -71,9 +73,9 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 
 // 		shader_ref s = find_shader("diffuse-dl");
 // 		make_drawelement(modelname, m, s);
-		printf("looking for material %s.\n", group->mtl->name);
-		material_ref mat = find_material(group->mtl->name);
-		printf("found: %d.\n", mat.id);
+		material_ref mat;
+		if (group->mtl) mat = find_material(group->mtl->name);
+		else            mat = fallback_material;
 		make_drawelem(modelname, m, mat);
 	
 		free(v);
@@ -99,3 +101,44 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 	}
 }
 
+#ifdef WITH_GUILE
+#include <libguile.h>
+
+bool custom_light_handler(drawelement_ref ref, const char *uniform, int location);
+
+SCM_DEFINE(s_load_objfile_and_create_objects_with_separate_vbos,
+           "load-objfile-and-create-objects-with-separate-vbos", 4, 0, 0, (SCM filename, SCM object_name, SCM callback, SCM fallback_mat), "") {
+	printf("-------loading obj from scheme\n");
+	char *f = scm_to_locale_string(filename);
+	char *o = scm_to_locale_string(object_name);
+	void create_drawelement_forwarder(const char *modelname, mesh_ref mesh, material_ref mat) {
+		/*
+		shader_ref s;
+		if (cmdline.hemi)
+			if (material_textures(mat)) s = find_shader("diffuse-hemi+tex");
+			else                        s = find_shader("diffuse-hemi");
+		else
+			if (material_textures(mat)) s = find_shader("diffuse-dl+tex");
+			else                        s = find_shader("diffuse-dl");
+		drawelement_ref de = make_drawelement(modelname, mesh, s, mat);
+		prepend_uniform_handler(de, default_material_uniform_handler);
+		prepend_uniform_handler(de, default_matrix_uniform_handler);
+		prepend_uniform_handler(de, custom_light_handler);
+		scene_add_drawelement(scene, de);
+		*/
+		scm_call_3(callback, scm_from_locale_string(modelname), scm_from_int(mesh.id), scm_from_int(mat.id));
+	}
+	vec3f min, max;
+	vec4f amb = {1,0,0,1}, diff = {1,0,0,1}, spec = {1,0,0,1};
+	material_ref fallback = { scm_to_int(fallback_mat) };
+	load_objfile_and_create_objects_with_separate_vbos(f, o, &min, &max, create_drawelement_forwarder, fallback);
+	return scm_values(scm_list_2(vec3f_to_list(&min), vec3f_to_list(&max)));
+}
+
+void register_scheme_functions_for_cgls_objloader() {
+#ifndef SCM_MAGIC_SNARFER
+#include "objloader.x"
+#endif
+}
+
+#endif

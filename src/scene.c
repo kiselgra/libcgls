@@ -77,3 +77,36 @@ void default_scene_renderer(scene_ref ref) {
 		render_drawelement(run->ref);
 }
 
+#ifdef WITH_GUILE
+#include <libguile.h>
+
+SCM_DEFINE(s_make_scene, "make-scene", 1, 0, 0, (SCM name), "") {
+	char *n = scm_to_locale_string(name);
+	scene_ref ref = make_scene(n);
+	free(n);
+	return scm_from_int(ref.id);
+}
+
+SCM_DEFINE(s_scene_add_drawelement, "add-drawelement-to-scene", 2, 0, 0, (SCM scene, SCM de), "") {
+	scene_ref s = { scm_to_int(scene) };
+	drawelement_ref d = { scm_to_int(de) };
+	scene_add_drawelement(s, d);
+	return SCM_BOOL_T;
+}
+
+SCM_DEFINE(s_scene_drawelements, "drawelement-of-scene", 1, 0, 0, (SCM scene), "") {
+	scene_ref s = { scm_to_int(scene) };
+	struct drawelement_node *node = scene_drawelements(s);
+	SCM list = scm_list_1(scm_from_int(node->ref.id));
+	while (node->next) {
+		node = node->next;
+		list = scm_cons(scm_from_int(node->next->ref.id), list);
+	}
+	return scm_reverse_x(list, SCM_EOL);
+}
+
+void register_scheme_functions_for_scene() {
+#include "scene.x"
+}
+
+#endif

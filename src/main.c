@@ -88,7 +88,10 @@ void actual_main()
 	register_keyboard_function(keyboard);
 
 	register_scheme_functions();
-	load_configfile("default.scm");
+    char *config = 0;
+    int n = asprintf(&config, "%s/%s", cmdline.include_path, cmdline.config);
+	load_configfile(config);
+    free(config);
 	scene_ref scene = { 0 };
 	the_scene = scene;
 

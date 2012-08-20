@@ -39,7 +39,6 @@
 
   
 (define (testcall name mesh material)
-  (format #t "callback with ~a  | ~a  |  ~a~%" name (mesh-name mesh) (material-name material))
   (let* ((shader (if (cmdline hemi)
 				     (if (material-has-textures? material)
 				         (find-shader "diffuse-hemi+tex")
@@ -48,7 +47,6 @@
 					     (find-shader "diffuse-dl+tex")
 						 (find-shader "diffuse-dl"))))
 		 (de (make-drawelement name mesh shader material)))
-    (format #t "shader found: ~a~%" (shader-name shader))
     (add-drawelement-to-scene the-scene de)
 	(prepend-uniform-handler de 'default-matrix-uniform-handler)
 	(prepend-uniform-handler de 'default-material-uniform-handler)

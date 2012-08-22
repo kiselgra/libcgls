@@ -75,4 +75,15 @@
         (use-camera cam))
       (set-move-factor! (/ distance 20)))))
 
+(define r .5)
+(define g 0)
+(define b 0)
+
+(define (display)
+  (gl:clear-color r g b 1)
+  (gl:clear gl#color-buffer-bit)
+  (glut:swap-buffers))
+
+(register-display-function display)
+
 (format #t "Leaving ~a.~%" (current-filename))

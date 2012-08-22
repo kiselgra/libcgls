@@ -1,3 +1,23 @@
+;; (define-material-shader just-color ((uniform vec4 color))
+;;   color)
+;; (define-material-shader texture ((uniform vec4 color) (uniform sampler2D tex) (uniform vec2 tc))
+;;   (texture tex tc))
+;; 
+;; (define-light-shader dirlight ((uniform vec3 light_dir) (uniform vec3 light_col) (uniform vec3 normal))
+;;   (decl ((float ndotl (dot normal (- light_dir))))
+;;     (* light_col ndotl)))
+;;   
+;; (define-shader my-phong
+;;   ...
+;;   :frag-uniforms ((vec2 tc))
+;;   :frag-shader 
+;;     (function main () -> void
+;;       (decl ((vec3 mat-color (texture :tc tc))
+;; 			 (vec3 light-color (dirlight)))
+;; 	    (set outcolr (* mat-color light-color))))
+;;   ...)
+
+
 #<make-shader "diffuse-dl"
 #:vertex-shader #{
 #version 150 core

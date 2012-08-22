@@ -42,7 +42,7 @@ void keyboard(unsigned char key, int x, int y) {
 	else standard_keyboard(key, x, y);
 }
 
-// try to implement this in scheme!
+// try to implement this in scheme! done! :)
 // then this could be part of a scene description
 bool custom_light_handler(drawelement_ref ref, const char *uniform, int location) {
 	if (strcmp(uniform, "light_dir") == 0)         glUniform3f(location, 0, -1, -0.2);

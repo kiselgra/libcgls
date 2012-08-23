@@ -203,6 +203,14 @@ SCM_DEFINE(s_prepend_uniform_handler, "prepend-uniform-handler", 2, 0, 0, (SCM i
 	return SCM_BOOL_T;
 }
 
+SCM_DEFINE(s_render_drawelement, "render-drawelement", 1, 0, 0, (SCM de), "") {
+	drawelement_ref ref = { scm_to_int(de) };
+    render_drawelement(ref);
+    return SCM_BOOL_T;
+}
+
+
+
 SCM_DEFINE(s_glUniform3f, "gl:uniform3f", 4, 0, 0, (SCM loc, SCM x, SCM y, SCM z), "") {
 	int l = scm_to_int(loc);
 	float X = scm_to_double(x),

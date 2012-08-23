@@ -37,7 +37,8 @@
 		(else #f))
 	)
 
-  
+(define drawelements '())
+
 (define (testcall name mesh material)
   (let* ((shader (if (cmdline hemi)
 				     (if (material-has-textures? material)
@@ -51,6 +52,7 @@
 	(prepend-uniform-handler de 'default-matrix-uniform-handler)
 	(prepend-uniform-handler de 'default-material-uniform-handler)
 	(prepend-uniform-handler de custom-uniform-handler)
+    (set! drawelements (cons de drawelements))
 	))
 
 (let ((fallback (make-material "fallback" (list 1 0 0 1) (list 1 0 0 1) (list 0 0 0 1))))
@@ -62,15 +64,36 @@
 		   (center (vec-add min diam/2))
 		   (distance (vec-length diam))
 		   (pos (vec-add center (make-vec 0 0 distance))))
-	 (format #t "POS -> ~a~%" pos)
 	  (while (> near (/ distance 100))
-	    (format #t "Near ~a  -> ~a (~a)~%" near (/ near 10) distance)
 	    (set! near (/ near 10)))
 	  (while (< far (* distance 2))
 	    (set! far (* far 2)))
-	  (format #t "n = ~a, f = ~a~%" near far)
 	  (let ((cam (make-perspective-camera "cam" pos (list 0 0 -1) (list 0 1 0) 35 (/ x-res y-res) near far)))
         (use-camera cam))
       (set-move-factor! (/ distance 20)))))
+
+(define r .5)
+(define g 0)
+(define b 0)
+
+(define command-queue '())
+(defmacro enqueue (cmd)
+  `(begin
+      (format #t "cmd: .~a.~%" ',cmd)
+      (set! command-queue (cons ',cmd command-queue))))
+(define (apply-commands)
+  (for-each primitive-eval
+            (reverse command-queue))
+  (set! command-queue '()))
+
+(define (display)
+  (gl:clear-color r g b 1)
+  (apply-commands)
+  (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
+  (for-each render-drawelement
+            drawelements)
+  (glut:swap-buffers))
+
+(register-display-function display)
 
 (format #t "Leaving ~a.~%" (current-filename))

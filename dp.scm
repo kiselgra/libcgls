@@ -2,6 +2,23 @@
 
 ;;; modules
 (use-modules (ice-9 receive))
+(use-modules (rnrs bytevectors))
+
+;; nicer cl-style keyword syntax 
+(read-set! keywords 'prefix)
+
+;;; code to definitely move someplace else
+
+(define (print-matrix bv)
+  (if (not (bytevector? bv))
+      (error "not a matrix ~a~%" bv)
+      (do ((y 0 (+ y 1)))
+          ((>= y 4))
+        (do ((x 0 (+ x 1)))
+            ((>= x 4))
+          (display (bytevector-ieee-single-native-ref bv (* 4 (+ (* x 4) y))))
+          (display "\t"))
+        (newline))))
 
 ;;; actual code
 
@@ -12,9 +29,6 @@
   (format #t "~a x ~a~%" w h)
   (set! x-res w)
   (set! y-res h))
-
-;(let ((cam (make-perspective-camera "cam" (list 0 0 5) (list 0 0 -1) (list 0 1 0) 35 (/ x-res y-res) 1 1000)))
-;  (use-camera cam))
 
 (load "default.shader")
 
@@ -28,18 +42,19 @@
 
 (define the-scene (make-scene "default"))
 
+;; scene handling
 (define (custom-uniform-handler de uniform location)
   (cond ((string=? uniform "light_dir") (gl:uniform3f location 0 -1 -0.2))
         ((string=? uniform "light_col") (gl:uniform3f location 1 .9 .9))
 		((string=? uniform "hemi_dir") 
 		   (let ((h (cmdline hemi-dir))) 
 		 	 (gl:uniform3f location (car h) (cadr h) (caddr h))))
-		(else #f))
-	)
+		(else #f)))
 
+;; scene loading
 (define drawelements '())
 
-(define (testcall name mesh material)
+(define (create-drawelement name mesh material)
   (let* ((shader (if (cmdline hemi)
 				     (if (material-has-textures? material)
 				         (find-shader "diffuse-hemi+tex")
@@ -55,10 +70,10 @@
     (set! drawelements (cons de drawelements))
 	))
 
-(let ((fallback (make-material "fallback" (list 1 0 0 1) (list 1 0 0 1) (list 0 0 0 1))))
-  (receive (min max) (load-objfile-and-create-objects-with-separate-vbos (cmdline model) (cmdline model) testcall fallback)
+(let ((fallback-material (make-material "fallback" (list 1 0 0 1) (list 1 0 0 1) (list 0 0 0 1))))
+  (receive (min max) (load-objfile-and-create-objects-with-separate-vbos (cmdline model) (cmdline model) create-drawelement fallback-material)
     (let* ((near 1)
-		   (far 1000)
+		   (far 10)
 		   (diam (vec-sub max min))
 		   (diam/2 (vec-div-by-scalar diam 2))
 		   (center (vec-add min diam/2))
@@ -72,41 +87,72 @@
         (use-camera cam))
       (set-move-factor! (/ distance 20)))))
 
-
-
-
- (let ((diffuse-tex (make-texture-without-file "deferred-diff" 'tex-2d w h 'rgba 'rgba-8 'unsigned-byte))
-       (normal-tex (make-texture-without-file "deferred-norm" 'tex-2d w h 'rgba 'rgba-32f 'float))
-       (wpos-tex (make-texture-without-file "deferred-wpos" 'tex-2d w h 'rgba 'rgba-32f 'float))
-       (depth-tex (make-texture-without-file "deferred-depth" 'tex-2d w h 'depth-component 'depth-component-32f 'float))
-       (fbo (make-framebuffer "deferred-fbo" w h)))
-   (let ((texs (list diffuse-tex normal-tex depth-tex))
-         (tex-names (list "diffuse" "normals" "depth")))
-     (apply-to-texs (lambda (t i n) (tex-params! t #f 'nearest 'nearest 'repeat 'repeat)) texs tex-names)
-     (bind-framebuffer fbo)
-     (bind-texture diffuse-tex 0)
-     (attach-texture-as-colorbuffer fbo "diffuse" diffuse-tex)
-     (bind-texture diffuse-tex 1)
-     (attach-texture-as-colorbuffer fbo "normals" normal-tex)
-     (bind-texture diffuse-tex 2)
-     (attach-texture-as-colorbuffer fbo "wpos" wpos-tex)
-     (bind-texture depth-tex 3)
-     (attach-texture-as-depthbuffer fbo "depth" depth-tex)
-     (check-framebuffer-setup fbo)
-     (unbind-framebuffer fbo)
-     (apply-to-texs (lambda (t i n) (unbind-texture t)) texs tex-names)))
-; screenshot fbo
-(let ((color (make-texture-without-file "render-color" 'tex2d w h 'rgba 'rgba-8 'unsigned-byte))
-      (fbo (make-framebuffer "render-fbo" w h)))
-  (tex-params! color #f 'nearest 'nearest 'repeat 'repeat)
+;; depthpeeling buffers
+;; - the fbos are called 'layers'
+;; - there are max-layers color buffers (including the base layer), all held in one list
+;; - there are 3 depth buffers: the one of the base layer and two buffers used in rotation to implement depth peeling
+(define max-layers 10)
+(define opaque-depth (make-texture-without-file "opaque-depth" gl#texture-2d x-res y-res gl#depth-component gl#depth-component gl#float))
+(define depth-0 (make-texture-without-file "dp-depth-0" gl#texture-2d x-res y-res gl#depth-component gl#depth-component gl#float))
+(define depth-1 (make-texture-without-file "dp-depth-1" gl#texture-2d x-res y-res gl#depth-component gl#depth-component gl#float))
+(define ids (let ((i 0))    ; this list is used to generate appropriate names for the color texs and fbos.
+              (map (lambda (_) (let ((old i)) (set! i (+ i 1)) old))
+                   (make-list max-layers))))
+(define color-texs (map (lambda (i) (make-texture-without-file (format #f "coltex-~a" i) gl#texture-2d x-res y-res gl#rgba gl#rgba8 gl#unsigned-byte))
+                        ids))
+(define fbos (map (lambda (i) (make-framebuffer (format #f "layer-~a" i) x-res y-res))
+                  ids))
+                        
+(let loop ((color-tex (car color-texs)) (depth-tex opaque-depth) (color-texs (cdr color-texs)) (fbo (car fbos)) (fbos (cdr fbos)))
+  (format #t "Making Fbo '~a' with color texture '~a' and depth buffer '~a'~%" (framebuffer-name fbo) (texture-name color-tex) (texture-name depth-tex))
   (bind-framebuffer fbo)
-  (bind-texture color 0)
-  (attach-texture-as-colorbuffer fbo "color" color)
-  (attach-depthbuffer fbo)
+  (bind-texture color-tex 0)
+  (attach-texture-as-colorbuffer fbo (texture-name color-tex) color-tex)
+  (bind-texture depth-tex 1)
+  (attach-texture-as-depthbuffer fbo (texture-name depth-tex) depth-tex)
   (check-framebuffer-setup fbo)
   (unbind-framebuffer fbo)
-  (unbind-texture color)))
+  (if (not (null? color-texs))
+      (loop (car color-texs)
+            (if (equal? depth-tex depth-0) depth-1 depth-0)
+            (cdr color-texs)
+            (car fbos)
+            (cdr fbos))))
 
+ 
+;; tex textured quad
+;; 
+(let* ((tqma (make-material "texquad" (list 0 0 0 1) (list 0 1 0 1) (list 0 0 0 1)))
+       (tqme (make-quad-with-tc "texquad"))
+       (tqsh (find-shader "texquad"))
+       (de (make-drawelement "texquad" tqme tqsh tqma)))
+  (material-add-texture tqma (car color-texs))
+  (prepend-uniform-handler de 'default-material-uniform-handler))
+
+
+;; copy a depth buffer from a texture to an fbo.
+;;
+;(let ((copy-geometry (make-drawelement "depth-copy-quad" (find-mesh "texquad") (find-shader "copy-depth") (find-material "texquad"))))
+(define* (copy-depth-buffer :key from to)
+  (let ((shader (find-shader "copy-depth"))
+        (mesh (find-mesh "texquad")))
+    (bind-framebuffer to)
+    (gl:color-mask gl#false gl#false gl#false gl#false)
+    (gl:depth-func gl#always)
+    (bind-shader shader)
+    (bind-texture from 0)
+    (gl:uniform1i (uniform-location shader "depth") 0)
+    (bind-mesh mesh)
+    (draw-mesh mesh gl#triangles)
+    (unbind-mesh mesh)
+    (unbind-texture from)
+    (unbind-framebuffer to)
+    (gl:depth-func gl#less)
+    (gl:color-mask gl#true gl#true gl#true gl#true)))
+    
+    
+ 
+;; on the fly eval of gl code
 
 (define command-queue '())
 (defmacro enqueue (cmd)
@@ -118,14 +164,41 @@
             (reverse command-queue))
   (set! command-queue '()))
 
-(define (display)
+;; the display routine registered with glut
+
+(define (display/glut)
   (gl:clear-color .1 .3 .6 1)
   (apply-commands)
+
+  (let ((fbo (car fbos))
+        (coltex (car color-texs))
+        (depthtex opaque-depth))
+    (bind-framebuffer fbo)
+    (gl:clear-color .8 .3 .6 1)
+    (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
+    (for-each render-drawelement
+              drawelements)
+    (unbind-framebuffer fbo)
+    ;(bind-texture coltex 0)
+    ;(save-texture/png coltex "coltex.png")
+    ;(bind-texture depthtex 0)
+    ;(save-texture/png depthtex "depthtex.png")
+    (copy-depth-buffer :from depthtex :to (cadr fbos))
+    (bind-texture depth-0 0)
+    (save-texture/png depth-0 "depthtest.png")
+    )
+
+
+  (gl:clear-color .1 .3 .6 1)
   (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
-  (for-each render-drawelement
-            drawelements)
+  (render-drawelement (find-drawelement "texquad/texquad"))
   (glut:swap-buffers))
 
-(register-display-function display)
+;; initial gl setup
+;;
+(register-display-function display/glut)
+(gl:enable gl#depth-test)
 
+;; done
+;;
 (format #t "Leaving ~a.~%" (current-filename))

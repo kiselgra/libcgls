@@ -210,3 +210,53 @@
 
 
 
+
+#<make-shader "texquad"
+#:vertex-shader #{
+#version 150 core
+	in vec3 in_pos;
+	in vec2 in_tc;
+	out vec2 tc;
+	void main() {
+		gl_Position = vec4(in_pos.xy, .5,1);
+		tc = in_tc;
+	}
+}
+#:fragment-shader #{
+#version 150 core
+	out vec4 out_col;
+	uniform sampler2D tex0;
+	in vec2 tc;
+	void main() {
+		out_col = vec4(texture(tex0, tc).rgb, 1);
+   //     out_col = vec4(tc,0,1);
+	}
+}
+#:inputs (list "in_pos" "in_tc")
+#:uniforms (list "tex0")>
+
+
+
+#<make-shader "copy-depth"
+#:vertex-shader #{
+#version 150 core
+	in vec3 in_pos;
+	in vec2 in_tc;
+	out vec2 tc;
+	void main() {
+		gl_Position = vec4(in_pos.xy, .5,1);
+		tc = in_tc;
+	}
+}
+#:fragment-shader #{
+#version 150 core
+	uniform sampler2D tex0;
+	in vec2 tc;
+	void main() {
+		gl_FragDepth = 0;
+	}
+}
+#:inputs (list "in_pos" "in_tc")
+#:uniforms (list "tex0")>
+
+

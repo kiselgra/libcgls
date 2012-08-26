@@ -161,7 +161,15 @@ drawelement_ref find_drawelement(const char *name) {
 	drawelement_ref ref = { -1 };
 	if (strlen(name) == 0) return ref;
 	for (int i = 0; i < next_index; ++i) {
-		if (strcmp(drawelements[i].name, name) == 0) {
+//         printf("is %s == %s?\n", name, drawelements[i].shortname);
+		if (strcmp(drawelements[i].shortname, name) == 0) {
+			ref.id = i;
+			return ref;
+		}
+	}
+    for (int i = 0; i < next_index; ++i) {
+//         printf("is %s == %s?\n", name, drawelements[i].name);
+        if (strcmp(drawelements[i].name, name) == 0) {
 			ref.id = i;
 			return ref;
 		}
@@ -209,7 +217,38 @@ SCM_DEFINE(s_render_drawelement, "render-drawelement", 1, 0, 0, (SCM de), "") {
     return SCM_BOOL_T;
 }
 
+SCM_DEFINE(s_find_drawelement, "find-drawelement", 1, 0, 0, (SCM name), "") {
+    char *n = scm_to_locale_string(name);
+    drawelement_ref ref = find_drawelement(n);
+    free(n);
+    return scm_from_int(ref.id);
+}
 
+SCM_DEFINE(s_de_trafo, "de-trafo", 1, 0, 0, (SCM de), "") {
+    SCM bv = scm_c_make_bytevector(16*4);
+    drawelement_ref ref = { scm_to_int(de) };
+    memcpy(SCM_BYTEVECTOR_CONTENTS(bv), drawelement_trafo(ref), 4*16);
+    return bv;
+}
+
+SCM_DEFINE(s_set_de_trafo_x, "set-de-trafo!", 2, 0, 0, (SCM de, SCM bv), "") {
+    if (!scm_is_bytevector(bv))
+        scm_throw(scm_from_locale_symbol("matrix-error"), scm_list_2(scm_from_locale_string("not a bytevector"), bv));
+    if (scm_c_bytevector_length(bv) != 4 * 16)
+        scm_throw(scm_from_locale_symbol("matrix-error"), scm_list_2(scm_from_locale_string("bytevector of invalid size"), bv));
+
+    drawelement_ref ref = { scm_to_int(de) };
+    memcpy(drawelement_trafo(ref), SCM_BYTEVECTOR_CONTENTS(bv), 4*16);
+
+    return SCM_BOOL_T;
+}
+
+SCM_DEFINE(s_list_des, "list-drawelements", 0, 0, 0, (), "") {
+    SCM list = scm_list_1(scm_from_locale_string(drawelements[0].shortname));
+    for (int i = 1; i < next_index; ++i)
+        list = scm_cons(scm_from_locale_string(drawelements[i].shortname), list);
+    return list;
+}
 
 SCM_DEFINE(s_glUniform3f, "gl:uniform3f", 4, 0, 0, (SCM loc, SCM x, SCM y, SCM z), "") {
 	int l = scm_to_int(loc);

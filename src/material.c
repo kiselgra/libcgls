@@ -184,6 +184,13 @@ SCM_DEFINE(s_material_textures, "material-has-textures?", 1, 0, 0, (SCM id), "")
 	return material_textures(ref) ? SCM_BOOL_T : SCM_BOOL_F;
 }
 
+SCM_DEFINE(s_material_add_texture, "material-add-texture", 2, 0, 0, (SCM mat, SCM tex), "") {
+    material_ref m = { scm_to_int(mat) };
+    texture_ref t = { scm_to_int(tex) };
+    material_add_texture(m, t);
+    return SCM_BOOL_T;
+}
+
 void register_scheme_functions_for_material() {
 #include "material.x"
 }

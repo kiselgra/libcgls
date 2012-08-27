@@ -95,6 +95,20 @@ material_ref drawelement_material(drawelement_ref ref) {
 	return de->material;
 }
 
+shader_ref drawelement_change_shader(drawelement_ref ref, shader_ref s) {
+	struct drawelement* de = drawelements+ref.id;
+    shader_ref old = de->shader;
+    de->shader = s;
+	return old;
+}
+
+material_ref drawelement_change_material(drawelement_ref ref, material_ref m) {
+	struct drawelement* de = drawelements+ref.id;
+    material_ref old = drawelement_material(ref);
+    de->material = m;
+	return old;
+}
+
 
 // uniform handlers
 
@@ -157,6 +171,26 @@ void render_drawelement(drawelement_ref ref) {
 	unbind_shader(de->shader);
 }
 
+void render_drawelement_with_shader(drawelement_ref ref, shader_ref shader) {
+    shader_ref default_s = drawelement_change_shader(ref, shader);
+    render_drawelement(ref);
+    drawelement_change_shader(ref, default_s);
+}
+
+void render_drawelement_with_material(drawelement_ref ref, material_ref material) {
+    material_ref default_m = drawelement_change_material(ref, material);
+    render_drawelement(ref);
+    drawelement_change_material(ref, default_m);
+}
+
+void render_drawelement_with(drawelement_ref ref, shader_ref shader, material_ref material) {
+    shader_ref default_s = drawelement_change_shader(ref, shader);
+    material_ref default_m = drawelement_change_material(ref, material);
+    render_drawelement(ref);
+    drawelement_change_material(ref, default_m);
+    drawelement_change_shader(ref, default_s);
+}
+
 drawelement_ref find_drawelement(const char *name) {
 	drawelement_ref ref = { -1 };
 	if (strlen(name) == 0) return ref;
@@ -215,6 +249,39 @@ SCM_DEFINE(s_render_drawelement, "render-drawelement", 1, 0, 0, (SCM de), "") {
 	drawelement_ref ref = { scm_to_int(de) };
     render_drawelement(ref);
     return SCM_BOOL_T;
+}
+
+SCM_DEFINE(s_render_drawelement_w_s, "render-drawelement-with-shader", 2, 0, 0, (SCM de, SCM sh), "") {
+	drawelement_ref ref = { scm_to_int(de) };
+	shader_ref s_ref = { scm_to_int(sh) };
+    render_drawelement_with_shader(ref, s_ref);
+    return SCM_BOOL_T;
+}
+
+SCM_DEFINE(s_render_drawelement_w_m, "render-drawelement-with-material", 2, 0, 0, (SCM de, SCM mt), "") {
+	drawelement_ref ref = { scm_to_int(de) };
+	material_ref m_ref = { scm_to_int(mt) };
+    render_drawelement_with_material(ref, m_ref);
+    return SCM_BOOL_T;
+}
+
+SCM_DEFINE(s_render_drawelement_w, "render-drawelement-with", 3, 0, 0, (SCM de, SCM sh, SCM mt), "") {
+	drawelement_ref ref = { scm_to_int(de) };
+	shader_ref s_ref = { scm_to_int(sh) };
+	material_ref m_ref = { scm_to_int(mt) };
+    render_drawelement_with(ref, s_ref, m_ref);
+}
+
+SCM_DEFINE(s_drawelement_shader, "drawelement-shader", 1, 0, 0, (SCM de), "") {
+	drawelement_ref ref = { scm_to_int(de) };
+    shader_ref s = drawelement_shader(ref);
+    return scm_from_int(s.id);
+}
+
+SCM_DEFINE(s_drawelement_material, "drawelement-material", 1, 0, 0, (SCM de), "") {
+	drawelement_ref ref = { scm_to_int(de) };
+    material_ref m = drawelement_material(ref);
+    return scm_from_int(m.id);
 }
 
 SCM_DEFINE(s_find_drawelement, "find-drawelement", 1, 0, 0, (SCM name), "") {

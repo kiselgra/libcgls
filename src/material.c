@@ -19,7 +19,8 @@
 struct material {
 	char *name;
 	vec4f k_amb, k_diff, k_spec;
-	struct texture_node *textures, *back;
+	struct texture_node *textures_head, *back;
+    int textures;
 	// blend stuff?
 	void *aux;
 };
@@ -39,7 +40,8 @@ material_ref make_material(const char *name, vec4f *amb, vec4f *diff, vec4f *spe
 	mat->k_diff = *diff;
 	mat->k_spec = *spec;
 
-	mat->textures = mat->back = 0;
+    mat->textures = 0;
+	mat->textures_head = mat->back = 0;
 	mat->aux = 0;
 	return ref;
 }
@@ -84,6 +86,11 @@ vec4f* material_specular_color(material_ref ref) {
 
 struct texture_node* material_textures(material_ref ref) {
 	struct material *mat = materials+ref.id;
+	return mat->textures_head;
+}
+
+int material_number_of_textures(material_ref ref) {
+	struct material *mat = materials+ref.id;
 	return mat->textures;
 }
 
@@ -91,8 +98,8 @@ void material_add_texture(material_ref ref, texture_ref tex) {
 	struct material *mat = materials+ref.id;
 	struct texture_node *new_node = malloc(sizeof(struct texture_node));
 	int unit = 0;
-	if (mat->textures == 0)
-		mat->textures = new_node;
+	if (mat->textures_head == 0)
+		mat->textures_head = new_node;
 	else {
 		mat->back->next = new_node; 
 		unit = mat->back->unit;
@@ -102,6 +109,7 @@ void material_add_texture(material_ref ref, texture_ref tex) {
 	mat->back->unit = unit;
 	mat->back->name = strdup(texture_name(tex));
 	mat->back->next = 0;
+    mat->textures++;
 }
 
 void* material_aux(material_ref ref) {
@@ -179,9 +187,24 @@ SCM_DEFINE(s_material_name, "material-name", 1, 0, 0, (SCM id), "") {
 	return scm_from_locale_string(material_name(ref));
 }
 
-SCM_DEFINE(s_material_textures, "material-has-textures?", 1, 0, 0, (SCM id), "") {
+SCM_DEFINE(s_material_has_textures, "material-has-textures?", 1, 0, 0, (SCM id), "") {
 	material_ref ref = { scm_to_int(id) };
 	return material_textures(ref) ? SCM_BOOL_T : SCM_BOOL_F;
+}
+
+SCM_DEFINE(s_material_no_of_textures, "material-number-of-textures", 1, 0, 0, (SCM id), "") {
+	material_ref ref = { scm_to_int(id) };
+	return scm_from_int(material_number_of_textures(ref));
+}
+
+SCM_DEFINE(s_material_textures, "material-textures", 1, 0, 0, (SCM id), "") {
+    SCM list = SCM_EOL;
+	material_ref ref = { scm_to_int(id) };
+    
+    for (struct texture_node *run = material_textures(ref); run; run = run->next)
+        list = scm_cons(scm_from_int(run->ref.id), list);
+
+    return list;
 }
 
 SCM_DEFINE(s_material_add_texture, "material-add-texture", 2, 0, 0, (SCM mat, SCM tex), "") {

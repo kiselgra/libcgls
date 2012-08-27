@@ -29,6 +29,11 @@ mesh_ref drawelement_mesh(drawelement_ref ref);
 shader_ref drawelement_shader(drawelement_ref ref);
 material_ref drawelement_material(drawelement_ref ref);
 
+material_ref drawelement_change_material(drawelement_ref ref, material_ref m);
+shader_ref drawelement_change_shader(drawelement_ref ref, shader_ref s);
+void render_drawelement_with_shader(drawelement_ref ref, shader_ref shader);
+void render_drawelement_with_material(drawelement_ref ref, material_ref material);
+void render_drawelement_with(drawelement_ref ref, shader_ref shader, material_ref material);
 
 void prepend_uniform_handler(drawelement_ref ref, uniform_setter_t handler);
 void render_drawelement(drawelement_ref ref);

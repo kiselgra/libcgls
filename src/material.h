@@ -25,6 +25,7 @@ vec4f* material_ambient_color(material_ref ref);
 vec4f* material_diffuse_color(material_ref ref);
 vec4f* material_specular_color(material_ref ref);
 
+int material_number_of_textures(material_ref ref);
 struct texture_node* material_textures(material_ref ref);
 void material_add_texture(material_ref ref, texture_ref tex);
 

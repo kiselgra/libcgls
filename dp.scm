@@ -51,6 +51,11 @@
 		 	 (gl:uniform3f location (car h) (cadr h) (caddr h))))
 		(else #f)))
 
+(define (dp-uniform-handler de uniform location)
+  (cond ((string=? "depth" uniform)
+         (gl:uniform1i location (material-number-of-textures (drawelement-material de))) #t)
+        (else #f)))
+
 ;; scene loading
 (define drawelements '())
 
@@ -67,6 +72,7 @@
 	(prepend-uniform-handler de 'default-matrix-uniform-handler)
 	(prepend-uniform-handler de 'default-material-uniform-handler)
 	(prepend-uniform-handler de custom-uniform-handler)
+	(prepend-uniform-handler de dp-uniform-handler)
     (set! drawelements (cons de drawelements))
 	))
 
@@ -179,14 +185,33 @@
     (for-each render-drawelement
               drawelements)
     (unbind-framebuffer fbo)
-    ;(bind-texture coltex 0)
-    ;(save-texture/png coltex "coltex.png")
-    ;(bind-texture depthtex 0)
-    ;(save-texture/png depthtex "depthtex.png")
-    (copy-depth-buffer :from depthtex :to (cadr fbos))
-    (bind-texture depth-0 0)
-    (save-texture/png depth-0 "depthtest.png")
+    (bind-texture coltex 0)
+    (save-texture/png coltex "bla-col.png")
+    (bind-texture depthtex 0)
+    (save-texture/png depthtex "bla-dep.png")
+    ;(copy-depth-buffer :from depthtex :to (cadr fbos))
+    ;(bind-texture depth-0 0)
+    ;(save-texture/png depth-0 "depthtex-1copy.png")
     )
+
+    (let ((fbo (cadr fbos))
+          (depth-tex opaque-depth))
+      (bind-framebuffer (cadr fbos))
+      (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
+      (for-each (lambda (de)
+                  (bind-texture depth-tex (material-number-of-textures (drawelement-material de)))
+                  (render-drawelement-with-shader de (find-shader "diffuse-hemi/dp"))
+                  (unbind-texture depth-tex)
+                  )
+                drawelements)
+      (unbind-framebuffer (cadr fbos))
+      (bind-texture (cadr color-texs) 0)
+      (save-texture/png (cadr color-texs) "bla.png")
+      (bind-texture depth-0 0)
+      (save-texture/png depth-0 "blad.png")
+      )
+
+
 
 
   (gl:clear-color .1 .3 .6 1)

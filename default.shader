@@ -206,13 +206,63 @@
 
 		out_col = vec4(0.,0.,0.,1.);
 
-		float n_dot_l = max(0, 0.5*(1+dot(norm_wc, hemi_dir)));
+		float n_dot_l = max(0, 0.5*(1+dot(-norm_wc, hemi_dir)));
 		out_col += vec4(diffuse_color.rgb * light_col * n_dot_l, 0.);
-//        out_col = vec4(min_depth, min_depth, min_depth, 1);
+//         out_col = vec4(norm_wc.rgb,1);
 	}
 }
 #:inputs (list "in_pos" "in_norm")
 #:uniforms (list "proj" "view" "model" "hemi_dir" "light_col" "depth" "diffuse_color")>
+
+
+#<make-shader "diffuse-hemi+tex/dp"
+#:vertex-shader #{
+#version 150 core
+	in vec3 in_pos;
+	in vec3 in_norm;
+	in vec2 in_tc;
+	uniform mat4 proj;
+	uniform mat4 view;
+	uniform mat4 model;
+	out vec4 pos_wc;
+	out vec3 norm_wc;
+	out vec2 tc;
+	out vec2 tc2;
+	void main() {
+		pos_wc = model * vec4(in_pos, 1.0);
+		norm_wc = in_norm;
+		vec4 pos_proj = proj * view * pos_wc;
+        gl_Position = pos_proj;
+		tc = in_tc;
+		tc2 = pos_proj.xy/pos_proj.w * 0.5 + 0.5;
+	}
+}
+#:fragment-shader #{
+#version 150 core
+	out vec4 out_col;
+	uniform vec3 hemi_dir;
+	uniform vec3 light_col;
+	uniform sampler2D tex0;
+	uniform sampler2D depth;
+	in vec4 pos_wc;
+	in vec3 norm_wc;
+	in vec2 tc;
+	in vec2 tc2;
+	void main() {
+        float min_depth = texture(depth, tc2).r;
+        float frag_depth = gl_FragCoord.z;
+        if (frag_depth <= min_depth)
+            discard;
+
+		out_col = vec4(0.,0.,0.,1.);
+
+		float n_dot_l = max(0, 0.5*(1+dot(norm_wc, hemi_dir)));
+		vec3 color = texture(tex0, tc).rgb;
+		out_col += vec4(color * light_col * n_dot_l, 0.);
+	}
+}
+#:inputs (list "in_pos" "in_norm" "in_tc")
+#:uniforms (list "proj" "view" "model" "hemi_dir" "light_col" "tex0" "depth")>
 
 
 

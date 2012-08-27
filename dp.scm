@@ -58,6 +58,7 @@
 
 ;; scene loading
 (define drawelements '())
+(define peeling-shaders '())
 
 (define (create-drawelement name mesh material)
   (let* ((shader (if (cmdline hemi)
@@ -74,12 +75,13 @@
 	(prepend-uniform-handler de custom-uniform-handler)
 	(prepend-uniform-handler de dp-uniform-handler)
     (set! drawelements (cons de drawelements))
+    (set! peeling-shaders (cons (find-shader (string-append (shader-name shader) "/dp")) peeling-shaders))
 	))
 
 (let ((fallback-material (make-material "fallback" (list 1 0 0 1) (list 1 0 0 1) (list 0 0 0 1))))
   (receive (min max) (load-objfile-and-create-objects-with-separate-vbos (cmdline model) (cmdline model) create-drawelement fallback-material)
     (let* ((near 1)
-		   (far 10)
+		   (far 1)
 		   (diam (vec-sub max min))
 		   (diam/2 (vec-div-by-scalar diam 2))
 		   (center (vec-add min diam/2))
@@ -98,9 +100,9 @@
 ;; - there are max-layers color buffers (including the base layer), all held in one list
 ;; - there are 3 depth buffers: the one of the base layer and two buffers used in rotation to implement depth peeling
 (define max-layers 10)
-(define opaque-depth (make-texture-without-file "opaque-depth" gl#texture-2d x-res y-res gl#depth-component gl#depth-component gl#float))
-(define depth-0 (make-texture-without-file "dp-depth-0" gl#texture-2d x-res y-res gl#depth-component gl#depth-component gl#float))
-(define depth-1 (make-texture-without-file "dp-depth-1" gl#texture-2d x-res y-res gl#depth-component gl#depth-component gl#float))
+(define opaque-depth (make-texture-without-file "opaque-depth" gl#texture-2d x-res y-res gl#depth-component gl#depth-component32f gl#float))
+(define depth-0 (make-texture-without-file "dp-depth-0" gl#texture-2d x-res y-res gl#depth-component gl#depth-component32f gl#float))
+(define depth-1 (make-texture-without-file "dp-depth-1" gl#texture-2d x-res y-res gl#depth-component gl#depth-component32f gl#float))
 (define ids (let ((i 0))    ; this list is used to generate appropriate names for the color texs and fbos.
               (map (lambda (_) (let ((old i)) (set! i (+ i 1)) old))
                    (make-list max-layers))))
@@ -172,6 +174,8 @@
 
 ;; the display routine registered with glut
 
+(define peel #f)
+
 (define (display/glut)
   (gl:clear-color .1 .3 .6 1)
   (apply-commands)
@@ -186,30 +190,59 @@
               drawelements)
     (unbind-framebuffer fbo)
     (bind-texture coltex 0)
-    (save-texture/png coltex "bla-col.png")
-    (bind-texture depthtex 0)
-    (save-texture/png depthtex "bla-dep.png")
+    (if peel (save-texture/png coltex "layer-0-c.png"))
+    ;(bind-texture depthtex 0)
+    ;(save-texture/png depthtex "bla-dep.png")
     ;(copy-depth-buffer :from depthtex :to (cadr fbos))
     ;(bind-texture depth-0 0)
     ;(save-texture/png depth-0 "depthtex-1copy.png")
     )
 
-    (let ((fbo (cadr fbos))
-          (depth-tex opaque-depth))
-      (bind-framebuffer (cadr fbos))
-      (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
-      (for-each (lambda (de)
-                  (bind-texture depth-tex (material-number-of-textures (drawelement-material de)))
-                  (render-drawelement-with-shader de (find-shader "diffuse-hemi/dp"))
-                  (unbind-texture depth-tex)
-                  )
-                drawelements)
-      (unbind-framebuffer (cadr fbos))
-      (bind-texture (cadr color-texs) 0)
-      (save-texture/png (cadr color-texs) "bla.png")
-      (bind-texture depth-0 0)
-      (save-texture/png depth-0 "blad.png")
-      )
+;    (let ((fbo (cadr fbos))
+;          (depth-tex opaque-depth))
+;      (bind-framebuffer (cadr fbos))
+;      (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
+;      (gl:enable gl#polygon-offset-fill)
+;      (gl:polygon-offset -1 -1)
+;      (for-each (lambda (de)
+;                  (bind-texture depth-tex (material-number-of-textures (drawelement-material de)))
+;                  (render-drawelement-with-shader de (find-shader "diffuse-hemi/dp"))
+;                  (unbind-texture depth-tex)
+;                  )
+;                drawelements)
+;      (unbind-framebuffer (cadr fbos))
+;      (bind-texture (cadr color-texs) 0)
+;      (save-texture/png (cadr color-texs) "bla.png")
+;      (bind-texture depth-0 0)
+;      (save-texture/png depth-0 "blad.png")
+;      (gl:disable gl#polygon-offset-fill)
+;      )
+
+    (if peel 
+      (let peeling-loop ((fbos (cdr fbos)) (color-texs (cdr color-texs)) (depth-tex opaque-depth) (i 1))
+        (let ((fbo (car fbos)) (color-tex (car color-texs)))
+          (format #t "rendering to layer ~a. using fbo ~a, minimal depth taken from ~a.~%" i (framebuffer-name fbo) (texture-name depth-tex))
+          (bind-framebuffer fbo)
+          (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
+          (gl:enable gl#polygon-offset-fill)
+          (gl:polygon-offset (- i) (- i))
+          (for-each (lambda (de sh)
+                     (bind-texture depth-tex (material-number-of-textures (drawelement-material de)))
+                     (render-drawelement-with-shader de sh) ; (find-shader "diffuse-hemi/dp"))
+                     (unbind-texture depth-tex))
+                    drawelements
+                    peeling-shaders)
+          (unbind-framebuffer fbo)
+          (bind-texture color-tex 0)
+          (save-texture/png color-tex (format #f "layer-~a-c.png" i))
+          (gl:disable gl#polygon-offset-fill)
+          )
+        (if (not (null? (cdr fbos)))
+            (peeling-loop (cdr fbos) (cdr color-texs) (if (equal? depth-tex depth-0) depth-1 depth-0) (1+ i))))
+        
+        )
+        (set! peel #f)
+
 
 
 

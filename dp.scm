@@ -75,10 +75,15 @@
 	(prepend-uniform-handler de custom-uniform-handler)
 	(prepend-uniform-handler de dp-uniform-handler)
     (set! drawelements (cons de drawelements))
-    (set! peeling-shaders (cons (find-shader (string-append (shader-name shader) "/dp")) peeling-shaders))
+    (set! peeling-shaders (cons (if (string-contains (material-name material) "fabric")
+                                    (begin 
+                                      (set-material-diffuse-color! material (make-vec 1 1 1 .70))
+                                      (find-shader (string-append (shader-name shader) "/dp")))
+                                    #f)
+                                peeling-shaders))
 	))
 
-(let ((fallback-material (make-material "fallback" (list 1 0 0 1) (list 1 0 0 1) (list 0 0 0 1))))
+(let ((fallback-material (make-material "fallback" (make-vec 1 0 0 1) (make-vec 1 0 0 1) (make-vec 0 0 0 1))))
   (receive (min max) (load-objfile-and-create-objects-with-separate-vbos (cmdline model) (cmdline model) create-drawelement fallback-material)
     (let* ((near 1)
 		   (far 1)
@@ -91,7 +96,8 @@
 	    (set! near (/ near 10)))
 	  (while (< far (* distance 2))
 	    (set! far (* far 2)))
-	  (let ((cam (make-perspective-camera "cam" pos (list 0 0 -1) (list 0 1 0) 35 (/ x-res y-res) near far)))
+	  ;(let ((cam (make-perspective-camera "cam" pos (make-vec 0 0 -1) (make-vec 0 1 0) 35 (/ x-res y-res) near far)))
+	  (let ((cam (make-perspective-camera "cam" (make-vec -64.431862 698.080017 390.393158) (make-vec -0.319869 -0.316504 -0.893030) (make-vec -0.025723 0.945105 -0.325747) 35 (/ x-res y-res) near far)))
         (use-camera cam))
       (set-move-factor! (/ distance 20)))))
 
@@ -130,7 +136,7 @@
  
 ;; tex textured quad
 ;; 
-(let* ((tqma (make-material "texquad" (list 0 0 0 1) (list 0 1 0 1) (list 0 0 0 1)))
+(let* ((tqma (make-material "texquad" (make-vec 0 0 0 1) (make-vec 0 1 0 1) (make-vec 0 0 0 1)))
        (tqme (make-quad-with-tc "texquad"))
        (tqsh (find-shader "texquad"))
        (de (make-drawelement "texquad" tqme tqsh tqma)))
@@ -174,82 +180,88 @@
 
 ;; the display routine registered with glut
 
-(define peel #f)
+(define peel #t)
+(define peel-debug #f)
 
 (define (display/glut)
-  (gl:clear-color .1 .3 .6 1)
+  (gl:clear-color .9 .9 .6 1)
   (apply-commands)
 
+  ;; generate the base image.
   (let ((fbo (car fbos))
         (coltex (car color-texs))
         (depthtex opaque-depth))
     (bind-framebuffer fbo)
-    (gl:clear-color .8 .3 .6 1)
+    (gl:clear-color .1 .3 .6 1)
     (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
-    (for-each render-drawelement
-              drawelements)
+    (for-each (lambda (de transparent)
+                (when (not transparent)
+                  (render-drawelement de)))
+              drawelements
+              peeling-shaders)
     (unbind-framebuffer fbo)
     (bind-texture coltex 0)
-    (if peel (save-texture/png coltex "layer-0-c.png"))
-    ;(bind-texture depthtex 0)
-    ;(save-texture/png depthtex "bla-dep.png")
-    ;(copy-depth-buffer :from depthtex :to (cadr fbos))
-    ;(bind-texture depth-0 0)
-    ;(save-texture/png depth-0 "depthtex-1copy.png")
-    )
-
-;    (let ((fbo (cadr fbos))
-;          (depth-tex opaque-depth))
-;      (bind-framebuffer (cadr fbos))
-;      (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
-;      (gl:enable gl#polygon-offset-fill)
-;      (gl:polygon-offset -1 -1)
-;      (for-each (lambda (de)
-;                  (bind-texture depth-tex (material-number-of-textures (drawelement-material de)))
-;                  (render-drawelement-with-shader de (find-shader "diffuse-hemi/dp"))
-;                  (unbind-texture depth-tex)
-;                  )
-;                drawelements)
-;      (unbind-framebuffer (cadr fbos))
-;      (bind-texture (cadr color-texs) 0)
-;      (save-texture/png (cadr color-texs) "bla.png")
-;      (bind-texture depth-0 0)
-;      (save-texture/png depth-0 "blad.png")
-;      (gl:disable gl#polygon-offset-fill)
-;      )
-
-    (if peel 
-      (let peeling-loop ((fbos (cdr fbos)) (color-texs (cdr color-texs)) (depth-tex opaque-depth) (i 1))
-        (let ((fbo (car fbos)) (color-tex (car color-texs)))
-          (format #t "rendering to layer ~a. using fbo ~a, minimal depth taken from ~a.~%" i (framebuffer-name fbo) (texture-name depth-tex))
-          (bind-framebuffer fbo)
-          (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
-          (gl:enable gl#polygon-offset-fill)
-          (gl:polygon-offset (- i) (- i))
-          (for-each (lambda (de sh)
-                     (bind-texture depth-tex (material-number-of-textures (drawelement-material de)))
-                     (render-drawelement-with-shader de sh) ; (find-shader "diffuse-hemi/dp"))
-                     (unbind-texture depth-tex))
-                    drawelements
-                    peeling-shaders)
-          (unbind-framebuffer fbo)
-          (bind-texture color-tex 0)
-          (save-texture/png color-tex (format #f "layer-~a-c.png" i))
-          (gl:disable gl#polygon-offset-fill)
-          )
-        (if (not (null? (cdr fbos)))
-            (peeling-loop (cdr fbos) (cdr color-texs) (if (equal? depth-tex depth-0) depth-1 depth-0) (1+ i))))
-        
-        )
-        (set! peel #f)
-
-
-
-
-
+    (if peel-debug (save-texture/png coltex "layer-0-c.png")))
+  
+  ;; display the base image
   (gl:clear-color .1 .3 .6 1)
   (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
   (render-drawelement (find-drawelement "texquad/texquad"))
+
+  (when peel 
+    ;;; generate the different depth slice images
+    ;; first: the initial minimal depth is on the near plane
+    (gl:clear-depthf 0)
+    (bind-framebuffer (list-ref fbos 2))
+    (gl:clear gl#depth-buffer-bit)
+    (unbind-framebuffer (list-ref fbos 2))
+    (gl:clear-depthf 1)
+    (let peeling-loop ((fbos (cdr fbos)) (color-texs (cdr color-texs)) (depth-tex depth-1) (i 1))
+      (let ((fbo (car fbos)) (color-tex (car color-texs)))
+        ;; each time: initialize the depth buffer of the current slice to the opaqe objects. noting behind them can be seen.
+        (if peel-debug (format #t "rendering to layer ~a. using fbo ~a, minimal depth taken from ~a.~%" i (framebuffer-name fbo) (texture-name depth-tex)))
+        (copy-depth-buffer :from opaque-depth :to fbo)
+        (bind-framebuffer fbo)
+        ;; now render to the slice (clearing to alpha=0 ignores unset fragments in the blending pass).
+        (gl:clear-color 0.3 0.3 0.3 0)
+        (gl:clear gl#color-buffer-bit)
+        (gl:enable gl#polygon-offset-fill)
+        (gl:polygon-offset (- i) (- i))
+        (for-each (lambda (de sh)
+                    (when sh
+                      (bind-texture depth-tex (material-number-of-textures (drawelement-material de)))
+                      (render-drawelement-with-shader de sh) ; (find-shader "diffuse-hemi/dp"))
+                      (unbind-texture depth-tex)))
+                  drawelements
+                  peeling-shaders)
+        (unbind-framebuffer fbo)
+        (when peel-debug
+          (bind-texture color-tex 0)
+          (save-texture/png color-tex (format #f "layer-~a-c.png" i)))
+        (gl:disable gl#polygon-offset-fill))
+      (if (not (null? (cdr fbos)))
+          (peeling-loop (cdr fbos) (cdr color-texs) (if (equal? depth-tex depth-0) depth-1 depth-0) (1+ i))))
+    ;; now blend the layers
+    (gl:enable gl#blend)
+    (gl:blend-func gl#src-alpha gl#one-minus-src-alpha)
+    (gl:depth-func gl#always)
+    (let ((shader (find-shader "texquad"))
+          (mesh (find-mesh "texquad")))
+      (let blend-loop ((color-texs (reverse (cdr color-texs))))
+        (bind-shader shader)
+        (bind-texture (car color-texs) 0)
+        (gl:uniform1i (uniform-location shader "tex0") 0)
+        (bind-mesh mesh)
+        (draw-mesh mesh gl#triangles)
+        (unbind-mesh mesh)
+        (unbind-texture (car color-texs))
+        (if (not (null? (cdr color-texs)))
+          (blend-loop (cdr color-texs))))
+    )
+    (gl:depth-func gl#less)
+    (gl:disable gl#blend))
+  (set! peel-debug #f)
+
   (glut:swap-buffers))
 
 ;; initial gl setup

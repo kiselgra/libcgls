@@ -244,6 +244,7 @@
 	uniform vec3 light_col;
 	uniform sampler2D tex0;
 	uniform sampler2D depth;
+    uniform vec4 diffuse_color;
 	in vec4 pos_wc;
 	in vec3 norm_wc;
 	in vec2 tc;
@@ -254,15 +255,13 @@
         if (frag_depth <= min_depth)
             discard;
 
-		out_col = vec4(0.,0.,0.,1.);
-
 		float n_dot_l = max(0, 0.5*(1+dot(norm_wc, hemi_dir)));
-		vec3 color = texture(tex0, tc).rgb;
-		out_col += vec4(color * light_col * n_dot_l, 0.);
+		vec4 color = texture(tex0, tc);
+		out_col = vec4(color.rgb * diffuse_color.rgb * light_col * n_dot_l, color.a * diffuse_color.a);
 	}
 }
 #:inputs (list "in_pos" "in_norm" "in_tc")
-#:uniforms (list "proj" "view" "model" "hemi_dir" "light_col" "tex0" "depth")>
+#:uniforms (list "proj" "view" "model" "hemi_dir" "light_col" "tex0" "depth" "diffuse_color")>
 
 
 
@@ -325,8 +324,7 @@
 	uniform sampler2D tex0;
 	in vec2 tc;
 	void main() {
-		out_col = vec4(texture(tex0, tc).rgb, 1);
-   //     out_col = vec4(tc,0,1);
+		out_col = texture(tex0, tc);
 	}
 }
 #:inputs (list "in_pos" "in_tc")

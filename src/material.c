@@ -1,6 +1,8 @@
 #include "material.h"
 #include "drawelement.h"
 
+#include <libcgl/libcgl.h>
+
 #include <string.h>
 #include <stdlib.h>
 
@@ -29,6 +31,9 @@ struct material {
 #define ARRAY materials
 #define REF material_ref
 #include <libcgl/mm.h>
+#undef REF
+#undef TYPE
+#undef ARRAY
 
 material_ref make_material(const char *name, vec4f *amb, vec4f *diff, vec4f *spec) {
 	material_ref ref = allocate_ref();
@@ -160,6 +165,8 @@ bool default_material_uniform_handler(drawelement_ref ref, const char *uniform, 
 
 #include <libguile.h>
 
+#define REF(id) material_ref ref = { scm_to_int(id) };
+
 SCM_DEFINE(s_make_material, "make-material", 4, 0, 0, (SCM name, SCM amb, SCM diff, SCM spec), "") {
 	vec4f a = list_to_vec4f(amb),
 		  d = list_to_vec4f(diff),
@@ -183,23 +190,23 @@ SCM_DEFINE(s_valid_material_p, "valid-material?", 1, 0, 0, (SCM id), "") {
 }
 
 SCM_DEFINE(s_material_name, "material-name", 1, 0, 0, (SCM id), "") {
-	material_ref ref = { scm_to_int(id) };
+	REF(id);
 	return scm_from_locale_string(material_name(ref));
 }
 
 SCM_DEFINE(s_material_has_textures, "material-has-textures?", 1, 0, 0, (SCM id), "") {
-	material_ref ref = { scm_to_int(id) };
+	REF(id);
 	return material_textures(ref) ? SCM_BOOL_T : SCM_BOOL_F;
 }
 
 SCM_DEFINE(s_material_no_of_textures, "material-number-of-textures", 1, 0, 0, (SCM id), "") {
-	material_ref ref = { scm_to_int(id) };
+	REF(id);
 	return scm_from_int(material_number_of_textures(ref));
 }
 
 SCM_DEFINE(s_material_textures, "material-textures", 1, 0, 0, (SCM id), "") {
     SCM list = SCM_EOL;
-	material_ref ref = { scm_to_int(id) };
+	REF(id);
     
     for (struct texture_node *run = material_textures(ref); run; run = run->next)
         list = scm_cons(scm_from_int(run->ref.id), list);
@@ -208,9 +215,45 @@ SCM_DEFINE(s_material_textures, "material-textures", 1, 0, 0, (SCM id), "") {
 }
 
 SCM_DEFINE(s_material_add_texture, "material-add-texture", 2, 0, 0, (SCM mat, SCM tex), "") {
-    material_ref m = { scm_to_int(mat) };
+    REF(mat);
     texture_ref t = { scm_to_int(tex) };
-    material_add_texture(m, t);
+    material_add_texture(ref, t);
+    return SCM_BOOL_T;
+}
+
+SCM_DEFINE(s_material_ambient_color, "material-ambient-color", 1, 0, 0, (SCM id), "") {
+    REF(id);
+    return vec4f_to_scm_vec(material_ambient_color(ref));
+}
+
+SCM_DEFINE(s_material_diffuse_color, "material-diffuse-color", 1, 0, 0, (SCM id), "") {
+    REF(id);
+    return vec4f_to_scm_vec(material_diffuse_color(ref));
+}
+
+SCM_DEFINE(s_material_specular_color, "material-specular-color", 1, 0, 0, (SCM id), "") {
+    REF(id);
+    return vec4f_to_scm_vec(material_specular_color(ref));
+}
+
+SCM_DEFINE(s_material_ambient_color_x, "set-material-ambient-color!", 2, 0, 0, (SCM id, SCM col), "") {
+    REF(id);
+    vec4f color = scm_vec_to_vec4f(col);
+    *material_ambient_color(ref) = color;
+    return SCM_BOOL_T;
+}
+
+SCM_DEFINE(s_material_diffuse_color_x, "set-material-diffuse-color!", 2, 0, 0, (SCM id, SCM col), "") {
+    REF(id);
+    vec4f color = scm_vec_to_vec4f(col);
+    *material_diffuse_color(ref) = color;
+    return SCM_BOOL_T;
+}
+
+SCM_DEFINE(s_material_specular_color_x, "set-material-specular-color!", 2, 0, 0, (SCM id, SCM col), "") {
+    REF(id);
+    vec4f color = scm_vec_to_vec4f(col);
+    *material_specular_color(ref) = color;
     return SCM_BOOL_T;
 }
 

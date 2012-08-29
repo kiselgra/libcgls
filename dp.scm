@@ -96,8 +96,8 @@
 	    (set! near (/ near 10)))
 	  (while (< far (* distance 2))
 	    (set! far (* far 2)))
-	  ;(let ((cam (make-perspective-camera "cam" pos (make-vec 0 0 -1) (make-vec 0 1 0) 35 (/ x-res y-res) near far)))
-	  (let ((cam (make-perspective-camera "cam" (make-vec -64.431862 698.080017 390.393158) (make-vec -0.319869 -0.316504 -0.893030) (make-vec -0.025723 0.945105 -0.325747) 35 (/ x-res y-res) near far)))
+	  (let ((cam (make-perspective-camera "cam" pos (make-vec 0 0 -1) (make-vec 0 1 0) 35 (/ x-res y-res) near far)))
+	  ;(let ((cam (make-perspective-camera "cam" (make-vec -64.431862 698.080017 390.393158) (make-vec -0.319869 -0.316504 -0.893030) (make-vec -0.025723 0.945105 -0.325747) 35 (/ x-res y-res) near far)))
         (use-camera cam))
       (set-move-factor! (/ distance 20)))))
 

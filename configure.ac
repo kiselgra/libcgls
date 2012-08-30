@@ -23,6 +23,7 @@ AM_PROG_CC_C_O
 AC_PROG_LIBTOOL
 
 # Checks for libraries.
+AC_CHECK_LIB([mcm], [main])
 AC_CHECK_LIB([cgl], [main])
 AC_CHECK_LIB([glut], [main])
 

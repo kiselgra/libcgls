@@ -12,6 +12,8 @@ typedef struct
 	const char *filename;
 	vec3f hemi_dir;
 	bool hemi;
+    const char *config;
+    const char *include_path;
 } Cmdline;
 
 #ifdef __cplusplus

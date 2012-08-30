@@ -9,4 +9,20 @@ run:
 	cd src; make
 	./src/viewer-cgls
 
-EXTRA_DIST = default.scm default.shader
+
+BUILT_SOURCES = revision
+
+revision:
+	git log -n1 | head -n1 > $@
+
+revisiondir = $(pkgdatadir)
+revision_DATA = revision
+
+#pkgconfigdir = $(libdir)/pkgconfig
+#pkgconfig_DATA = libcgl.pc
+
+#EXTRA_DIST += libcgl.pc revision
+
+scheme_DATA = default.scm default.shader dp.scm
+schemedir = $(pkgdatadir)
+EXTRA_DIST = $(scheme_DATA)

@@ -9,7 +9,8 @@ viewer_cgls_SOURCES = 	main.c \
 						objloader.c objloader.h \
 						scene.c scene.h \
 						slist.h \
-						material.c \
+						basename.h \
+						material.c material.h \
 						cmdline.cpp cmdline.h
 
 # for bison/flex
@@ -24,7 +25,7 @@ viewer_cgls_SOURCES = 	main.c \
 # AM_CXXFLAGS = -Wall -ansi -pedantic -ggdb -pg
 
 # setting c preprocessor flags for main project
-viewer_cgls_CPPFLAGS = -D PACKAGE=\"$(PACKAGE)\" -D VERSION=\"$(VERSION)\" -D CGL_GL_VERSION=GL3 -D_GNU_SOURCE @GUILE_DEF@ $(GUILE_CFLAGS)
+viewer_cgls_CPPFLAGS = -D PACKAGE=\"$(PACKAGE)\" -D VERSION=\"$(VERSION)\" -D DATADIR=\"$(pkgdatadir)\" -D CGL_GL_VERSION=GL3 -D_GNU_SOURCE @GUILE_DEF@ $(GUILE_CFLAGS)
 viewer_cgls_LDFLAGS = $(GUILE_LDFLAGS)
 
 if CAN_USE_GUILE

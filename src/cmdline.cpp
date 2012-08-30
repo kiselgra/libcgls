@@ -24,6 +24,8 @@ static struct argp_option options[] =
 	// --[opt]		short/const		arg-descr		?		option-descr
 	{ "verbose", 'v', 0,         0, "Be verbose." },
 	{ "hemi", 'h', "x,y,z",     0, "Use a hemispherical light."},
+    { "config", 'c', "configfile", 0, "Scheme file to supply instructions."},
+    { "include-path", 'I', "path", 0, "Path to search for the config file. Default: " DATADIR "."},
 	{ 0 }
 };	
 
@@ -58,6 +60,8 @@ static error_t parse_options(int key, char *arg, argp_state *state)
 	{
 	case 'v':	cmdline.verbose = true; 	break;
 	case 'h':	cmdline.hemi = true; cmdline.hemi_dir = read_vec3f(sarg); break;
+    case 'c':   cmdline.config = strdup(arg); break;
+    case 'I':   cmdline.include_path = strdup(arg); break;
 	
 	case ARGP_KEY_ARG:		// process arguments. 
 							// state->arg_num gives number of current arg
@@ -79,6 +83,8 @@ int parse_cmdline(int argc, char **argv)
 {
 	cmdline.filename = 0;
 	cmdline.hemi = false;
+    cmdline.config = strdup("default.scm");
+    cmdline.include_path = DATADIR;
 	int ret = argp_parse(&parser, argc, argv, /*ARGP_NO_EXIT*/0, 0, 0);
 
 	if (cmdline.filename == 0) {

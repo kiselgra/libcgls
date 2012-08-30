@@ -9,7 +9,8 @@ viewer_cgls_SOURCES = 	main.c \
 						objloader.c objloader.h \
 						scene.c scene.h \
 						slist.h \
-						material.c \
+						basename.h \
+						material.c material.h \
 						cmdline.cpp cmdline.h
 
 # for bison/flex

@@ -23,6 +23,6 @@ revision_DATA = revision
 
 #EXTRA_DIST += libcgl.pc revision
 
-scheme_DATA = default.scm default.shader
+scheme_DATA = default.scm default.shader dp.scm
 schemedir = $(pkgdatadir)
 EXTRA_DIST = $(scheme_DATA)

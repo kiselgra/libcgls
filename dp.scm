@@ -107,7 +107,6 @@
                                            (set-material-diffuse-color! material (make-vec 1 1 1 .6))
                                            #t)
                                           (else #f))))
-              (format #t "diffuse of ~a is ~a.~%" material diffuse)
               (set! drawelements (cons de-id drawelements))
               (set! peeling-shaders (cons (if use-peel-shader (find-shader (string-append (shader-name shader) "/dp")) #f)
                                           peeling-shaders))))

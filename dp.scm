@@ -74,13 +74,6 @@
 	(prepend-uniform-handler de 'default-material-uniform-handler)
 	(prepend-uniform-handler de custom-uniform-handler)
 	(prepend-uniform-handler de dp-uniform-handler)
-    (set! drawelements (cons de drawelements))
-    (set! peeling-shaders (cons (if (string-contains (material-name material) "fabric")
-                                    (begin 
-                                      (set-material-diffuse-color! material (make-vec 1 1 1 .60))
-                                      (find-shader (string-append (shader-name shader) "/dp")))
-                                    #f)
-                                peeling-shaders))
 	))
 
 (let ((fallback-material (make-material "fallback" (make-vec 1 0 0 1) (make-vec 1 0 0 1) (make-vec 0 0 0 1))))
@@ -100,6 +93,26 @@
 	  ;(let ((cam (make-perspective-camera "cam" (make-vec -64.431862 698.080017 390.393158) (make-vec -0.319869 -0.316504 -0.893030) (make-vec -0.025723 0.945105 -0.325747) 35 (/ x-res y-res) near far)))
         (use-camera cam))
       (set-move-factor! (/ distance 40)))))
+
+(let ((bunny-mat (make-material "bunnymat" (make-vec 0 0 0 0) (make-vec .8 0 0 .3) (make-vec 0 0 0 1))))
+  (load-objfile-and-create-objects-with-separate-vbos "/home/kai/render-data/models/bunny-70k.obj" "bunny70k" create-drawelement bunny-mat))
+
+(for-each (lambda (de)
+            (let* ((de-id (find-drawelement de))
+                   (shader (drawelement-shader de-id))
+                   (material (drawelement-material de-id))
+                   (diffuse (material-diffuse-color material))
+                   (use-peel-shader (cond ((and (< (vec-a diffuse) 1) (> (vec-a diffuse) 0)) #t)
+                                          ((string-contains (material-name material) "fabric")
+                                           (set-material-diffuse-color! material (make-vec 1 1 1 .6))
+                                           #t)
+                                          (else #f))))
+              (format #t "diffuse of ~a is ~a.~%" material diffuse)
+              (set! drawelements (cons de-id drawelements))
+              (set! peeling-shaders (cons (if use-peel-shader (find-shader (string-append (shader-name shader) "/dp")) #f)
+                                          peeling-shaders))))
+          (list-drawelements))
+
 
 ;; depthpeeling buffers
 ;; - the fbos are called 'layers'

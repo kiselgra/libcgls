@@ -205,10 +205,8 @@
         if (frag_depth <= min_depth)
             discard;
 
-		out_col = vec4(0.,0.,0.,1.);
-
 		float n_dot_l = max(0, 0.5*(1+dot(-norm_wc, hemi_dir)));
-		out_col += vec4(diffuse_color.rgb * light_col * n_dot_l, 0.);
+		out_col = vec4(diffuse_color.rgb * light_col * n_dot_l, diffuse_color.a);
 	}
 }
 #:inputs (list "in_pos" "in_norm")

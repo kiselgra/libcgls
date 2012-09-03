@@ -23,19 +23,14 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 		obj_mtl *m = objdata.materials+i;
 		material_ref mat = make_material3f(m->name, &m->col_amb, &m->col_diff, &m->col_spec);
 		tex_params_t p = default_tex_params();
-		printf("created material %s, id %d.\n", m->name, mat.id);
 		if (m->tex_a) material_add_texture(mat, make_texture(basename(m->tex_a), m->tex_a, GL_TEXTURE_2D, &p));
 		if (m->tex_d) material_add_texture(mat, make_texture(basename(m->tex_d), m->tex_d, GL_TEXTURE_2D, &p));
 		if (m->tex_s) material_add_texture(mat, make_texture(basename(m->tex_s), m->tex_s, GL_TEXTURE_2D, &p));
-		if (m->tex_a) printf("adding texture %s to material %s.\n", m->tex_a, m->name);
-		if (m->tex_d) printf("adding texture %s to material %s.\n", m->tex_d, m->name);
-		if (m->tex_s) printf("adding texture %s to material %s.\n", m->tex_s, m->name);
 	}
 
 	// todo: vertex-buffer sharing
 	for (int i = 0; i < objdata.number_of_groups; ++i) {
 		obj_group *group = objdata.groups + i;
-// 		printf("group %d: %s.\n", i, group->name);
 
 		int pos = 1,
 			norm = 1,
@@ -71,8 +66,6 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 		add_index_buffer_to_mesh(m, verts, indices, GL_STATIC_DRAW);
 		unbind_mesh_from_gl(m);
 
-// 		shader_ref s = find_shader("diffuse-dl");
-// 		make_drawelement(modelname, m, s);
 		material_ref mat;
 		if (group->mtl) mat = find_material(group->mtl->name);
 		else            mat = fallback_material;

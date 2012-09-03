@@ -9,6 +9,12 @@
 
 ;;; code to definitely move someplace else
 
+(define (mref bv x y)
+  (bytevector-ieee-single-native-ref bv (* 4 (+ (* x 4) y))))
+
+(define (mset! bv x y to)
+  (bytevector-ieee-single-native-set! bv (* 4 (+ (* x 4) y)) to))
+
 (define (print-matrix bv)
   (if (not (bytevector? bv))
       (error "not a matrix ~a~%" bv)
@@ -16,7 +22,7 @@
           ((>= y 4))
         (do ((x 0 (+ x 1)))
             ((>= x 4))
-          (display (bytevector-ieee-single-native-ref bv (* 4 (+ (* x 4) y))))
+          (display (mref bv x y)) ;bytevector-ieee-single-native-ref bv (* 4 (+ (* x 4) y))))
           (display "\t"))
         (newline))))
 
@@ -96,6 +102,25 @@
 
 (let ((bunny-mat (make-material "bunnymat" (make-vec 0 0 0 0) (make-vec .8 0 0 .3) (make-vec 0 0 0 1))))
   (load-objfile-and-create-objects-with-separate-vbos "/home/kai/render-data/models/bunny-70k.obj" "bunny70k" create-drawelement bunny-mat))
+
+(let ((dragon-mat (make-material "dragonmat" (make-vec 0 0 0 0) (make-vec 0 .7 0 .4) (make-vec 0 0 0 1))))
+  (load-objfile-and-create-objects-with-separate-vbos "/home/kai/render-data/models/drache.obj" "dragon" create-drawelement dragon-mat))
+
+(let ((bunny (find-drawelement "bunny70k/bunny"))
+      (trafo (make-rotation-matrix (make-vec 1 0 0) (/ 3.1416 -2))))
+  (mset! trafo 3 1 -43)
+  (mset! trafo 3 0 -750)
+  (set-de-trafo! bunny trafo))
+
+(let* ((dragon (find-drawelement "dragon/dragon_nObject1Shape"))
+       (trafo-x (make-rotation-matrix (make-vec 1 0 0) (/ 3.1416 -2)))
+       (trafo-y (make-rotation-matrix (make-vec 0 0 1) (/ 3.1416 -2)))
+       (trafo (multiply-matrices trafo-x trafo-y)))
+  (set-material-diffuse-color! (drawelement-material dragon) (make-vec 0 .7 0 .4))
+  (mset! trafo 3 0 -700)
+  (mset! trafo 3 1 -43)
+  (mset! trafo 3 2 150)
+  (set-de-trafo! dragon trafo))
 
 (for-each (lambda (de)
             (let* ((de-id (find-drawelement de))

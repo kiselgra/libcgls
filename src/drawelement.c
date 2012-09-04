@@ -292,21 +292,13 @@ SCM_DEFINE(s_find_drawelement, "find-drawelement", 1, 0, 0, (SCM name), "") {
 }
 
 SCM_DEFINE(s_de_trafo, "de-trafo", 1, 0, 0, (SCM de), "") {
-    SCM bv = scm_c_make_bytevector(16*4);
     drawelement_ref ref = { scm_to_int(de) };
-    memcpy(SCM_BYTEVECTOR_CONTENTS(bv), drawelement_trafo(ref), 4*16);
-    return bv;
+    return matrix4x4f_to_scm(drawelement_trafo(ref));
 }
 
 SCM_DEFINE(s_set_de_trafo_x, "set-de-trafo!", 2, 0, 0, (SCM de, SCM bv), "") {
-    if (!scm_is_bytevector(bv))
-        scm_throw(scm_from_locale_symbol("matrix-error"), scm_list_2(scm_from_locale_string("not a bytevector"), bv));
-    if (scm_c_bytevector_length(bv) != 4 * 16)
-        scm_throw(scm_from_locale_symbol("matrix-error"), scm_list_2(scm_from_locale_string("bytevector of invalid size"), bv));
-
     drawelement_ref ref = { scm_to_int(de) };
-    memcpy(drawelement_trafo(ref), SCM_BYTEVECTOR_CONTENTS(bv), 4*16);
-
+    scm_to_matrix4x4f(drawelement_trafo(ref), bv);
     return SCM_BOOL_T;
 }
 

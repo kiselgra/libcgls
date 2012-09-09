@@ -353,3 +353,32 @@
 #:uniforms (list "tex0")>
 
 
+
+#<make-shader "quad/atomic"
+#:vertex-shader #{
+#version 150 core
+	in vec3 in_pos;
+	in vec2 in_tc;
+	out vec2 tc;
+	void main() {
+		gl_Position = vec4(in_pos.xy, .9999,1);
+		tc = in_tc;
+	}
+}
+#:fragment-shader #{
+#version 420 core
+	out vec4 out_col;
+	in vec2 tc;
+    layout(binding = 0, offset = 0) uniform atomic_uint counter;
+	void main() {
+        uint c = atomicCounterIncrement(counter);
+        float r = (c/1024) / 1024.f;
+        out_col = vec4(r, 0, 0, 1);
+		out_col = vec4(tc.x,tc.y,0,1);
+	}
+}
+#:inputs (list "in_pos" "in_tc")
+#:uniforms (list )>
+
+
+

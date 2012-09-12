@@ -205,7 +205,7 @@
         if (frag_depth <= min_depth)
             discard;
 
-		float n_dot_l = max(0, 0.5*(1+dot(-norm_wc, hemi_dir)));
+		float n_dot_l = max(0, 0.5*(1+dot(norm_wc, hemi_dir)));
 		out_col = vec4(diffuse_color.rgb * light_col * n_dot_l, diffuse_color.a);
 	}
 }
@@ -292,7 +292,7 @@
     coherent uniform layout(size1x32) uimage2D mutex_buffer;
     coherent uniform layout(size4x32) image2D per_frag_array;
 	void main() {
-		float n_dot_l = max(0, 0.5*(1+dot(-norm_wc, hemi_dir)));
+		float n_dot_l = max(0, 0.5*(1+dot(norm_wc, hemi_dir)));
         uint c = atomicCounterIncrement(counter);
 		out_col = vec4(diffuse_color.rgb * light_col * n_dot_l, diffuse_color.a);
 //         out_col.r += 0.0000001 * float(c);
@@ -330,7 +330,8 @@
 	in vec3 norm_wc;
     layout(binding = 0, offset = 0) uniform atomic_uint counter;
     coherent uniform layout(size1x32) uimage2D mutex_buffer;
-    coherent uniform layout(size4x32) image2D per_frag_array;
+    coherent uniform layout(rgba8) image2D per_frag_colors;
+    coherent uniform layout(size1x32) image2D per_frag_depths;
     uniform ivec2 wh;
 	void main() {
         uint c = atomicCounterIncrement(counter);
@@ -338,16 +339,17 @@
         uint index = imageAtomicAdd(mutex_buffer, ivec2(gl_FragCoord.xy), 1u);
         ivec2 target = ivec2(gl_FragCoord.xy) + ivec2(0,index*int(wh.y));
 
-        float n_dot_l = max(0, 0.5*(1+dot(-norm_wc, hemi_dir)));
-		vec4 result = vec4(diffuse_color.rgb * light_col * n_dot_l, diffuse_color.a);
+        float n_dot_l = max(0, 0.5*(1+dot(norm_wc, hemi_dir)));
+		vec4 result = vec4(diffuse_color.rgb * light_col * n_dot_l, 1);//diffuse_color.a);
 
-        imageStore(per_frag_array, target, result);
+        imageStore(per_frag_colors, target, result);
+        imageStore(per_frag_depths, target, vec4(gl_FragCoord.z,0,0,0));
 
         out_col = vec4(c);
 	}
 }
 #:inputs (list "in_pos" "in_norm")
-#:uniforms (list "proj" "view" "model" "hemi_dir" "light_col" "diffuse_color" "mutex_buffer" "per_frag_array" "wh")>
+#:uniforms (list "proj" "view" "model" "hemi_dir" "light_col" "diffuse_color" "mutex_buffer" "per_frag_colors" "per_frag_depths" "wh")>
 
 
 
@@ -363,17 +365,61 @@
 #version 420 core
 	out vec4 out_col;
     coherent uniform layout(size1x32) uimage2D mutex_buffer;
-    coherent uniform layout(size4x32) image2D per_frag_array;
+    coherent uniform layout(rgba8) image2D per_frag_colors;
+    coherent uniform layout(size1x32) image2D per_frag_depths;
+    uniform ivec2 wh;
+    float depth(int i) {
+        ivec2 index = ivec2(gl_FragCoord.xy) + ivec2(0,i*int(wh.y));
+        return imageLoad(per_frag_depths, index).r;
+    }
+    void set_depth(int i, float d) {
+        ivec2 index = ivec2(gl_FragCoord.xy) + ivec2(0,i*int(wh.y));
+        imageStore(per_frag_depths, index, vec4(d,0,0,0));
+    }
+    void exchange_color(int i, int j) {
+        ivec2 index_i = ivec2(gl_FragCoord.xy) + ivec2(0,i*int(wh.y));
+        ivec2 index_j = ivec2(gl_FragCoord.xy) + ivec2(0,j*int(wh.y));
+        vec4 I = imageLoad(per_frag_colors, index_i);
+        vec4 J = imageLoad(per_frag_colors, index_j);
+        imageStore(per_frag_colors, index_i, J);
+        imageStore(per_frag_colors, index_j, I);
+    }
 	void main() {
         uint array_len = imageLoad(mutex_buffer, ivec2(gl_FragCoord.xy)).r;
-        if (array_len > 0)
-            out_col = vec4(1,0,0,1);
-        else
-            discard;
+        if (array_len > 2) array_len = 2;
+
+        for (int start = 0; start < array_len; ++start) {
+            int lower_id = start;
+            float start_d = depth(start);
+            float lower = start_d;
+            for (int test = start+1; test < array_len; ++test) {
+                float d = depth(test);
+                if (d < lower) {
+                    lower = d;
+                    lower_id = test;
+                }
+            }
+            if (lower_id != start) {
+                set_depth(start, lower);
+                set_depth(lower_id, start_d);
+                exchange_color(start, lower_id);
+            }
+        }
+
+        for (int i = 1; i < array_len; ++i) {
+        }
+
+        if (array_len > 0) {
+//             out_col = vec4(1,0,0,1);
+            out_col = vec4(float(array_len)*0.25, 0,0,1);//imageLoad(per_frag_colors, ivec2(gl_FragCoord.xy)+ivec2(0,int(wh.y)));
+//             float r = imageLoad(per_frag_depths, ivec2(gl_FragCoord.xy)).r;
+//             out_col = vec4(r*r*r*r);
+        }
+        else discard;
 	}
 }
 #:inputs (list "in_pos")
-#:uniforms (list "mutex_buffer" "per_frag_array")>
+#:uniforms (list "mutex_buffer" "per_frag_colors" "per_frag_depths" "wh")>
 
 
 
@@ -394,6 +440,28 @@
 }
 #:inputs (list "in_pos")
 #:uniforms (list "mutex_buffer")>
+
+
+
+#<make-shader "texquad/clear-color"
+#:vertex-shader #{
+#version 150 core
+	in vec3 in_pos;
+	void main() {
+		gl_Position = vec4(in_pos.xy, .9,1);
+	}
+}
+#:fragment-shader #{
+#version 420 core
+    coherent uniform layout(rgba8) image2D per_frag_colors;
+    uniform ivec2 wh;
+	void main() {
+        for (int i = 0; i < 10; ++i)
+                 imageStore(per_frag_colors, ivec2(gl_FragCoord.xy)+ivec2(0,i*wh.y), vec4(0,0,float(i)/10.0,1));
+	}
+}
+#:inputs (list "in_pos")
+#:uniforms (list "per_frag_colors" "wh")>
 
 
 

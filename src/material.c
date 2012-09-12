@@ -107,7 +107,7 @@ void material_add_texture(material_ref ref, texture_ref tex) {
 		mat->textures_head = new_node;
 	else {
 		mat->back->next = new_node; 
-		unit = mat->back->unit;
+		unit = mat->back->unit + 1;
 	}
 	mat->back = new_node;
 	mat->back->ref = tex;
@@ -143,15 +143,20 @@ bool default_material_uniform_handler(drawelement_ref ref, const char *uniform, 
 		for (struct texture_node *run = material_textures(mat); run; run = run->next)
 			if (str_eq(uniform, run->name)) {
 				bind_texture(run->ref, run->unit);
+                glUniform1i(location, run->unit);
 				return true;
 			}
+        // texN specifically requests the texture bound to unit N, therefore we don't use ...->unit here.
 		if (strlen(uniform) == 4 && uniform[3] >= '0' && uniform[3] <= '9' && strncmp(uniform, "tex", 3) == 0) {
 			int nr = uniform[3] - '0';
+            int i = 0;
 			for (struct texture_node *run = material_textures(mat); run; run = run->next)
-				if (nr == 0) {
-					bind_texture(run->ref, run->unit);
+				if (i == nr) {
+					bind_texture(run->ref, nr);
+                    glUniform1i(location, nr);
 					return true;
 				}
+                else ++i;
 		}
 		return false;
 	}

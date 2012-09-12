@@ -41,7 +41,7 @@
 (define drawelements '())
 
 (make-texture-without-file "frag_mutex" gl#texture-2d x-res y-res gl#red gl#r32f gl#float)
-(make-texture-without-file "frag_arrays" gl#texture-2d x-res (* y-res 1) gl#rgba gl#rgba32f gl#float)   ; 32 slots per pixel
+(make-texture-without-file "frag_arrays" gl#texture-2d x-res (* y-res 10) gl#rgba gl#rgba32f gl#float)   ; 32 slots per pixel
 
 (define (atomic-buffer-handler de u l)
   (cond ((string=? u "mutex_buffer") (gl:uniform1i l 0))
@@ -138,19 +138,17 @@
   (bind-texture-as-image (find-texture "frag_mutex") 0 0 #x88ba gl#r32i)
   (bind-texture-as-image (find-texture "frag_arrays") 1 0 #x88ba gl#r32i)
   (gl:disable gl#depth-test)
-  (gl:color-mask gl#false gl#false gl#false gl#false)
-  (gl:depth-mask gl#false)
-  (for-each render-drawelement
-            drawelements)
-  (gl:color-mask gl#true gl#true gl#true gl#true)
-  (gl:depth-mask gl#true)
+  (disable-color-output
+    (disable-depth-output
+      (for-each render-drawelement
+                drawelements)))
   (gl:finish 0)
   (render-drawelement (find-drawelement "atquad"))
   (unbind-texture-as-image (find-texture "frag_mutex") 0)
   (unbind-atomic-buffer atomic-counter 0)
-;  (gl:finish 0) ;; bug in wrapper/gen -> glFinish(void);
+  (gl:finish 0) ;; bug in wrapper/gen -> glFinish(void);
   (set! copy-of-atomic-buffer (read-atomic-buffer atomic-counter))
-  (format #t "bv0: ~a~%" (bytevector-s32-native-ref copy-of-atomic-buffer 0))
+;  (format #t "bv0: ~a~%" (bytevector-s32-native-ref copy-of-atomic-buffer 0))
   (let ((clear-de (find-drawelement "cmb"))
         (frag-mutex (find-texture "frag_mutex" )))
     (disable-color-output

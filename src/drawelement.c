@@ -54,7 +54,7 @@ drawelement_ref make_drawelement(const char *modelname, mesh_ref mr, shader_ref 
 	else
 		de->name = strdup(de->shortname);
 
-    printf("making de %s -> %s\n", modelname, de->name);
+//     printf("making de %s -> %s\n", modelname, de->name);
 		
 	de->mesh = mr;
 	de->shader = sr;
@@ -318,6 +318,11 @@ SCM_DEFINE(s_glUniform3f, "gl:uniform3f", 4, 0, 0, (SCM loc, SCM x, SCM y, SCM z
 		  Z = scm_to_double(z);
 	glUniform3f(l, X, Y, Z);
 	return SCM_BOOL_T;
+}
+
+SCM_DEFINE(s_de_name, "drawelement-name", 1, 0, 0, (SCM de), "") {
+    drawelement_ref ref = { scm_to_int(de) };
+    return scm_from_locale_string(drawelement_name(ref));
 }
 
 void register_scheme_functions_for_drawelement() {

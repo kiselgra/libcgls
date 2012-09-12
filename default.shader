@@ -452,7 +452,7 @@
 #:uniforms (list "mutex_buffer")>
 
 
-
+ 
 #<make-shader "quad/show-frag-array-len"
 #:vertex-shader #{
 #version 150 core
@@ -470,20 +470,52 @@
 	in vec2 tc;
     layout(binding = 0, offset = 0) uniform atomic_uint counter;
     coherent uniform layout(size1x32) uimage2D mutex_buffer;
-	void main() {
+    void main() {
 //         uint c = atomicCounterIncrement(counter);
 //         imageStore(mutex_buffer, ivec2(0,0), uvec4(c,0,0,0));
 //         float r = (c/1024) / 1024.f;
 //         out_col = vec4(r, 0, 0, 1);
-		out_col = vec4(tc.x,tc.y,0,1); //imageLoad(mutex_buffer, ivec2(0,0)).r,1);
+        out_col = vec4(tc.x,tc.y,0,1); //imageLoad(mutex_buffer, ivec2(0,0)).r,1);
         unsigned int array_len = imageLoad(mutex_buffer, ivec2(gl_FragCoord.xy)).r;
         out_col = vec4(float(array_len) / 10.0, 0, 0, 1);
+
+        if (array_len == 0) out_col.xyz = vec3(0,0,0);
+        if (array_len == 1) out_col.xyz = vec3(1,0,0);
+        if (array_len == 2) out_col.xyz = vec3(0,1,0);
+        if (array_len == 3) out_col.xyz = vec3(0,0,1);
+        if (array_len == 4) out_col.xyz = vec3(1,1,0);
+        if (array_len == 5) out_col.xyz = vec3(0,1,1);
+        if (array_len == 6) out_col.xyz = vec3(1,0,1);
+        if (array_len >  6) out_col.xyz = vec3(1,1,1);
+
 //         imageStore(mutex_buffer, ivec2(gl_FragCoord.xy), uvec4(0,0,0,0));
-// 		out_col = vec4(tc.x,tc.y,0,1); //imageLoad(mutex_buffer, ivec2(0,0)).r,1);
-// 		out_col = vec4(0,0,(imageLoad(mutex_buffer, ivec2(0,0)).r/256)/10000.0f,1);
-	}
+//             out_col = vec4(tc.x,tc.y,0,1); //imageLoad(mutex_buffer, ivec2(0,0)).r,1);
+//             out_col = vec4(0,0,(imageLoad(mutex_buffer, ivec2(0,0)).r/256)/10000.0f,1);
+    }
 }
 #:inputs (list "in_pos" "in_tc")
+#:uniforms (list "mutex_buffer")>
+
+
+#<make-shader "quad/clear-mutex-buffer"
+#:vertex-shader #{
+#version 150 core
+	in vec3 in_pos;
+	void main() {
+		gl_Position = vec4(in_pos.xy, .9999,1);
+	}
+}
+#:fragment-shader #{
+#version 420 core
+	out vec4 out_col;
+	in vec2 tc;
+    layout(binding = 0, offset = 0) uniform atomic_uint counter;
+    coherent uniform layout(size1x32) uimage2D mutex_buffer;
+	void main() {
+        imageStore(mutex_buffer, ivec2(gl_FragCoord.xy), uvec4(0,0,0,0));
+	}
+}
+#:inputs (list "in_pos")
 #:uniforms (list "mutex_buffer")>
 
 

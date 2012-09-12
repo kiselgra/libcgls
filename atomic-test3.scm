@@ -92,6 +92,15 @@
   (prepend-uniform-handler de 'default-material-uniform-handler)
   (prepend-uniform-handler de atomic-buffer-handler))
 
+(let* ((tqma (make-material "clear-mb-mat" (make-vec 0 0 0 1) (make-vec 0 1 0 1) (make-vec 0 0 0 1)))
+       (tqme (make-quad "cmb"))
+       (tqsh (find-shader "quad/clear-mutex-buffer"))
+       (de (make-drawelement "cmb" tqme tqsh tqma)))
+  (material-add-texture tqma (find-texture "frag_mutex"))
+  (prepend-uniform-handler de 'default-material-uniform-handler)
+  (prepend-uniform-handler de atomic-buffer-handler))
+
+
 (define atomic-counter (make-atomic-buffer "test" 1 1))
 (define copy-of-atomic-buffer #f)
 
@@ -108,6 +117,17 @@
   (for-each primitive-eval
             (reverse command-queue))
   (set! command-queue '()))
+
+(defmacro disable-color-output body
+  `(begin (gl:color-mask gl#false gl#false gl#false gl#false)
+          ,@body
+          (gl:color-mask gl#true gl#true gl#true gl#true)))
+
+(defmacro disable-depth-output body
+  `(begin (gl:depth-mask gl#false)
+          ,@body
+          (gl:depth-mask gl#true)))
+
 
 (define (display)
   (gl:clear-color r g b 1)
@@ -128,9 +148,16 @@
   (render-drawelement (find-drawelement "atquad"))
   (unbind-texture-as-image (find-texture "frag_mutex") 0)
   (unbind-atomic-buffer atomic-counter 0)
-  (gl:finish 0) ;; bug in wrapper/gen -> glFinish(void);
+;  (gl:finish 0) ;; bug in wrapper/gen -> glFinish(void);
   (set! copy-of-atomic-buffer (read-atomic-buffer atomic-counter))
   (format #t "bv0: ~a~%" (bytevector-s32-native-ref copy-of-atomic-buffer 0))
+  (let ((clear-de (find-drawelement "cmb"))
+        (frag-mutex (find-texture "frag_mutex" )))
+    (disable-color-output
+      (disable-depth-output
+        (bind-texture-as-image frag-mutex 0 0 #x88ba gl#r32i)
+        (render-drawelement clear-de)
+        (unbind-texture-as-image frag-mutex 0))))
   (glut:swap-buffers))
 
 (register-display-function display)

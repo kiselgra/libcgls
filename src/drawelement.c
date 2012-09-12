@@ -53,6 +53,8 @@ drawelement_ref make_drawelement(const char *modelname, mesh_ref mr, shader_ref 
 	}
 	else
 		de->name = strdup(de->shortname);
+
+    printf("making de %s -> %s\n", modelname, de->name);
 		
 	de->mesh = mr;
 	de->shader = sr;

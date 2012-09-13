@@ -64,8 +64,8 @@
 
 ;; buffers for depth array management
 (make-texture-without-file "frag_mutex" gl#texture-2d x-res y-res gl#red gl#r32f gl#float)
-(make-texture-without-file "frag_colors" gl#texture-2d x-res (* y-res 20) gl#rgba gl#rgba8 gl#unsigned-byte)
-(make-texture-without-file "frag_depths" gl#texture-2d x-res (* y-res 20) gl#red gl#r32f gl#float)
+(make-texture-without-file "frag_colors" gl#texture-2d x-res (* y-res 6) gl#rgba gl#rgba8 gl#unsigned-byte)
+(make-texture-without-file "frag_depths" gl#texture-2d x-res (* y-res 6) gl#red gl#r32f gl#float)
 
 (define (atomic-buffer-handler de u l)
   (cond ((string=? u "mutex_buffer") (gl:uniform1i l 0))
@@ -114,7 +114,7 @@
         (while (< far (* distance 2))
           (set! far (* far 2)))
         ;(let ((cam (make-perspective-camera "cam" pos (make-vec 0 0 -1) (make-vec 0 1 0) 35 (/ x-res y-res) near far)))
-	    (let ((cam (make-perspective-camera "cam" (make-vec -1342 163 -69) (make-vec 1 0 0) (make-vec 0 1 0) 35 (/ x-res y-res) near far)))
+	    (let ((cam (make-perspective-camera "cam" (make-vec -1042 163 -69) (make-vec 1 0 0) (make-vec 0 1 0) 35 (/ x-res y-res) 100 600)))  ;near ;far)))
           (use-camera cam))
         (set-move-factor! (/ distance 40)))))
   
@@ -247,24 +247,29 @@
     (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
     (for-each (lambda (de transparent)
                 (when (not transparent)
-                  (render-drawelement de)))
+                 9));(render-drawelement de)))
               drawelements
               drawelement-shaders)
     (unbind-framebuffer fbo)
     )
 
+  (memory-barrier!!)
   ;; clear arrays
   (check-for-gl-errors "before array clear")
   (let ((frag-counter (find-texture "frag_mutex"))
-        (frag-colors (find-texture "frag_colors")))
+        (frag-colors (find-texture "frag_colors"))
+        (frag-depths (find-texture "frag_depths")))
     (bind-texture-as-image frag-counter 0 0 gl!!read-write gl#r32i)
     (render-drawelement (find-drawelement "texquad/clear-array"))
     (unbind-texture-as-image frag-counter 0)
     (bind-texture-as-image frag-colors 1 0 gl!!read-write gl#rgba8)
+    (bind-texture-as-image frag-depths 2 0 gl!!read-write gl#r32f)
     (render-drawelement (find-drawelement "texquad/clear-color"))
-    (unbind-texture-as-image frag-colors 0)
+    (unbind-texture-as-image frag-depths 2)
+    (unbind-texture-as-image frag-colors 1)
     )
   
+  (memory-barrier!!)
   (gl:finish 0)
    
   (let ((frag-colors (find-texture "frag_colors")))
@@ -272,6 +277,7 @@
 ;    (save-texture/png frag-colors "bla1.png")
     (unbind-texture frag-colors))
 
+  (memory-barrier!!)
   
   ;; display the base image
   (check-for-gl-errors "before mapping of base image")
@@ -279,6 +285,7 @@
   (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
   (render-drawelement (find-drawelement "texquad/texquad"))
 
+  (memory-barrier!!)
 
 ;  (for-each (lambda (de transparent)
 ;              (when transparent
@@ -304,6 +311,7 @@
                       (bind-texture-as-image frag-colors 1 0 gl!!read-write gl#rgba8)
                       (bind-texture-as-image frag-depths 2 0 gl!!read-write gl#r32f)
                       (render-drawelement-with-shader de shader)
+  (memory-barrier!!)
                       (unbind-texture-as-image frag-depths 2)
                       (unbind-texture-as-image frag-colors 1)
                       (unbind-texture-as-image frag-counter 0)
@@ -312,6 +320,8 @@
                   drawelement-shaders))
         ))
   (unbind-atomic-buffer atomic-counter 0)
+  
+(memory-barrier!!)
 
   ;; read debugging info
   (gl:finish 0) ;; bug in wrapper/gen -> glFinish(void);
@@ -319,6 +329,7 @@
   (set! copy-of-atomic-buffer (read-atomic-buffer atomic-counter))
   (format #t "fragments rendered in collection pass: ~a~%" (bytevector-s32-native-ref copy-of-atomic-buffer 0))
 
+  (memory-barrier!!)
   (gl:finish 0)
   (check-for-gl-errors "before using the array info")
 
@@ -333,14 +344,20 @@
     (unbind-texture-as-image frag-colors 1)
     (unbind-texture-as-image frag-counter 0))
 
+  (memory-barrier!!)
   (gl:finish 0)
 
   (check-for-gl-errors "before debug output")
-  (let ((frag-colors (find-texture "frag_colors")))
+  (let ((frag-colors (find-texture "frag_colors"))
+        (frag-depths (find-texture "frag_depths")))
     (bind-texture frag-colors 0)
-;    (save-texture/png frag-colors "bla2.png")
-    (unbind-texture frag-colors))
+    (save-texture/png frag-colors "bla2.png")
+    (unbind-texture frag-colors)
+    (bind-texture frag-depths 0)
+    (save-texture/png frag-depths "bla2d.png")
+    (unbind-texture frag-depths))
 
+  (memory-barrier!!)
   (glut:swap-buffers))
 
 ;; initial gl setup

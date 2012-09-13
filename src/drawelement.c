@@ -325,6 +325,15 @@ SCM_DEFINE(s_de_name, "drawelement-name", 1, 0, 0, (SCM de), "") {
     return scm_from_locale_string(drawelement_name(ref));
 }
 
+
+
+
+SCM_DEFINE(s_TMP_mem_barr, "memory-barrier!!", 0, 0, 0, (), "") {
+    glMemoryBarrier(GL_ALL_BARRIER_BITS);
+    return SCM_BOOL_T;
+}
+
+
 void register_scheme_functions_for_drawelement() {
 #include "drawelement.x"
 }

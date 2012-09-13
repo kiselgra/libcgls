@@ -30,6 +30,7 @@
 
 (define x-res 1)
 (define y-res 1)
+(define array-layers 10)
 
 (receive (x y w h) (viewport)
   (format #t "~a x ~a~%" w h)
@@ -64,13 +65,14 @@
 
 ;; buffers for depth array management
 (make-texture-without-file "frag_mutex" gl#texture-2d x-res y-res gl#red gl#r32f gl#float)
-(make-texture-without-file "frag_colors" gl#texture-2d x-res (* y-res 6) gl#rgba gl#rgba8 gl#unsigned-byte)
-(make-texture-without-file "frag_depths" gl#texture-2d x-res (* y-res 6) gl#red gl#r32f gl#float)
+(make-texture-without-file "frag_colors" gl#texture-2d x-res (* y-res array-layers) gl#rgba gl#rgba8 gl#unsigned-byte)
+(make-texture-without-file "frag_depths" gl#texture-2d x-res (* y-res array-layers) gl#red gl#r32f gl#float)
 
 (define (atomic-buffer-handler de u l)
   (cond ((string=? u "mutex_buffer") (gl:uniform1i l 0))
         ((string=? u "per_frag_colors") (gl:uniform1i l 1))
         ((string=? u "per_frag_depths") (gl:uniform1i l 2))
+        ((string=? u "array_layers") (gl:uniform1i l array-layers))
         ((string=? u "wh") (gl:uniform2i l x-res y-res))
         (else #f)))
 

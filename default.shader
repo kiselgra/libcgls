@@ -333,11 +333,12 @@
     coherent uniform layout(rgba8) image2D per_frag_colors;
     coherent uniform layout(r32f) image2D per_frag_depths;
     uniform ivec2 wh;
+    uniform int array_layers;
 	void main() {
         uint c = atomicCounterIncrement(counter);
 
         uint index = imageAtomicAdd(mutex_buffer, ivec2(gl_FragCoord.xy), 1u);
-        if (index > 5) discard;
+        if (index >= array_layers) discard;
         ivec2 target = ivec2(gl_FragCoord.xy) + ivec2(0,index*int(wh.y));
 
         float n_dot_l = max(0, 0.5*(1+dot(norm_wc, hemi_dir)));
@@ -345,14 +346,14 @@
 
             memoryBarrier();
         imageStore(per_frag_colors, target, result);
-        imageStore(per_frag_depths, target, vec4(.8-(float(index)*0.3),0,0,0));
+        imageStore(per_frag_depths, target, vec4(gl_FragCoord.z,0,0,0)); //vec4(.8-(float(index)*0.1),0,0,0));
             memoryBarrier();
 
         out_col = vec4(c);
 	}
 }
 #:inputs (list "in_pos" "in_norm")
-#:uniforms (list "proj" "view" "model" "hemi_dir" "light_col" "diffuse_color" "mutex_buffer" "per_frag_colors" "per_frag_depths" "wh")>
+#:uniforms (list "proj" "view" "model" "hemi_dir" "light_col" "diffuse_color" "mutex_buffer" "per_frag_colors" "per_frag_depths" "wh" "array_layers")>
 
 
 
@@ -371,6 +372,7 @@
     coherent uniform layout(rgba8) image2D per_frag_colors;
     coherent uniform layout(r32f) image2D per_frag_depths;
     uniform ivec2 wh;
+    uniform int array_layers;
     float depth(int i) {
         ivec2 index = ivec2(gl_FragCoord.xy) + ivec2(0,i*int(wh.y));
         return imageLoad(per_frag_depths, index).r;
@@ -389,7 +391,7 @@
     }
 	void main() {
         uint array_len = imageLoad(mutex_buffer, ivec2(gl_FragCoord.xy)).r;
-        if (array_len > 4) array_len = 4;
+        if (array_len >= array_layers) array_len = array_layers - 1;
 
         // find smalles depth value and display it.
         /*
@@ -417,28 +419,30 @@
 // 		}
        
 
-        float depth_vals[5];
-        for (int i = 0; i < 5; ++i)
+        float depth_vals[10];   // this still has to be set manually.
+        for (int i = 0; i < array_layers; ++i)
         	depth_vals[i] = depth(i);
 
-         if (array_len > 0)
-	     for (int i = 0; i < array_len-1; ++i) {
-	            float d = depth_vals[i];
-	            int swap_id = i;
-	            for (int j = i; j < array_len; ++j) {
-	                float dj = depth_vals[j];
-	                if (dj < d) {
-	                    d = dj;
-	                    swap_id = j;
-	                }
-	            }
-	            if (swap_id != i) {
-	            	depth_vals[swap_id] = depth_vals[i];
-	            	depth_vals[i] = d;
-	            }
+        float sd = 0;
+        if (array_len > 0)
+	    for (int i = 0; i < array_len-1; ++i) {
+	           float d = depth_vals[i];
+	           int swap_id = i;
+	           for (int j = i; j < array_len; ++j) {
+	               float dj = depth_vals[j];
+	               if (dj < d) {
+	                   d = dj;
+	                   swap_id = j;
+	               }
+	           }
+	           if (swap_id != i) {
+	           	depth_vals[swap_id] = depth_vals[i];
+	           	depth_vals[i] = d;
+	           }
+	           if (i == 0) sd = d;
 	        }
 	
-        for (int i = 0; i < 5; ++i)
+        for (int i = 0; i < array_layers; ++i)
         	set_depth(i, depth_vals[i]);
 
         memoryBarrier();
@@ -534,7 +538,7 @@
 	}
 }
 #:inputs (list "in_pos")
-#:uniforms (list "mutex_buffer" "per_frag_colors" "per_frag_depths" "wh")>
+#:uniforms (list "mutex_buffer" "per_frag_colors" "per_frag_depths" "wh" "array_layers")>
 
 
 

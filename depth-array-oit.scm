@@ -73,6 +73,7 @@
         ((string=? u "per_frag_colors") (gl:uniform1i l 1))
         ((string=? u "per_frag_depths") (gl:uniform1i l 2))
         ((string=? u "array_layers") (gl:uniform1i l array-layers))
+        ((string=? u "opaque_depth") (gl:uniform1i l (material-number-of-textures (drawelement-material de))))
         ((string=? u "wh") (gl:uniform2i l x-res y-res))
         (else #f)))
 
@@ -116,7 +117,7 @@
         (while (< far (* distance 2))
           (set! far (* far 2)))
         ;(let ((cam (make-perspective-camera "cam" pos (make-vec 0 0 -1) (make-vec 0 1 0) 35 (/ x-res y-res) near far)))
-	    (let ((cam (make-perspective-camera "cam" (make-vec -1042 163 -69) (make-vec 1 0 0) (make-vec 0 1 0) 35 (/ x-res y-res) 100 600)))  ;near ;far)))
+	    (let ((cam (make-perspective-camera "cam" (make-vec -1242 163 -69) (make-vec 1 0 0) (make-vec 0 1 0) 35 (/ x-res y-res) near far)))  ;near ;far)))
           (use-camera cam))
         (set-move-factor! (/ distance 40)))))
   
@@ -149,7 +150,7 @@
                      (diffuse (material-diffuse-color material))
                      (use-coll-shader (cond ((and (< (vec-a diffuse) 1) (> (vec-a diffuse) 0)) #t)
                                             ((string-contains (material-name material) "fabric")
-                                             (set-material-diffuse-color! material (make-vec 1 1 1 .6))
+                                             (set-material-diffuse-color! material (make-vec 1 1 1 .4))
                                              #t)
                                             (else #f))))
                 ;; fabric is not transparent yet, because the shader for use with textures does not exist.
@@ -178,7 +179,7 @@
 ;; tex textured quad
 ;; 
 (let* ((tqma (make-material "texquad" (make-vec 0 0 0 1) (make-vec 0 1 0 1) (make-vec 0 0 0 1)))
-       (tqme (make-quad-with-tc "texquad"))
+       (tqme (make-quad-with-tc "texquad-opaque"))
        (tqsh (find-shader "texquad-with-depth"))
        (de (make-drawelement "texquad" tqme tqsh tqma)))
   (material-add-texture tqma (find-texture "opaque-color"))
@@ -189,6 +190,7 @@
        (tqme (make-quad "texquad/apply-array"))
        (tqsh (find-shader "texquad/apply-array"))
        (de (make-drawelement "texquad" tqme tqsh tqma)))
+  (material-add-texture tqma (find-texture "opaque-color"))
   (prepend-uniform-handler de atomic-buffer-handler)
   (prepend-uniform-handler de 'default-material-uniform-handler))
 
@@ -234,6 +236,7 @@
 (define gl!!read-write #x088ba)
 
 ;; the display routine registered with glut
+(set-move-factor! (/ (move-factor) 2))
 
 (define (display/glut)
   (gl:clear-color .9 .9 .6 1)
@@ -249,7 +252,7 @@
     (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
     (for-each (lambda (de transparent)
                 (when (not transparent)
-                 9));(render-drawelement de)))
+                  (render-drawelement de)))
               drawelements
               drawelement-shaders)
     (unbind-framebuffer fbo)
@@ -285,7 +288,7 @@
   (check-for-gl-errors "before mapping of base image")
   (gl:clear-color .1 .3 .6 1)
   (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
-  (render-drawelement (find-drawelement "texquad/texquad"))
+  (render-drawelement (find-drawelement "texquad/texquad-opaque"))
 
   (memory-barrier!!)
 
@@ -304,26 +307,27 @@
         (frag-counter (find-texture "frag_mutex"))
         (frag-colors (find-texture "frag_colors"))
         (frag-depths (find-texture "frag_depths")))
-    (disable-color-output
+    ;(disable-color-output
       (disable-depth-output
         (for-each (lambda (de shader)
                     (when shader
                       (bind-texture depthtex (material-number-of-textures (drawelement-material de)))
+                      ;(gl:uniform1i (uniform-location shader "opaque_depth") 3);(material-number-of-textures (drawelement-material de)))
                       (bind-texture-as-image frag-counter 0 0 gl!!read-write gl#r32i)
                       (bind-texture-as-image frag-colors 1 0 gl!!read-write gl#rgba8)
                       (bind-texture-as-image frag-depths 2 0 gl!!read-write gl#r32f)
                       (render-drawelement-with-shader de shader)
-  (memory-barrier!!)
                       (unbind-texture-as-image frag-depths 2)
                       (unbind-texture-as-image frag-colors 1)
                       (unbind-texture-as-image frag-counter 0)
                       (unbind-texture depthtex)))
                   drawelements
                   drawelement-shaders))
-        ))
+        );)
   (unbind-atomic-buffer atomic-counter 0)
   
 (memory-barrier!!)
+;    (when #f
 
   ;; read debugging info
   (gl:finish 0) ;; bug in wrapper/gen -> glFinish(void);
@@ -337,7 +341,8 @@
 
   (let ((frag-counter (find-texture "frag_mutex"))
         (frag-colors (find-texture "frag_colors"))
-        (frag-depths (find-texture "frag_depths")))
+        (frag-depths (find-texture "frag_depths"))
+        (opaque (find-texture "opaque-color")))
     (bind-texture-as-image frag-counter 0 0 gl!!read-write gl#r32i)
     (bind-texture-as-image frag-colors 1 0 gl!!read-write gl#rgba8)
     (bind-texture-as-image frag-depths 2 0 gl!!read-write gl#r32f)
@@ -349,16 +354,17 @@
   (memory-barrier!!)
   (gl:finish 0)
 
-  (check-for-gl-errors "before debug output")
-  (let ((frag-colors (find-texture "frag_colors"))
-        (frag-depths (find-texture "frag_depths")))
-    (bind-texture frag-colors 0)
-    (save-texture/png frag-colors "bla2.png")
-    (unbind-texture frag-colors)
-    (bind-texture frag-depths 0)
-    (save-texture/png frag-depths "bla2d.png")
-    (unbind-texture frag-depths))
+;  (check-for-gl-errors "before debug output")
+;  (let ((frag-colors (find-texture "frag_colors"))
+;        (frag-depths (find-texture "frag_depths")))
+;    (bind-texture frag-colors 0)
+;    (save-texture/png frag-colors "bla2.png")
+;    (unbind-texture frag-colors)
+;    (bind-texture frag-depths 0)
+;    (save-texture/png frag-depths "bla2d.png")
+;    (unbind-texture frag-depths))
 
+    ;)
   (memory-barrier!!)
   (glut:swap-buffers))
 

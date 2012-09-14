@@ -332,9 +332,12 @@
     coherent uniform layout(size1x32) uimage2D mutex_buffer;
     coherent uniform layout(rgba8) image2D per_frag_colors;
     coherent uniform layout(r32f) image2D per_frag_depths;
+	uniform sampler2D opaque_depth;
     uniform ivec2 wh;
     uniform int array_layers;
 	void main() {
+		if (texture(opaque_depth, gl_FragCoord.xy/vec2(wh)).r <= gl_FragCoord.z)
+			discard;
         uint c = atomicCounterIncrement(counter);
 
         uint index = imageAtomicAdd(mutex_buffer, ivec2(gl_FragCoord.xy), 1u);
@@ -342,18 +345,76 @@
         ivec2 target = ivec2(gl_FragCoord.xy) + ivec2(0,index*int(wh.y));
 
         float n_dot_l = max(0, 0.5*(1+dot(norm_wc, hemi_dir)));
-		vec4 result = vec4(diffuse_color.rgb * light_col * n_dot_l, 1);//diffuse_color.a);
+		vec4 result = vec4(diffuse_color.rgb * light_col * n_dot_l, diffuse_color.a);
 
-            memoryBarrier();
         imageStore(per_frag_colors, target, result);
         imageStore(per_frag_depths, target, vec4(gl_FragCoord.z,0,0,0)); //vec4(.8-(float(index)*0.1),0,0,0));
-            memoryBarrier();
 
         out_col = vec4(c);
 	}
 }
 #:inputs (list "in_pos" "in_norm")
-#:uniforms (list "proj" "view" "model" "hemi_dir" "light_col" "diffuse_color" "mutex_buffer" "per_frag_colors" "per_frag_depths" "wh" "array_layers")>
+#:uniforms (list "proj" "view" "model" "hemi_dir" "light_col" "diffuse_color" "mutex_buffer" "per_frag_colors" "per_frag_depths" "wh" "array_layers" "opaque_depth")>
+
+
+#<make-shader "diffuse-hemi+tex/collect"
+#:vertex-shader #{
+#version 150 core
+	in vec3 in_pos;
+	in vec3 in_norm;
+	in vec2 in_tc;
+	uniform mat4 proj;
+	uniform mat4 view;
+	uniform mat4 model;
+	out vec4 pos_wc;
+	out vec3 norm_wc;
+	out vec2 tc;
+	void main() {
+		pos_wc = model * vec4(in_pos, 1.0);
+		norm_wc = in_norm;
+		vec4 pos_proj = proj * view * pos_wc;
+		tc = in_tc;
+        gl_Position = pos_proj;
+	}
+}
+#:fragment-shader #{
+#version 420 core
+	out vec4 out_col;
+	uniform vec3 hemi_dir;
+	uniform vec3 light_col;
+	uniform vec4 diffuse_color;
+	in vec4 pos_wc;
+	in vec3 norm_wc;
+	in vec2 tc;
+    layout(binding = 0, offset = 0) uniform atomic_uint counter;
+    coherent uniform layout(size1x32) uimage2D mutex_buffer;
+    coherent uniform layout(rgba8) image2D per_frag_colors;
+    coherent uniform layout(r32f) image2D per_frag_depths;
+	uniform sampler2D tex0;
+	uniform sampler2D opaque_depth;
+    uniform ivec2 wh;
+    uniform int array_layers;
+	void main() {
+		if (texture(opaque_depth, gl_FragCoord.xy/vec2(wh)).r <= gl_FragCoord.z)
+			discard;
+        uint c = atomicCounterIncrement(counter);
+
+        uint index = imageAtomicAdd(mutex_buffer, ivec2(gl_FragCoord.xy), 1u);
+        if (index >= array_layers) discard;
+        ivec2 target = ivec2(gl_FragCoord.xy) + ivec2(0,index*int(wh.y));
+
+		float n_dot_l = max(0, 0.5*(1+dot(norm_wc, hemi_dir)));
+		vec4 color = texture(tex0, tc);
+		vec4 result = vec4(color.rgb * diffuse_color.rgb * light_col * n_dot_l, color.a * diffuse_color.a);
+
+        imageStore(per_frag_colors, target, result);
+        imageStore(per_frag_depths, target, vec4(gl_FragCoord.z,0,0,0)); //vec4(.8-(float(index)*0.1),0,0,0));
+
+        out_col = vec4(c);
+	}
+}
+#:inputs (list "in_pos" "in_norm")
+#:uniforms (list "proj" "view" "model" "hemi_dir" "light_col" "diffuse_color" "mutex_buffer" "per_frag_colors" "per_frag_depths" "wh" "array_layers" "opaque_depth" "tex0")>
 
 
 
@@ -371,6 +432,7 @@
     coherent uniform layout(size1x32) uimage2D mutex_buffer;
     coherent uniform layout(rgba8) image2D per_frag_colors;
     coherent uniform layout(r32f) image2D per_frag_depths;
+	uniform sampler2D tex0;
     uniform ivec2 wh;
     uniform int array_layers;
     float depth(int i) {
@@ -380,6 +442,14 @@
     void set_depth(int i, float d) {
         ivec2 index = ivec2(gl_FragCoord.xy) + ivec2(0,i*int(wh.y));
         imageStore(per_frag_depths, index, vec4(d,0,0,0));
+    }
+    vec4 color(int i) {
+        ivec2 index = ivec2(gl_FragCoord.xy) + ivec2(0,i*int(wh.y));
+        return imageLoad(per_frag_colors, index);
+    }
+    void set_color(int i, vec4 c) {
+        ivec2 index = ivec2(gl_FragCoord.xy) + ivec2(0,i*int(wh.y));
+        imageStore(per_frag_colors, index, c);
     }
     void exchange_color(int i, int j) {
         ivec2 index_i = ivec2(gl_FragCoord.xy) + ivec2(0,i*int(wh.y));
@@ -393,35 +463,12 @@
         uint array_len = imageLoad(mutex_buffer, ivec2(gl_FragCoord.xy)).r;
         if (array_len >= array_layers) array_len = array_layers - 1;
 
-        // find smalles depth value and display it.
-        /*
-        float smallest_depth = 1.0;
-        int id_of_smallest_depth = -1;
-
-        for (int i = 0; i < array_len; ++i) {
-            float d = depth(i);
-            if (d < smallest_depth) {
-                smallest_depth = d;
-                id_of_smallest_depth = i;
-            }
-            memoryBarrier();
-        }
-
-        float d = smallest_depth;
-        out_col = vec4(smallest_depth, smallest_depth, smallest_depth, 1);
-        return;
-        */
-        
-//         for (int i = 0; i < 4; ++i) {
-// //         	ivec2 index = ivec2(gl_FragCoord.xy) + ivec2(0,i*int(wh.y));
-// // 			imageStore(per_frag_depths, index, vec4(float(i)*0.2,0,0,0));
-// 			set_depth(i, depth(i+1));//1.0-(float(i)*0.2));
-// 		}
-       
-
         float depth_vals[10];   // this still has to be set manually.
         for (int i = 0; i < array_layers; ++i)
         	depth_vals[i] = depth(i);
+        vec4 color_vals[10];   // this still has to be set manually.
+        for (int i = 0; i < array_layers; ++i)
+        	color_vals[i] = color(i);
 
         float sd = 0;
         if (array_len > 0)
@@ -438,12 +485,17 @@
 	           if (swap_id != i) {
 	           	depth_vals[swap_id] = depth_vals[i];
 	           	depth_vals[i] = d;
+				vec4 tmp = color_vals[i];
+				color_vals[i] = color_vals[swap_id];
+				color_vals[swap_id] = tmp;
 	           }
 	           if (i == 0) sd = d;
 	        }
 	
         for (int i = 0; i < array_layers; ++i)
         	set_depth(i, depth_vals[i]);
+        for (int i = 0; i < array_layers; ++i)
+        	set_color(i, color_vals[i]);
 
         memoryBarrier();
 
@@ -453,92 +505,19 @@
 
         float d = smallest_depth;
         out_col = vec4(smallest_depth, smallest_depth, smallest_depth, 1);
-        return;
 
+		vec4 base = vec4(texture(tex0, gl_FragCoord.xy/vec2(wh)).rgb, 1);
+		if (array_len > 0)
+			for (int i = int(array_len)-1; i >= 0; --i) {
+				vec4 src = color_vals[i];
+				base = src.rgba * src.a + base.rgba * (1-src.a);
+			}
 
-		/*
-        // sort by smallest depth value and load the first entry to display it.
-        for (int i = 0; i < array_len-1; ++i) {
-            float d = depth(i);
-            int swap_id = i;
-            for (int j = 0; j < array_len; ++j) {
-                float dj = depth(j);
-                if (dj < d) {
-                    d = dj;
-                    swap_id = j;
-                }
-            }
-            if (swap_id != i) {
-                set_depth(swap_id, depth(i));
-                set_depth(i, d);
-            }
-        }
-
-        float smallest_depth = 1.0;
-        if (array_len > 0)
-            smallest_depth = depth(0);
-
-        float d = smallest_depth;
-        out_col = vec4(smallest_depth, smallest_depth, smallest_depth, 1);
-        return;
-        */
-
-//         if (smallest_depth == 9992.0)
-//             imageStore(per_frag_colors, ivec2(gl_FragCoord.xy), vec4(0,0,0,0));
-//         else if (d == 1.0)
-//             imageStore(per_frag_colors, ivec2(gl_FragCoord.xy), vec4(0,0,1,0));
-//         else if (d > 1.0)
-//             imageStore(per_frag_colors, ivec2(gl_FragCoord.xy), vec4(0,1,1,0));
-//         else
-//             imageStore(per_frag_colors, ivec2(gl_FragCoord.xy), vec4(d,0,0,0));
-        /*
-        if (id_of_smallest_depth == -1) {
-            imageStore(per_frag_colors, ivec2(gl_FragCoord.xy), vec4(0.3,0.3,.3,1));
-        }
-        else if (id_of_smallest_depth != 0) {
-            vec4 bla = imageLoad(per_frag_colors, ivec2(gl_FragCoord.xy)+ivec2(0,id_of_smallest_depth*wh.y));    //exchange_color(id_of_smallest_depth, 0);
-            memoryBarrier();
-            imageStore(per_frag_colors, ivec2(gl_FragCoord.xy), bla);
-            memoryBarrier();
-        }
-        else {
-            vec4 bla = imageLoad(per_frag_colors, ivec2(gl_FragCoord.xy));    //exchange_color(id_of_smallest_depth, 0);
-            memoryBarrier();
-            imageStore(per_frag_colors, ivec2(gl_FragCoord.xy), bla.rrba);
-        }
-        */
-//         for (int start = 0; start < array_len; ++start) {
-//             int lower_id = start;
-//             float start_d = depth(start);
-//             float lower = start_d;
-//             for (int test = start+1; test < array_len; ++test) {
-//                 float d = depth(test);
-//                 if (d < lower) {
-//                     lower = d;
-//                     lower_id = test;
-//                 }
-//             }
-//             if (lower_id != start) {
-//                 set_depth(start, lower);
-//                 set_depth(lower_id, start_d);
-//                 exchange_color(start, lower_id);
-//             }
-//         }
-
-        for (int i = 1; i < array_len; ++i) {
-        }
-
-        if (array_len > 0) {
-//             out_col = vec4(1,0,0,1);
-            out_col = vec4(float(array_len)*0.25, 0,0,1);//imageLoad(per_frag_colors, ivec2(gl_FragCoord.xy)+ivec2(0,int(wh.y)));
-//             float r = imageLoad(per_frag_depths, ivec2(gl_FragCoord.xy)).r;
-//             out_col = vec4(r*r*r*r);
-        }
-        else discard;
+		out_col = base;
 	}
 }
 #:inputs (list "in_pos")
-#:uniforms (list "mutex_buffer" "per_frag_colors" "per_frag_depths" "wh" "array_layers")>
+#:uniforms (list "mutex_buffer" "per_frag_colors" "per_frag_depths" "wh" "array_layers" "tex0")>
 
 
 
@@ -577,9 +556,9 @@
     uniform ivec2 wh;
 	void main() {
         for (int i = 0; i < 10; ++i) {
-                 imageStore(per_frag_colors, ivec2(gl_FragCoord.xy)+ivec2(0,i*wh.y), vec4(0,0,float(i)/10.0,1));
-                 imageStore(per_frag_depths, ivec2(gl_FragCoord.xy)+ivec2(0,i*wh.y), vec4(1,0,0,0));
-                 }
+            imageStore(per_frag_colors, ivec2(gl_FragCoord.xy)+ivec2(0,i*wh.y), vec4(0,0,float(i)/10.0,1));
+            imageStore(per_frag_depths, ivec2(gl_FragCoord.xy)+ivec2(0,i*wh.y), vec4(1,0,0,0));
+        }
 	}
 }
 #:inputs (list "in_pos")

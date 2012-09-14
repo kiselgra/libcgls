@@ -30,7 +30,7 @@
 
 (define x-res 1)
 (define y-res 1)
-(define array-layers 10)
+(define array-layers 20)
 
 (receive (x y w h) (viewport)
   (format #t "~a x ~a~%" w h)
@@ -258,7 +258,6 @@
     (unbind-framebuffer fbo)
     )
 
-  (memory-barrier!!)
   ;; clear arrays
   (check-for-gl-errors "before array clear")
   (let ((frag-counter (find-texture "frag_mutex"))
@@ -274,30 +273,12 @@
     (unbind-texture-as-image frag-colors 1)
     )
   
-  (memory-barrier!!)
-  (gl:finish 0)
+  ;(memory-barrier!!)
+  ;(gl:finish 0)
    
-  (let ((frag-colors (find-texture "frag_colors")))
-    (bind-texture frag-colors 0)
-;    (save-texture/png frag-colors "bla1.png")
-    (unbind-texture frag-colors))
-
-  (memory-barrier!!)
-  
-  ;; display the base image
-  (check-for-gl-errors "before mapping of base image")
+  ; clear the 'real' framebuffer
   (gl:clear-color .1 .3 .6 1)
   (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
-  (render-drawelement (find-drawelement "texquad/texquad-opaque"))
-
-  (memory-barrier!!)
-
-;  (for-each (lambda (de transparent)
-;              (when transparent
-;                (render-drawelement de)))
-;            drawelements
-;            drawelement-shaders)
-
 
   ;; render to fragment array buffer
   (check-for-gl-errors "before array collect shader")
@@ -307,12 +288,11 @@
         (frag-counter (find-texture "frag_mutex"))
         (frag-colors (find-texture "frag_colors"))
         (frag-depths (find-texture "frag_depths")))
-    ;(disable-color-output
+    (disable-color-output
       (disable-depth-output
         (for-each (lambda (de shader)
                     (when shader
                       (bind-texture depthtex (material-number-of-textures (drawelement-material de)))
-                      ;(gl:uniform1i (uniform-location shader "opaque_depth") 3);(material-number-of-textures (drawelement-material de)))
                       (bind-texture-as-image frag-counter 0 0 gl!!read-write gl#r32i)
                       (bind-texture-as-image frag-colors 1 0 gl!!read-write gl#rgba8)
                       (bind-texture-as-image frag-depths 2 0 gl!!read-write gl#r32f)
@@ -323,20 +303,9 @@
                       (unbind-texture depthtex)))
                   drawelements
                   drawelement-shaders))
-        );)
+        ))
   (unbind-atomic-buffer atomic-counter 0)
-  
-(memory-barrier!!)
-;    (when #f
-
-  ;; read debugging info
-  (gl:finish 0) ;; bug in wrapper/gen -> glFinish(void);
-  (check-for-gl-errors "before atomic dl")
-  (set! copy-of-atomic-buffer (read-atomic-buffer atomic-counter))
-  (format #t "fragments rendered in collection pass: ~a~%" (bytevector-s32-native-ref copy-of-atomic-buffer 0))
-
-  (memory-barrier!!)
-  (gl:finish 0)
+   
   (check-for-gl-errors "before using the array info")
 
   (let ((frag-counter (find-texture "frag_mutex"))
@@ -351,21 +320,6 @@
     (unbind-texture-as-image frag-colors 1)
     (unbind-texture-as-image frag-counter 0))
 
-  (memory-barrier!!)
-  (gl:finish 0)
-
-;  (check-for-gl-errors "before debug output")
-;  (let ((frag-colors (find-texture "frag_colors"))
-;        (frag-depths (find-texture "frag_depths")))
-;    (bind-texture frag-colors 0)
-;    (save-texture/png frag-colors "bla2.png")
-;    (unbind-texture frag-colors)
-;    (bind-texture frag-depths 0)
-;    (save-texture/png frag-depths "bla2d.png")
-;    (unbind-texture frag-depths))
-
-    ;)
-  (memory-barrier!!)
   (glut:swap-buffers))
 
 ;; initial gl setup

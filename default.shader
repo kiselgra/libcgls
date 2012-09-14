@@ -295,7 +295,6 @@
 		float n_dot_l = max(0, 0.5*(1+dot(norm_wc, hemi_dir)));
         uint c = atomicCounterIncrement(counter);
 		out_col = vec4(diffuse_color.rgb * light_col * n_dot_l, diffuse_color.a);
-//         out_col.r += 0.0000001 * float(c);
         imageAtomicAdd(mutex_buffer, ivec2(gl_FragCoord.xy), 1u);
 	}
 }
@@ -463,10 +462,10 @@
         uint array_len = imageLoad(mutex_buffer, ivec2(gl_FragCoord.xy)).r;
         if (array_len >= array_layers) array_len = array_layers - 1;
 
-        float depth_vals[10];   // this still has to be set manually.
+        float depth_vals[20];   // this still has to be set manually.
         for (int i = 0; i < array_layers; ++i)
         	depth_vals[i] = depth(i);
-        vec4 color_vals[10];   // this still has to be set manually.
+        vec4 color_vals[20];   // this still has to be set manually.
         for (int i = 0; i < array_layers; ++i)
         	color_vals[i] = color(i);
 
@@ -555,8 +554,8 @@
     coherent uniform layout(size1x32) image2D per_frag_depths;
     uniform ivec2 wh;
 	void main() {
-        for (int i = 0; i < 10; ++i) {
-            imageStore(per_frag_colors, ivec2(gl_FragCoord.xy)+ivec2(0,i*wh.y), vec4(0,0,float(i)/10.0,1));
+        for (int i = 0; i < 20; ++i) {
+            imageStore(per_frag_colors, ivec2(gl_FragCoord.xy)+ivec2(0,i*wh.y), vec4(0,0,float(i)/20.0,1));
             imageStore(per_frag_depths, ivec2(gl_FragCoord.xy)+ivec2(0,i*wh.y), vec4(1,0,0,0));
         }
 	}
@@ -761,10 +760,6 @@
     layout(binding = 0, offset = 0) uniform atomic_uint counter;
     coherent uniform layout(size1x32) uimage2D mutex_buffer;
     void main() {
-//         uint c = atomicCounterIncrement(counter);
-//         imageStore(mutex_buffer, ivec2(0,0), uvec4(c,0,0,0));
-//         float r = (c/1024) / 1024.f;
-//         out_col = vec4(r, 0, 0, 1);
         out_col = vec4(tc.x,tc.y,0,1); //imageLoad(mutex_buffer, ivec2(0,0)).r,1);
         unsigned int array_len = imageLoad(mutex_buffer, ivec2(gl_FragCoord.xy)).r;
         out_col = vec4(float(array_len) / 10.0, 0, 0, 1);
@@ -777,10 +772,6 @@
         if (array_len == 5) out_col.xyz = vec3(0,1,1);
         if (array_len == 6) out_col.xyz = vec3(1,0,1);
         if (array_len >  6) out_col.xyz = vec3(1,1,1);
-
-//         imageStore(mutex_buffer, ivec2(gl_FragCoord.xy), uvec4(0,0,0,0));
-//             out_col = vec4(tc.x,tc.y,0,1); //imageLoad(mutex_buffer, ivec2(0,0)).r,1);
-//             out_col = vec4(0,0,(imageLoad(mutex_buffer, ivec2(0,0)).r/256)/10000.0f,1);
     }
 }
 #:inputs (list "in_pos" "in_tc")

@@ -1,7 +1,7 @@
 (format #t "Entering ~a.~%" (current-filename))
 (include "std.scm")
 
-(define array-layers 20)
+(define array-layers 16)
 
 (load "default.shader")
 
@@ -183,6 +183,8 @@
   (prepend-uniform-handler de 'default-material-uniform-handler))
 
 
+(define gl!!read-only #x88B8)
+(define gl!!write-only #x88B9)
 (define gl!!read-write #x088ba)
 
 ;; the display routine registered with glut
@@ -258,11 +260,11 @@
            ;; clear arrays
            (start-timer)
            (check-for-gl-errors "before array clear")
-           (bind-texture-as-image frag-counter 0 0 gl!!read-write gl#r32i)
+           (bind-texture-as-image frag-counter 0 0 gl!!write-only gl#r32i)
            (render-drawelement (find-drawelement "texquad/clear-array"))
            (unbind-texture-as-image frag-counter 0)
-           (bind-texture-as-image frag-colors 1 0 gl!!read-write gl#rgba8)
-           (bind-texture-as-image frag-depths 2 0 gl!!read-write gl#r32f)
+           (bind-texture-as-image frag-colors 1 0 gl!!write-only gl#rgba8)
+           (bind-texture-as-image frag-depths 2 0 gl!!write-only gl#r32f)
            (render-drawelement (find-drawelement "texquad/clear-color"))
            (unbind-texture-as-image frag-depths 2)
            (unbind-texture-as-image frag-colors 1)
@@ -288,8 +290,8 @@
                            (when shader
                              (bind-texture depthtex (material-number-of-textures (drawelement-material de)))
                              (bind-texture-as-image frag-counter 0 0 gl!!read-write gl#r32i)
-                             (bind-texture-as-image frag-colors 1 0 gl!!read-write gl#rgba8)
-                             (bind-texture-as-image frag-depths 2 0 gl!!read-write gl#r32f)
+                             (bind-texture-as-image frag-colors 1 0 gl!!write-only gl#rgba8)
+                             (bind-texture-as-image frag-depths 2 0 gl!!write-only gl#r32f)
                              (render-drawelement-with-shader de shader)
                              (unbind-texture-as-image frag-depths 2)
                              (unbind-texture-as-image frag-colors 1)
@@ -303,9 +305,9 @@
            (check-for-gl-errors "before using the array info")
      
            (start-timer)
-           (bind-texture-as-image frag-counter 0 0 gl!!read-write gl#r32i)
-           (bind-texture-as-image frag-colors 1 0 gl!!read-write gl#rgba8)
-           (bind-texture-as-image frag-depths 2 0 gl!!read-write gl#r32f)
+           (bind-texture-as-image frag-counter 0 0 gl!!read-only gl#r32i)
+           (bind-texture-as-image frag-colors 1 0 gl!!read-only gl#rgba8)
+           (bind-texture-as-image frag-depths 2 0 gl!!read-only gl#r32f)
            (render-drawelement (find-drawelement "texquad/apply-array"))
            (unbind-texture-as-image frag-depths 2)
            (unbind-texture-as-image frag-colors 1)

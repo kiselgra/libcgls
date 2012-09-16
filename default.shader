@@ -427,6 +427,7 @@
 }
 #:fragment-shader #{
 #version 420 core
+#extension GL_NV_gpu_shader5 : enable
 	out vec4 out_col;
     coherent uniform layout(size1x32) uimage2D mutex_buffer;
     coherent uniform layout(rgba8) image2D per_frag_colors;
@@ -462,15 +463,14 @@
         uint array_len = imageLoad(mutex_buffer, ivec2(gl_FragCoord.xy)).r;
         if (array_len >= array_layers) array_len = array_layers - 1;
 
-        float depth_vals[20];   // this still has to be set manually.
-        for (int i = 0; i < array_layers; ++i)
+        float depth_vals[16];   // this still has to be set manually.
+		int16_t color_v[16];
+        for (int i = 0; i < int(array_len); ++i) {	// looping unto array_layers is death!
         	depth_vals[i] = depth(i);
-        vec4 color_vals[20];   // this still has to be set manually.
-        for (int i = 0; i < array_layers; ++i)
-        	color_vals[i] = color(i);
-
-        float sd = 0;
-        if (array_len > 0)
+			color_v[i] = int16_t(i);
+		}
+        
+		if (array_len > 0)
 	    for (int i = 0; i < array_len-1; ++i) {
 	           float d = depth_vals[i];
 	           int swap_id = i;
@@ -484,31 +484,35 @@
 	           if (swap_id != i) {
 	           	depth_vals[swap_id] = depth_vals[i];
 	           	depth_vals[i] = d;
-				vec4 tmp = color_vals[i];
-				color_vals[i] = color_vals[swap_id];
-				color_vals[swap_id] = tmp;
+				// vec4 tmp = color_vals[i];
+				// color_vals[i] = color_vals[swap_id];
+				// color_vals[swap_id] = tmp;
+				int16_t tmp = color_v[i];
+				color_v[i] = color_v[swap_id];
+				color_v[swap_id] = tmp;
 	           }
-	           if (i == 0) sd = d;
 	        }
-	
-        for (int i = 0; i < array_layers; ++i)
-        	set_depth(i, depth_vals[i]);
-        for (int i = 0; i < array_layers; ++i)
-        	set_color(i, color_vals[i]);
 
-        memoryBarrier();
-
-        float smallest_depth = 1.0;
+		/*	bubble sort version
         if (array_len > 0)
-            smallest_depth = depth(0);
-
-        float d = smallest_depth;
-        out_col = vec4(smallest_depth, smallest_depth, smallest_depth, 1);
-
+		for (int i = (int(array_len) - 2); i >= 0; --i) {
+			for (int j = 0; j <= i; ++j) {
+				if (depth_vals[j] > depth_vals[j+1]) {
+					float temp = depth_vals[j+1];
+					depth_vals[j+1] = depth_vals[j];
+					depth_vals[j] = temp;
+					int16_t tmp = color_v[j];
+					color_v[j] = color_v[j+1];
+					color_v[j+1] = tmp;
+				}
+			}
+		}
+		*/
+	
 		vec4 base = vec4(texture(tex0, gl_FragCoord.xy/vec2(wh)).rgb, 1);
 		if (array_len > 0)
-			for (int i = int(array_len)-1; i >= 0; --i) {
-				vec4 src = color_vals[i];
+			for (int i = int (array_len)-1; i >= 0; --i) {
+				vec4 src = color(int(color_v[i]));
 				base = src.rgba * src.a + base.rgba * (1-src.a);
 			}
 

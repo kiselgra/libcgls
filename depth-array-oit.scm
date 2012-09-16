@@ -192,10 +192,15 @@
 
 (defmacro start-timer ()
   `(set! t-start (glut:time-stamp)))
-(defmacro take-time (end)
+(defmacro with-timer (end . body)
   `(begin
       (gl:finish 0)
-      (set! ,end (+ ,end (- (glut:time-stamp) t-start)))))
+      (memory-barrier!!)
+      (let ((timer-start (glut:time-stamp)))
+        ,@body
+        (gl:finish 0)
+        (memory-barrier!!)
+        (set! ,end (+ ,end (- (glut:time-stamp) timer-start))))))
 
 (define fps 'not-ready)
 (define print-timings #t)
@@ -209,7 +214,6 @@
        (frag-colors (find-texture "frag_colors"))
        (frag-depths (find-texture "frag_depths"))
        ; timer-stuff
-       (t-start 0)
        (t-base-image 0)
        (t-clear-arr 0)
        (t-clear-b 0)
@@ -245,74 +249,69 @@
            (check-for-gl-errors "right at the beginning")
 
            ;; generate the base image.
-           (start-timer)
-           (bind-framebuffer fbo)
-           (gl:clear-color .1 .3 .6 1)
-           (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
-           (for-each (lambda (de transparent)
-                       (when (not transparent)
-                         (render-drawelement de)))
-                     drawelements
-                     drawelement-shaders)
-           (unbind-framebuffer fbo)
-           (take-time t-base-image)
+           (with-timer t-base-image
+             (bind-framebuffer fbo)
+             (gl:clear-color .1 .3 .6 1)
+             (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
+             (for-each (lambda (de transparent)
+                         (when (not transparent)
+                           (render-drawelement de)))
+                       drawelements
+                       drawelement-shaders)
+             (unbind-framebuffer fbo))
      
            ;; clear arrays
-           (start-timer)
-           (check-for-gl-errors "before array clear")
-           (bind-texture-as-image frag-counter 0 0 gl!!write-only gl#r32i)
-           (render-drawelement (find-drawelement "texquad/clear-array"))
-           (unbind-texture-as-image frag-counter 0)
-           (bind-texture-as-image frag-colors 1 0 gl!!write-only gl#rgba8)
-           (bind-texture-as-image frag-depths 2 0 gl!!write-only gl#r32f)
-           (render-drawelement (find-drawelement "texquad/clear-color"))
-           (unbind-texture-as-image frag-depths 2)
-           (unbind-texture-as-image frag-colors 1)
-           (take-time t-clear-arr)
+           (with-timer t-clear-arr
+             (check-for-gl-errors "before array clear")
+             (bind-texture-as-image frag-counter 0 0 gl!!write-only gl#r32i)
+             (render-drawelement (find-drawelement "texquad/clear-array"))
+             (unbind-texture-as-image frag-counter 0)
+             (bind-texture-as-image frag-colors 1 0 gl!!write-only gl#rgba8)
+             (bind-texture-as-image frag-depths 2 0 gl!!write-only gl#r32f)
+             (render-drawelement (find-drawelement "texquad/clear-color"))
+             (unbind-texture-as-image frag-depths 2)
+             (unbind-texture-as-image frag-colors 1))
            
            ;(memory-barrier!!)
            ;(gl:finish 0)
             
            ; clear the 'real' framebuffer
-           (start-timer)
-           (gl:clear-color .1 .3 .6 1)
-           (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
-           (take-time t-clear-b)
+           (with-timer t-clear-b
+             (gl:clear-color .1 .3 .6 1)
+             (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit)))
      
            ;; render to fragment array buffer
            (check-for-gl-errors "before array collect shader")
-           (start-timer)
-           (reset-atomic-buffer atomic-counter 0)
-           (bind-atomic-buffer atomic-counter 0)
-           (disable-color-output
-             (disable-depth-output
-               (for-each (lambda (de shader)
-                           (when shader
-                             (bind-texture depthtex (material-number-of-textures (drawelement-material de)))
-                             (bind-texture-as-image frag-counter 0 0 gl!!read-write gl#r32i)
-                             (bind-texture-as-image frag-colors 1 0 gl!!write-only gl#rgba8)
-                             (bind-texture-as-image frag-depths 2 0 gl!!write-only gl#r32f)
-                             (render-drawelement-with-shader de shader)
-                             (unbind-texture-as-image frag-depths 2)
-                             (unbind-texture-as-image frag-colors 1)
-                             (unbind-texture-as-image frag-counter 0)
-                             (unbind-texture depthtex)))
-                         drawelements
-                         drawelement-shaders)))
-           (unbind-atomic-buffer atomic-counter 0)
-           (take-time t-collect)
+           (with-timer t-collect
+             (reset-atomic-buffer atomic-counter 0)
+             (bind-atomic-buffer atomic-counter 0)
+             (disable-color-output
+               (disable-depth-output
+                 (for-each (lambda (de shader)
+                             (when shader
+                               (bind-texture depthtex (material-number-of-textures (drawelement-material de)))
+                               (bind-texture-as-image frag-counter 0 0 gl!!read-write gl#r32i)
+                               (bind-texture-as-image frag-colors 1 0 gl!!write-only gl#rgba8)
+                               (bind-texture-as-image frag-depths 2 0 gl!!write-only gl#r32f)
+                               (render-drawelement-with-shader de shader)
+                               (unbind-texture-as-image frag-depths 2)
+                               (unbind-texture-as-image frag-colors 1)
+                               (unbind-texture-as-image frag-counter 0)
+                               (unbind-texture depthtex)))
+                           drawelements
+                           drawelement-shaders)))
+             (unbind-atomic-buffer atomic-counter 0))
             
            (check-for-gl-errors "before using the array info")
      
-           (start-timer)
-           (bind-texture-as-image frag-counter 0 0 gl!!read-only gl#r32i)
-           (bind-texture-as-image frag-colors 1 0 gl!!read-only gl#rgba8)
-           (bind-texture-as-image frag-depths 2 0 gl!!read-only gl#r32f)
-           (render-drawelement (find-drawelement "texquad/apply-array"))
-           (unbind-texture-as-image frag-depths 2)
-           (unbind-texture-as-image frag-colors 1)
-           (unbind-texture-as-image frag-counter 0)
-           (take-time t-apply)
+           (with-timer t-apply
+             (bind-texture-as-image frag-counter 0 0 gl!!read-only gl#r32i)
+             (bind-texture-as-image frag-colors 1 0 gl!!read-only gl#rgba8)
+             (bind-texture-as-image frag-depths 2 0 gl!!read-only gl#r32f)
+             (render-drawelement (find-drawelement "texquad/apply-array"))
+             (unbind-texture-as-image frag-depths 2)
+             (unbind-texture-as-image frag-colors 1)
+             (unbind-texture-as-image frag-counter 0))
      
            (set! frames (1+ frames))
            (glut:swap-buffers))))

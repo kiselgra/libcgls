@@ -106,7 +106,7 @@ int main(int argc, char **argv)
 	
 // 	int guile_mode = guile_cfg_only;
 	int guile_mode = with_guile;
-	startup_cgl("name", 4, 2, argc, argv, 1366, 768, actual_main, guile_mode, false, 0);
+	startup_cgl("name", 4, 2, argc, argv, (int)cmdline.res.x, (int)cmdline.res.y, actual_main, guile_mode, false, 0);
 
 	return 0;
 }

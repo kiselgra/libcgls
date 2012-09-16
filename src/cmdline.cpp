@@ -26,6 +26,7 @@ static struct argp_option options[] =
 	{ "hemi", 'h', "x,y,z",     0, "Use a hemispherical light."},
     { "config", 'c', "configfile", 0, "Scheme file to supply instructions."},
     { "include-path", 'I', "path", 0, "Path to search for the config file. Default: " DATADIR "."},
+    { "res", 'r', "w,h", 0, "Window resolution."},
 	{ 0 }
 };	
 
@@ -46,6 +47,15 @@ vec3f read_vec3f(const std::string &s) {
 	return v;
 }
 
+vec2f read_vec2f(const std::string &s) {
+	istringstream iss(s);
+	vec2f v;
+	char sep;
+	iss >> v.x >> sep >> v.y;
+// 	cout << v.x << "\t" << v.y << "\t" << v.z << endl;
+	return v;
+}
+
 
 static error_t parse_options(int key, char *arg, argp_state *state)
 {
@@ -62,6 +72,7 @@ static error_t parse_options(int key, char *arg, argp_state *state)
 	case 'h':	cmdline.hemi = true; cmdline.hemi_dir = read_vec3f(sarg); break;
     case 'c':   cmdline.config = strdup(arg); break;
     case 'I':   cmdline.include_path = strdup(arg); break;
+    case 'r':   cmdline.res = read_vec2f(sarg); break;
 	
 	case ARGP_KEY_ARG:		// process arguments. 
 							// state->arg_num gives number of current arg
@@ -85,6 +96,8 @@ int parse_cmdline(int argc, char **argv)
 	cmdline.hemi = false;
     cmdline.config = strdup("default.scm");
     cmdline.include_path = DATADIR;
+    cmdline.res.x = 1366; 
+    cmdline.res.y = 768;
 	int ret = argp_parse(&parser, argc, argv, /*ARGP_NO_EXIT*/0, 0, 0);
 
 	if (cmdline.filename == 0) {

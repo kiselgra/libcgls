@@ -14,6 +14,7 @@ typedef struct
 	bool hemi;
     const char *config;
     const char *include_path;
+    vec2f res;
 } Cmdline;
 
 #ifdef __cplusplus

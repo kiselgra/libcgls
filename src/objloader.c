@@ -21,7 +21,7 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 	// note: the material names are already prefixed with the model's base name.
 	for (int i = 0; i < objdata.number_of_materials; ++i) {
 		obj_mtl *m = objdata.materials+i;
-		material_ref mat = make_material3f(m->name, &m->col_amb, &m->col_diff, &m->col_spec);
+		material_ref mat = make_material(m->name, &m->col_amb, &m->col_diff, &m->col_spec);
 		tex_params_t p = default_tex_params();
 		if (m->tex_a) material_add_texture(mat, make_texture(basename(m->tex_a), m->tex_a, GL_TEXTURE_2D, &p));
 		if (m->tex_d) material_add_texture(mat, make_texture(basename(m->tex_d), m->tex_d, GL_TEXTURE_2D, &p));

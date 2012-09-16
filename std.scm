@@ -17,6 +17,13 @@
 (define (mset! bv x y to)
   (bytevector-ieee-single-native-set! bv (* 4 (+ (* x 4) y)) to))
 
+(define (make-scale-matrix x y z)
+  (let ((m (make-unit-matrix)))
+    (mset! m 0 0 x)
+    (mset! m 1 1 y)
+    (mset! m 2 2 z)
+    m))
+  
 (define (print-matrix bv)
   (if (not (bytevector? bv))
       (error "not a matrix ~a~%" bv)

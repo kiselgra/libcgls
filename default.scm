@@ -95,5 +95,5 @@
   (glut:swap-buffers))
 
 (register-display-function display)
-
+(gl:enable gl#depth-test)
 (format #t "Leaving ~a.~%" (current-filename))

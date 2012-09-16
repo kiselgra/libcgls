@@ -93,11 +93,19 @@
   (let ((dragon-mat (make-material "dragonmat" (make-vec 0 0 0 0) (make-vec 0 .7 0 .4) (make-vec 0 0 0 1))))
     (load-objfile-and-create-objects-with-separate-vbos "/home/kai/render-data/models/drache.obj" "dragon" create-drawelement dragon-mat))
   
+  (let ((kb-mat (make-material "kbmat" (make-vec 0 0 0 0) (make-vec 0 .7 0 .4) (make-vec 0 0 0 1))))
+    (load-objfile-and-create-objects-with-separate-vbos "/home/kai/render-data/models/a-kleinbottle.obj" "kleinbottle" create-drawelement kb-mat))
+  
   (let ((bunny (find-drawelement "bunny70k/bunny"))
         (trafo (make-rotation-matrix (make-vec 1 0 0) (/ 3.1416 -2))))
     (mset! trafo 3 1 -43)
     (mset! trafo 3 0 -750)
     (set-de-trafo! bunny trafo))
+   
+  (let ((bottle (find-drawelement "kleinbottle/Circle_Circle_Material.001"))
+        (trafo (make-scale-matrix 30 30 30)))
+    (mset! trafo 3 0 -350)
+    (set-de-trafo! bottle trafo))
   
   (let* ((dragon (find-drawelement "dragon/dragon_nObject1Shape"))
          (trafo-x (make-rotation-matrix (make-vec 1 0 0) (/ 3.1416 -2)))
@@ -180,93 +188,136 @@
 ;; the display routine registered with glut
 (set-move-factor! (/ (move-factor) 2))
 
-(define (display/glut)
-  (gl:clear-color .9 .9 .6 1)
-  (apply-commands)
+(defmacro start-timer ()
+  `(set! t-start (glut:time-stamp)))
+(defmacro take-time (end)
+  `(begin
+      (gl:finish 0)
+      (set! ,end (+ ,end (- (glut:time-stamp) t-start)))))
 
-  (check-for-gl-errors "right at the beginning")
-  ;; generate the base image.
-  (let ((fbo (find-framebuffer "opaque"))
-        (coltex (find-texture "opaque-color"))
-        (depthtex (find-texture "opaque-depth")))
-    (bind-framebuffer fbo)
-    (gl:clear-color .1 .3 .6 1)
-    (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
-    (for-each (lambda (de transparent)
-                (when (not transparent)
-                  (render-drawelement de)))
-              drawelements
-              drawelement-shaders)
-    (unbind-framebuffer fbo)
-    )
+(define fps 'not-ready)
+(define print-timings #t)
 
-  ;; clear arrays
-  (check-for-gl-errors "before array clear")
-  (let ((frag-counter (find-texture "frag_mutex"))
-        (frag-colors (find-texture "frag_colors"))
-        (frag-depths (find-texture "frag_depths")))
-    (bind-texture-as-image frag-counter 0 0 gl!!read-write gl#r32i)
-    (render-drawelement (find-drawelement "texquad/clear-array"))
-    (unbind-texture-as-image frag-counter 0)
-    (bind-texture-as-image frag-colors 1 0 gl!!read-write gl#rgba8)
-    (bind-texture-as-image frag-depths 2 0 gl!!read-write gl#r32f)
-    (render-drawelement (find-drawelement "texquad/clear-color"))
-    (unbind-texture-as-image frag-depths 2)
-    (unbind-texture-as-image frag-colors 1)
-    )
-  
-  ;(memory-barrier!!)
-  ;(gl:finish 0)
-   
-  ; clear the 'real' framebuffer
-  (gl:clear-color .1 .3 .6 1)
-  (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
+(let* (; the opaque render target
+       (fbo (find-framebuffer "opaque"))
+       (coltex (find-texture "opaque-color"))
+       (depthtex (find-texture "opaque-depth"))
+       ; the textures used for arrays
+       (frag-counter (find-texture "frag_mutex"))
+       (frag-colors (find-texture "frag_colors"))
+       (frag-depths (find-texture "frag_depths"))
+       ; timer-stuff
+       (t-start 0)
+       (t-base-image 0)
+       (t-clear-arr 0)
+       (t-clear-b 0)
+       (t-collect 0)
+       (t-apply 0)
+       (frames 0)
+       (print-timer (glut:time-stamp))
+       (print-timings 
+        (lambda ()
+          (when (> (- (glut:time-stamp) print-timer) 5000)
+            (set! fps (/ frames 5)))
+          (when (and (> (- (glut:time-stamp) print-timer) 5000)
+                     print-timings)
+            (letrec-syntax ((varname (syntax-rules () ((varname x) (quote x))))
+                            (pr (syntax-rules () 
+                                  ((print x)    
+                                   (begin 
+                                     (format #t "~a: ~a ms.~%" (varname x) (exact->inexact (/ x frames))) 
+                                     (set! x 0))))))
+              (pr t-base-image)
+              (pr t-clear-arr)
+              (pr t-clear-b)
+              (pr t-collect) 
+              (pr t-apply))
+            (set! print-timer (glut:time-stamp))
+            (set! frames 0))))
+       ; the actual display function
+       (display/glut 
+         (lambda ()
+           (apply-commands)
+           (print-timings)
+     
+           (check-for-gl-errors "right at the beginning")
 
-  ;; render to fragment array buffer
-  (check-for-gl-errors "before array collect shader")
-  (reset-atomic-buffer atomic-counter 0)
-  (bind-atomic-buffer atomic-counter 0)
-  (let ((depthtex (find-texture "opaque-depth"))
-        (frag-counter (find-texture "frag_mutex"))
-        (frag-colors (find-texture "frag_colors"))
-        (frag-depths (find-texture "frag_depths")))
-    (disable-color-output
-      (disable-depth-output
-        (for-each (lambda (de shader)
-                    (when shader
-                      (bind-texture depthtex (material-number-of-textures (drawelement-material de)))
-                      (bind-texture-as-image frag-counter 0 0 gl!!read-write gl#r32i)
-                      (bind-texture-as-image frag-colors 1 0 gl!!read-write gl#rgba8)
-                      (bind-texture-as-image frag-depths 2 0 gl!!read-write gl#r32f)
-                      (render-drawelement-with-shader de shader)
-                      (unbind-texture-as-image frag-depths 2)
-                      (unbind-texture-as-image frag-colors 1)
-                      (unbind-texture-as-image frag-counter 0)
-                      (unbind-texture depthtex)))
-                  drawelements
-                  drawelement-shaders))
-        ))
-  (unbind-atomic-buffer atomic-counter 0)
-   
-  (check-for-gl-errors "before using the array info")
-
-  (let ((frag-counter (find-texture "frag_mutex"))
-        (frag-colors (find-texture "frag_colors"))
-        (frag-depths (find-texture "frag_depths"))
-        (opaque (find-texture "opaque-color")))
-    (bind-texture-as-image frag-counter 0 0 gl!!read-write gl#r32i)
-    (bind-texture-as-image frag-colors 1 0 gl!!read-write gl#rgba8)
-    (bind-texture-as-image frag-depths 2 0 gl!!read-write gl#r32f)
-    (render-drawelement (find-drawelement "texquad/apply-array"))
-    (unbind-texture-as-image frag-depths 2)
-    (unbind-texture-as-image frag-colors 1)
-    (unbind-texture-as-image frag-counter 0))
-
-  (glut:swap-buffers))
+           ;; generate the base image.
+           (start-timer)
+           (bind-framebuffer fbo)
+           (gl:clear-color .1 .3 .6 1)
+           (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
+           (for-each (lambda (de transparent)
+                       (when (not transparent)
+                         (render-drawelement de)))
+                     drawelements
+                     drawelement-shaders)
+           (unbind-framebuffer fbo)
+           (take-time t-base-image)
+     
+           ;; clear arrays
+           (start-timer)
+           (check-for-gl-errors "before array clear")
+           (bind-texture-as-image frag-counter 0 0 gl!!read-write gl#r32i)
+           (render-drawelement (find-drawelement "texquad/clear-array"))
+           (unbind-texture-as-image frag-counter 0)
+           (bind-texture-as-image frag-colors 1 0 gl!!read-write gl#rgba8)
+           (bind-texture-as-image frag-depths 2 0 gl!!read-write gl#r32f)
+           (render-drawelement (find-drawelement "texquad/clear-color"))
+           (unbind-texture-as-image frag-depths 2)
+           (unbind-texture-as-image frag-colors 1)
+           (take-time t-clear-arr)
+           
+           ;(memory-barrier!!)
+           ;(gl:finish 0)
+            
+           ; clear the 'real' framebuffer
+           (start-timer)
+           (gl:clear-color .1 .3 .6 1)
+           (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
+           (take-time t-clear-b)
+     
+           ;; render to fragment array buffer
+           (check-for-gl-errors "before array collect shader")
+           (start-timer)
+           (reset-atomic-buffer atomic-counter 0)
+           (bind-atomic-buffer atomic-counter 0)
+           (disable-color-output
+             (disable-depth-output
+               (for-each (lambda (de shader)
+                           (when shader
+                             (bind-texture depthtex (material-number-of-textures (drawelement-material de)))
+                             (bind-texture-as-image frag-counter 0 0 gl!!read-write gl#r32i)
+                             (bind-texture-as-image frag-colors 1 0 gl!!read-write gl#rgba8)
+                             (bind-texture-as-image frag-depths 2 0 gl!!read-write gl#r32f)
+                             (render-drawelement-with-shader de shader)
+                             (unbind-texture-as-image frag-depths 2)
+                             (unbind-texture-as-image frag-colors 1)
+                             (unbind-texture-as-image frag-counter 0)
+                             (unbind-texture depthtex)))
+                         drawelements
+                         drawelement-shaders)))
+           (unbind-atomic-buffer atomic-counter 0)
+           (take-time t-collect)
+            
+           (check-for-gl-errors "before using the array info")
+     
+           (start-timer)
+           (bind-texture-as-image frag-counter 0 0 gl!!read-write gl#r32i)
+           (bind-texture-as-image frag-colors 1 0 gl!!read-write gl#rgba8)
+           (bind-texture-as-image frag-depths 2 0 gl!!read-write gl#r32f)
+           (render-drawelement (find-drawelement "texquad/apply-array"))
+           (unbind-texture-as-image frag-depths 2)
+           (unbind-texture-as-image frag-colors 1)
+           (unbind-texture-as-image frag-counter 0)
+           (take-time t-apply)
+     
+           (set! frames (1+ frames))
+           (glut:swap-buffers))))
+  (register-display-function display/glut))
 
 ;; initial gl setup
 ;;
-(register-display-function display/glut)
 
 ;; done
 ;;

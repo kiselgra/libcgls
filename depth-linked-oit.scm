@@ -93,8 +93,8 @@
   (let ((bunny-mat (make-material "bunnymat" (make-vec 0 0 0 0) (make-vec .8 0 0 .3) (make-vec 0 0 0 1))))
     (load-objfile-and-create-objects-with-separate-vbos "/home/kai/render-data/models/bunny-70k.obj" "bunny70k" create-drawelement bunny-mat))
   
-;  (let ((dragon-mat (make-material "dragonmat" (make-vec 0 0 0 0) (make-vec 0 .7 0 .4) (make-vec 0 0 0 1))))
-;    (load-objfile-and-create-objects-with-separate-vbos "/home/kai/render-data/models/drache.obj" "dragon" create-drawelement dragon-mat))
+  (let ((dragon-mat (make-material "dragonmat" (make-vec 0 0 0 0) (make-vec 0 .7 0 .4) (make-vec 0 0 0 1))))
+    (load-objfile-and-create-objects-with-separate-vbos "/home/kai/render-data/models/drache.obj" "dragon" create-drawelement dragon-mat))
   
 ;  (let ((kb-mat (make-material "kbmat" (make-vec 0 0 0 0) (make-vec 0 .7 0 .4) (make-vec 0 0 0 1))))
 ;    (load-objfile-and-create-objects-with-separate-vbos "/home/kai/render-data/models/a-kleinbottle.obj" "kleinbottle" create-drawelement kb-mat))
@@ -110,15 +110,15 @@
 ;    (mset! trafo 3 0 -350)
 ;    (set-de-trafo! bottle trafo))
   
-;  (let* ((dragon (find-drawelement "dragon/dragon_nObject1Shape"))
-;         (trafo-x (make-rotation-matrix (make-vec 1 0 0) (/ 3.1416 -2)))
-;         (trafo-y (make-rotation-matrix (make-vec 0 0 1) (/ 3.1416 -2)))
-;         (trafo (multiply-matrices trafo-x trafo-y)))
-;    (set-material-diffuse-color! (drawelement-material dragon) (make-vec 0 .7 0 .4))
-;    (mset! trafo 3 0 -700)
-;    (mset! trafo 3 1 -43)
-;    (mset! trafo 3 2 150)
-;    (set-de-trafo! dragon trafo))
+  (let* ((dragon (find-drawelement "dragon/dragon_nObject1Shape"))
+         (trafo-x (make-rotation-matrix (make-vec 1 0 0) (/ 3.1416 -2)))
+         (trafo-y (make-rotation-matrix (make-vec 0 0 1) (/ 3.1416 -2)))
+         (trafo (multiply-matrices trafo-x trafo-y)))
+    (set-material-diffuse-color! (drawelement-material dragon) (make-vec 0 .7 0 .4))
+    (mset! trafo 3 0 -700)
+    (mset! trafo 3 1 -43)
+    (mset! trafo 3 2 150)
+    (set-de-trafo! dragon trafo))
   
   (for-each (lambda (de)
               (let* ((de-id (find-drawelement de))
@@ -206,7 +206,7 @@
         (set! ,end (+ ,end (- (glut:time-stamp) timer-start))))))
 
 (define fps 'not-ready)
-(define print-timings #f)
+(define print-timings #t)
 
 (let* (; the opaque render target
        (fbo (find-framebuffer "opaque"))
@@ -284,8 +284,8 @@
              (unbind-texture-as-image frag-depths 2)
              (unbind-texture-as-image frag-colors 1))
            
-           (memory-barrier!!)
-           (gl:finish 0)
+           ;(memory-barrier!!)
+           ;(gl:finish 0)
             
            ; clear the 'real' framebuffer
            (with-timer t-clear-b
@@ -319,9 +319,9 @@
              (unbind-atomic-buffer atomic-counter 0))
             
            (check-for-gl-errors "before using the array info")
-           (memory-barrier!!)
-           (gl:finish 0)
-           (memory-barrier!!)
+           ;(memory-barrier!!)
+           ;(gl:finish 0)
+           ;(memory-barrier!!)
      
            (with-timer t-apply
              (bind-texture-as-image frag-mutex 0 0 gl!!read-only gl#r32i)
@@ -335,7 +335,7 @@
              (unbind-texture-as-image frag-depths 2)
              (unbind-texture-as-image frag-colors 1)
              (unbind-texture-as-image frag-mutex 0))
-           (memory-barrier!!)
+           ;(memory-barrier!!)
      
            (set! frames (1+ frames))
            (glut:swap-buffers))))

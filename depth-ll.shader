@@ -101,32 +101,52 @@
 	in vec3 norm_wc;
     layout(binding = 0, offset = 0) uniform atomic_uint counter;
     coherent uniform layout(size1x32) uimage2D mutex_buffer;
-    coherent uniform layout(rgba8) image2D per_frag_colors;
-    coherent uniform layout(r32f) image2D per_frag_depths;
-    coherent uniform layout(size1x32) image2D head_buffer;
+    coherent uniform layout(rgba8) imageBuffer per_frag_colors;
+    coherent uniform layout(r32f) imageBuffer per_frag_depths;
+    coherent uniform layout(size1x32) iimageBuffer tail_buffer;
+    coherent uniform layout(size1x32) iimage2D head_buffer;
 	uniform sampler2D opaque_depth;
     uniform ivec2 wh;
     uniform int array_layers;
 
 	void main() {
-		if (texture(opaque_depth, gl_FragCoord.xy/vec2(wh)).r <= gl_FragCoord.z)
-			discard;
-        int pos = atomicCounterIncrement(counter);
-        int old_pos = -1;
-
+// 		if (texture(opaque_depth, gl_FragCoord.xy/vec2(wh)).r <= gl_FragCoord.z)
+// 			discard;
+        int pos = int(atomicCounterIncrement(counter));
+//         int old_pos = -1;
         ivec2 coord = ivec2(gl_FragCoord.xy);
+                int old = imageAtomicExchange(head_buffer, coord, pos);
+
+
+//        imageStore(per_frag_colors, pos, result);
+ //       imageStore(per_frag_depths, pos, vec4(gl_FragCoord.z,0,0,0)); //vec4(.8-(float(index)*0.1),0,0,0));
+        imageStore(tail_buffer, pos, ivec4(1,0,0,0));
+
+
+
+				return;
+
+				/*
         bool done = false;
         while (!done) {
             if ((done = (imageAtomicExchange(mutex_buffer,coord,1u)==0))) {
-                old_pos = imageLoad(head_buffer, coord).r;
-                imageStore(head_buffer, coord, pos);
-                imageStore(mutex_buffer, coord, 0);
+//                 old_pos = imageLoad(head_buffer, coord).r;
+                imageStore(head_buffer, coord, ivec4(1,0,0,0));
+                imageStore(mutex_buffer, coord, uvec4(0,0,0,0));
             }
         }
         memoryBarrier();    // just in case?
+		*/
 
+//         float n_dot_l = max(0, 0.5*(1+dot(norm_wc, hemi_dir)));
+// 		vec4 result = vec4(diffuse_color.rgb * light_col * n_dot_l, diffuse_color.a);
+        
+//         imageStore(per_frag_colors, pos, result);
+//         imageStore(per_frag_depths, pos, vec4(gl_FragCoord.z,0,0,0)); //vec4(.8-(float(index)*0.1),0,0,0));
+//         imageStore(tail_buffer, pos, ivec4(-1,0,0,0));
 
-
+//         memoryBarrier();    // just in case?
+        /*
 
         uint index = imageAtomicAdd(mutex_buffer, ivec2(gl_FragCoord.xy), 1u);
         if (index >= array_layers) discard;
@@ -138,11 +158,12 @@
         imageStore(per_frag_colors, target, result);
         imageStore(per_frag_depths, target, vec4(gl_FragCoord.z,0,0,0)); //vec4(.8-(float(index)*0.1),0,0,0));
 
-        out_col = vec4(c);
+        */
+        out_col = vec4(pos);
 	}
 }
 #:inputs (list "in_pos" "in_norm")
-#:uniforms (list "proj" "view" "model" "hemi_dir" "light_col" "diffuse_color" "mutex_buffer" "per_frag_colors" "per_frag_depths" "wh" "array_layers" "opaque_depth")>
+#:uniforms (list "proj" "view" "model" "hemi_dir" "light_col" "diffuse_color" "mutex_buffer" "per_frag_colors" "per_frag_depths" "wh" "opaque_depth" "head_buffer" "tail_buffer")>
 
 
 
@@ -162,6 +183,8 @@
     coherent uniform layout(size1x32) uimage2D mutex_buffer;
     coherent uniform layout(rgba8) image2D per_frag_colors;
     coherent uniform layout(r32f) image2D per_frag_depths;
+    coherent uniform layout(size1x32) iimage2D head_buffer;
+    coherent uniform layout(size1x32) iimageBuffer tail_buffer;
 	uniform sampler2D tex0;
     uniform ivec2 wh;
     uniform int array_layers;
@@ -249,13 +272,40 @@
 				base = src.rgba * src.a + base.rgba * (1-src.a);
 			}
         */
-
+        int bla = imageLoad(head_buffer, ivec2(gl_FragCoord.xy)).r;
+        if (bla >= 0) {
+			int x = imageLoad(tail_buffer, bla).r;
+			if (x == 1) out_col = vec4(1,0,0,1);
+			else if (x == 0) out_col = vec4(0,1,0,1);
+			else if (x == -1) out_col = vec4(0,0,1,1);
+			else
+// 			int x = bla;
+// 			while (x >= 0)
+// 				x = imageLoad(tail_buffer, x).r;
+// 
+            out_col = vec4(float(bla/512)/512.0);
+		}
+        else
+		    out_col = vec4(texture(tex0, gl_FragCoord.xy/vec2(wh)).rgb, 1);
+        /*
+        int bla = imageLoad(head_buffer, ivec2(gl_FragCoord.xy)).r;
+        int x = bla;
+        float acc = 0;
+        while (x >= 0) {
+            x = imageLoad(tail_buffer, x).r;
+            ++acc;
+        }
+        if (bla >= 0)
+            out_col = vec4(0,acc/10.0,0,1);
+        else {
 		vec4 base = vec4(texture(tex0, gl_FragCoord.xy/vec2(wh)).rgb, 1);
 		out_col = base;
+        }
+        */
 	}
 }
 #:inputs (list "in_pos")
-#:uniforms (list "mutex_buffer" "per_frag_colors" "per_frag_depths" "wh" "tex0")>
+#:uniforms (list "mutex_buffer" "per_frag_colors" "per_frag_depths" "wh" "tex0" "head_buffer" "tail_buffer")>
 
 
 
@@ -270,14 +320,18 @@
 #:fragment-shader #{
 #version 420 core
     coherent uniform layout(size1x32) uimage2D mutex_buffer;
-    coherent uniform layout(size1x32) image2D head_buffer;
+    coherent uniform layout(size1x32) iimage2D head_buffer;
+    coherent uniform layout(size1x32) iimageBuffer tail_buffer;
+	uniform ivec2 wh;
 	void main() {
         imageStore(mutex_buffer, ivec2(gl_FragCoord.xy), uvec4(0,0,0,0));
         imageStore(head_buffer, ivec2(gl_FragCoord.xy), ivec4(-1,0,0,0));
+		for (int i = 0; i < 4; ++i)
+			imageStore(tail_buffer, int(gl_FragCoord.y)*wh.x+int(gl_FragCoord.x) + (wh.x*wh.y*i), ivec4(1,0,0,0));
 	}
 }
 #:inputs (list "in_pos")
-#:uniforms (list "mutex_buffer")>
+#:uniforms (list "mutex_buffer" "head_buffer" "tail_buffer" "wh")>
 
 
 

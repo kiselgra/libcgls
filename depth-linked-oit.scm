@@ -32,6 +32,7 @@
 ;; buffers for depth array management
 (make-texture-without-file "frag_mutex" gl#texture-2d x-res y-res gl#red gl#r32f gl#float)
 (make-texture-without-file "frag_head" gl#texture-2d x-res y-res gl#red gl#r32f gl#float)
+(make-texture-without-file "frag_tail" gl#texture-2d x-res (* y-res memory-factor) gl#red gl#r32f gl#float)
 (make-texture-without-file "frag_colors" gl#texture-2d x-res (* y-res memory-factor) gl#rgba gl#rgba8 gl#unsigned-byte)
 (make-texture-without-file "frag_depths" gl#texture-2d x-res (* y-res memory-factor) gl#red gl#r32f gl#float)
 
@@ -39,6 +40,8 @@
   (cond ((string=? u "mutex_buffer") (gl:uniform1i l 0))
         ((string=? u "per_frag_colors") (gl:uniform1i l 1))
         ((string=? u "per_frag_depths") (gl:uniform1i l 2))
+        ((string=? u "head_buffer") (gl:uniform1i l 3))
+        ((string=? u "tail_buffer") (gl:uniform1i l 4))
         ((string=? u "opaque_depth") (gl:uniform1i l (material-number-of-textures (drawelement-material de))))
         ((string=? u "wh") (gl:uniform2i l x-res y-res))
         (else #f)))
@@ -90,11 +93,11 @@
   (let ((bunny-mat (make-material "bunnymat" (make-vec 0 0 0 0) (make-vec .8 0 0 .3) (make-vec 0 0 0 1))))
     (load-objfile-and-create-objects-with-separate-vbos "/home/kai/render-data/models/bunny-70k.obj" "bunny70k" create-drawelement bunny-mat))
   
-  (let ((dragon-mat (make-material "dragonmat" (make-vec 0 0 0 0) (make-vec 0 .7 0 .4) (make-vec 0 0 0 1))))
-    (load-objfile-and-create-objects-with-separate-vbos "/home/kai/render-data/models/drache.obj" "dragon" create-drawelement dragon-mat))
+;  (let ((dragon-mat (make-material "dragonmat" (make-vec 0 0 0 0) (make-vec 0 .7 0 .4) (make-vec 0 0 0 1))))
+;    (load-objfile-and-create-objects-with-separate-vbos "/home/kai/render-data/models/drache.obj" "dragon" create-drawelement dragon-mat))
   
-  (let ((kb-mat (make-material "kbmat" (make-vec 0 0 0 0) (make-vec 0 .7 0 .4) (make-vec 0 0 0 1))))
-    (load-objfile-and-create-objects-with-separate-vbos "/home/kai/render-data/models/a-kleinbottle.obj" "kleinbottle" create-drawelement kb-mat))
+;  (let ((kb-mat (make-material "kbmat" (make-vec 0 0 0 0) (make-vec 0 .7 0 .4) (make-vec 0 0 0 1))))
+;    (load-objfile-and-create-objects-with-separate-vbos "/home/kai/render-data/models/a-kleinbottle.obj" "kleinbottle" create-drawelement kb-mat))
   
   (let ((bunny (find-drawelement "bunny70k/bunny"))
         (trafo (make-rotation-matrix (make-vec 1 0 0) (/ 3.1416 -2))))
@@ -102,20 +105,20 @@
     (mset! trafo 3 0 -750)
     (set-de-trafo! bunny trafo))
    
-  (let ((bottle (find-drawelement "kleinbottle/Circle_Circle_Material.001"))
-        (trafo (make-scale-matrix 30 30 30)))
-    (mset! trafo 3 0 -350)
-    (set-de-trafo! bottle trafo))
+;  (let ((bottle (find-drawelement "kleinbottle/Circle_Circle_Material.001"))
+;        (trafo (make-scale-matrix 30 30 30)))
+;    (mset! trafo 3 0 -350)
+;    (set-de-trafo! bottle trafo))
   
-  (let* ((dragon (find-drawelement "dragon/dragon_nObject1Shape"))
-         (trafo-x (make-rotation-matrix (make-vec 1 0 0) (/ 3.1416 -2)))
-         (trafo-y (make-rotation-matrix (make-vec 0 0 1) (/ 3.1416 -2)))
-         (trafo (multiply-matrices trafo-x trafo-y)))
-    (set-material-diffuse-color! (drawelement-material dragon) (make-vec 0 .7 0 .4))
-    (mset! trafo 3 0 -700)
-    (mset! trafo 3 1 -43)
-    (mset! trafo 3 2 150)
-    (set-de-trafo! dragon trafo))
+;  (let* ((dragon (find-drawelement "dragon/dragon_nObject1Shape"))
+;         (trafo-x (make-rotation-matrix (make-vec 1 0 0) (/ 3.1416 -2)))
+;         (trafo-y (make-rotation-matrix (make-vec 0 0 1) (/ 3.1416 -2)))
+;         (trafo (multiply-matrices trafo-x trafo-y)))
+;    (set-material-diffuse-color! (drawelement-material dragon) (make-vec 0 .7 0 .4))
+;    (mset! trafo 3 0 -700)
+;    (mset! trafo 3 1 -43)
+;    (mset! trafo 3 2 150)
+;    (set-de-trafo! dragon trafo))
   
   (for-each (lambda (de)
               (let* ((de-id (find-drawelement de))
@@ -212,6 +215,7 @@
        ; the textures used for arrays
        (frag-mutex (find-texture "frag_mutex"))
        (frag-head (find-texture "frag_head"))
+       (frag-tail (find-texture "frag_tail"))
        (frag-colors (find-texture "frag_colors"))
        (frag-depths (find-texture "frag_depths"))
        ; timer-stuff
@@ -269,17 +273,19 @@
              (check-for-gl-errors "before array clear")
              (bind-texture-as-image frag-mutex 0 0 gl!!write-only gl#r32i)
              (bind-texture-as-image frag-head 3 0 gl!!write-only gl#r32i)
+             (bind-texture-as-image frag-tail 4 0 gl!!write-only gl#r32i)
              (render-drawelement (find-drawelement "texquad/clear-array"))
              (unbind-texture-as-image frag-mutex 0)
-             (unbind-texture-as-image frag-head 0)
+             (unbind-texture-as-image frag-head 3)
+             (unbind-texture-as-image frag-tail 4)
              (bind-texture-as-image frag-colors 1 0 gl!!write-only gl#rgba8)
              (bind-texture-as-image frag-depths 2 0 gl!!write-only gl#r32f)
              (render-drawelement (find-drawelement "texquad/clear-color"))
              (unbind-texture-as-image frag-depths 2)
              (unbind-texture-as-image frag-colors 1))
            
-           ;(memory-barrier!!)
-           ;(gl:finish 0)
+           (memory-barrier!!)
+           (gl:finish 0)
             
            ; clear the 'real' framebuffer
            (with-timer t-clear-b
@@ -299,7 +305,11 @@
                                (bind-texture-as-image frag-mutex 0 0 gl!!read-write gl#r32i)
                                (bind-texture-as-image frag-colors 1 0 gl!!write-only gl#rgba8)
                                (bind-texture-as-image frag-depths 2 0 gl!!write-only gl#r32f)
+                               (bind-texture-as-image frag-head 3 0 gl!!read-write gl#r32i)
+                               (bind-texture-as-image frag-tail 4 0 gl!!write-only gl#r32i)
                                (render-drawelement-with-shader de shader)
+                               (unbind-texture-as-image frag-tail 4)
+                               (unbind-texture-as-image frag-head 3)
                                (unbind-texture-as-image frag-depths 2)
                                (unbind-texture-as-image frag-colors 1)
                                (unbind-texture-as-image frag-mutex 0)
@@ -309,15 +319,23 @@
              (unbind-atomic-buffer atomic-counter 0))
             
            (check-for-gl-errors "before using the array info")
+           (memory-barrier!!)
+           (gl:finish 0)
+           (memory-barrier!!)
      
            (with-timer t-apply
              (bind-texture-as-image frag-mutex 0 0 gl!!read-only gl#r32i)
              (bind-texture-as-image frag-colors 1 0 gl!!read-only gl#rgba8)
              (bind-texture-as-image frag-depths 2 0 gl!!read-only gl#r32f)
+             (bind-texture-as-image frag-head 3 0 gl!!read-only gl#r32i)
+             (bind-texture-as-image frag-tail 4 0 gl!!read-only gl#r32i)
              (render-drawelement (find-drawelement "texquad/apply-array"))
+             (unbind-texture-as-image frag-tail 4)
+             (unbind-texture-as-image frag-head 3)
              (unbind-texture-as-image frag-depths 2)
              (unbind-texture-as-image frag-colors 1)
              (unbind-texture-as-image frag-mutex 0))
+           (memory-barrier!!)
      
            (set! frames (1+ frames))
            (glut:swap-buffers))))

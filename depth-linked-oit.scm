@@ -15,10 +15,39 @@
 
 (define the-scene (make-scene "default"))
 
+(define spot-follow-cam #f)
+(define spot-pos (make-vec -908 330 -256))
+(define spot-dir (make-vec 0.3 -0.55 .78))
+(define shadow-cam (make-perspective-camera "shadowcam" spot-pos spot-dir (make-vec  0.29 0.83 0.48) 25 1 1 16384))
+
+(define gl#compare-r-to-texture gl#compare-ref-to-texture)
+
+(define (setup-shadow-fbo)
+  (let ((depth (make-texture-without-file "shadow-depth" gl#texture-2d 512 512 gl#depth-component gl#depth-component32f gl#float))
+        (fbo (make-framebuffer "shadow" 512 512)))
+    (bind-framebuffer fbo)
+    (bind-texture depth 0)
+    ; required for automatic depth test.
+;    (gl:tex-parameteri gl#texture-2d gl#texture-compare-mode gl#compare-r-to-texture)
+;    (gl:tex-parameteri gl#texture-2d gl#texture-compare-func gl#lequal)
+    (attach-texture-as-depthbuffer fbo (texture-name depth) depth)
+    (check-framebuffer-setup fbo)
+    (unbind-framebuffer fbo)))
+(setup-shadow-fbo)
+
+(define (shaodw-uniform-handler de uniform location)
+  (cond ((string=? uniform "shadow_view") (uniform-camera-view-matrix location shadow-cam))
+        ((string=? uniform "shadow_proj") (uniform-camera-proj-matrix location shadow-cam))
+        ((string=? uniform "shadow_map") (gl:uniform1i location 7))
+        (else #f)))
+
 ;; scene handling
 (define (custom-uniform-handler de uniform location)
-  (cond ((string=? uniform "light_dir") (gl:uniform3f location 0 -1 -0.2))
-        ((string=? uniform "light_col") (gl:uniform3f location 1 .9 .9))
+  (cond ((string=? uniform "spot_pos") (gl:uniform3f location (vec-x spot-pos) (vec-y spot-pos) (vec-z spot-pos)))
+        ((string=? uniform "spot_dir") (gl:uniform3f location (vec-x spot-dir) (vec-y spot-dir) (vec-z spot-dir)))
+        ((string=? uniform "spot_col") (gl:uniform3f location 1 .9 .9))
+        ((string=? uniform "spot_cutoff") (gl:uniform1f location (* 3.1416 25 1/180)))
+        ((string=? uniform "light_col") (gl:uniform3f location .2 .2 .3))
         ((string=? uniform "hemi_dir") 
            (let ((h (cmdline hemi-dir))) 
               (gl:uniform3f location (car h) (cadr h) (caddr h))))
@@ -58,8 +87,8 @@
   (define (create-drawelement name mesh material)
     (let* ((shader (if (cmdline hemi)
                        (if (material-has-textures? material)
-                           (find-shader "diffuse-hemi+tex")
-                           (find-shader "diffuse-hemi"))
+                           (find-shader "diffuse-hemi+spot+tex")
+                           (find-shader "diffuse-hemi+spot"))
                        (if (material-has-textures? material)
                            (find-shader "diffuse-dl+tex")
                            (find-shader "diffuse-dl"))))
@@ -69,6 +98,7 @@
       (prepend-uniform-handler de 'default-material-uniform-handler)
       (prepend-uniform-handler de custom-uniform-handler)
       (prepend-uniform-handler de depth-uniform-handler)
+      (prepend-uniform-handler de shaodw-uniform-handler)
       (prepend-uniform-handler de atomic-buffer-handler)
       ))
   
@@ -85,16 +115,17 @@
           (set! near (/ near 10)))
         (while (< far (* distance 2))
           (set! far (* far 2)))
+        (format #t "----> ~a ~a~%" near far)
         ;(let ((cam (make-perspective-camera "cam" pos (make-vec 0 0 -1) (make-vec 0 1 0) 35 (/ x-res y-res) near far)))
 	    (let ((cam (make-perspective-camera "cam" (make-vec -1242 163 -69) (make-vec 1 0 0) (make-vec 0 1 0) 35 (/ x-res y-res) near far)))  ;near ;far)))
           (use-camera cam))
         (set-move-factor! (/ distance 40)))))
   
-  (let ((bunny-mat (make-material "bunnymat" (make-vec 0 0 0 0) (make-vec .8 0 0 .3) (make-vec 0 0 0 1))))
+  (let ((bunny-mat (make-material "bunnymat" (make-vec 0 0 0 0) (make-vec .8 0 0 .2) (make-vec 0 0 0 1))))
     (load-objfile-and-create-objects-with-separate-vbos "/home/kai/render-data/models/bunny-70k.obj" "bunny70k" create-drawelement bunny-mat))
   
-  (let ((dragon-mat (make-material "dragonmat" (make-vec 0 0 0 0) (make-vec 0 .7 0 .4) (make-vec 0 0 0 1))))
-    (load-objfile-and-create-objects-with-separate-vbos "/home/kai/render-data/models/drache.obj" "dragon" create-drawelement dragon-mat))
+;  (let ((dragon-mat (make-material "dragonmat" (make-vec 0 0 0 0) (make-vec 0 .7 0 .2) (make-vec 0 0 0 1))))
+;    (load-objfile-and-create-objects-with-separate-vbos "/home/kai/render-data/models/drache.obj" "dragon" create-drawelement dragon-mat))
   
 ;  (let ((kb-mat (make-material "kbmat" (make-vec 0 0 0 0) (make-vec 0 .7 0 .4) (make-vec 0 0 0 1))))
 ;    (load-objfile-and-create-objects-with-separate-vbos "/home/kai/render-data/models/a-kleinbottle.obj" "kleinbottle" create-drawelement kb-mat))
@@ -110,15 +141,15 @@
 ;    (mset! trafo 3 0 -350)
 ;    (set-de-trafo! bottle trafo))
   
-  (let* ((dragon (find-drawelement "dragon/dragon_nObject1Shape"))
-         (trafo-x (make-rotation-matrix (make-vec 1 0 0) (/ 3.1416 -2)))
-         (trafo-y (make-rotation-matrix (make-vec 0 0 1) (/ 3.1416 -2)))
-         (trafo (multiply-matrices trafo-x trafo-y)))
-    (set-material-diffuse-color! (drawelement-material dragon) (make-vec 0 .7 0 .4))
-    (mset! trafo 3 0 -700)
-    (mset! trafo 3 1 -43)
-    (mset! trafo 3 2 150)
-    (set-de-trafo! dragon trafo))
+;  (let* ((dragon (find-drawelement "dragon/dragon_nObject1Shape"))
+;         (trafo-x (make-rotation-matrix (make-vec 1 0 0) (/ 3.1416 -2)))
+;         (trafo-y (make-rotation-matrix (make-vec 0 0 1) (/ 3.1416 -2)))
+;         (trafo (multiply-matrices trafo-x trafo-y)))
+;    (set-material-diffuse-color! (drawelement-material dragon) (make-vec 0 .7 0 .2))
+;    (mset! trafo 3 0 -700)
+;    (mset! trafo 3 1 -43)
+;    (mset! trafo 3 2 150)
+;    (set-de-trafo! dragon trafo))
   
   (for-each (lambda (de)
               (let* ((de-id (find-drawelement de))
@@ -127,7 +158,7 @@
                      (diffuse (material-diffuse-color material))
                      (use-coll-shader (cond ((and (< (vec-a diffuse) 1) (> (vec-a diffuse) 0)) #t)
                                             ((string-contains (material-name material) "fabric")
-                                             (set-material-diffuse-color! material (make-vec 1 1 1 .4))
+                                             (set-material-diffuse-color! material (make-vec 1 1 1 .2))
                                              #t)
                                             (else #f))))
                 ;; fabric is not transparent yet, because the shader for use with textures does not exist.
@@ -218,6 +249,7 @@
        (frag-tail (find-texture "frag_tail"))
        (frag-colors (find-texture "frag_colors"))
        (frag-depths (find-texture "frag_depths"))
+       (shadow-depth (find-texture "shadow-depth"))
        ; timer-stuff
        (t-base-image 0)
        (t-clear-arr 0)
@@ -253,19 +285,47 @@
          (lambda ()
            (apply-commands)
            (print-timings)
+
+           (when spot-follow-cam
+             (set! spot-pos (vec-add (cam-pos (current-camera)) (make-vec 4 0 2)))
+             (set! spot-dir (cam-dir (current-camera))))
      
            (check-for-gl-errors "right at the beginning")
+
+           ;; render shadow map
+           (let ((fbo (find-framebuffer "shadow"))
+                 (sm (find-texture "shadow-depth")))
+             (use-camera (find-camera "shadowcam"))
+             (bind-framebuffer fbo)
+             (gl:clear gl#depth-buffer-bit)
+             (gl:enable gl#polygon-offset-fill)
+             (gl:polygon-offset 1 1)
+             (disable-color-output
+               (for-each (lambda (de shader)
+                           (render-drawelement de))
+                         drawelements
+                         drawelement-shaders))
+             (unbind-framebuffer fbo)
+             (bind-texture sm 0)
+             (save-texture/png sm "shadow.png")
+             (use-camera (find-camera "cam"))
+             (gl:disable gl#polygon-offset-fill)
+             (unbind-texture sm))
+
+           (check-for-gl-errors "after sm")
 
            ;; generate the base image.
            (with-timer t-base-image
              (bind-framebuffer fbo)
              (gl:clear-color .1 .3 .6 1)
              (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
+             (bind-texture shadow-depth 7)
              (for-each (lambda (de transparent)
                          (when (not transparent)
                            (render-drawelement de)))
                        drawelements
                        drawelement-shaders)
+             (unbind-texture shadow-depth)
              (unbind-framebuffer fbo))
      
            ;; clear arrays

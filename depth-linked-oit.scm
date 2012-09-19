@@ -90,10 +90,10 @@
           (use-camera cam))
         (set-move-factor! (/ distance 40)))))
   
-  (let ((bunny-mat (make-material "bunnymat" (make-vec 0 0 0 0) (make-vec .8 0 0 .3) (make-vec 0 0 0 1))))
+  (let ((bunny-mat (make-material "bunnymat" (make-vec 0 0 0 0) (make-vec .8 0 0 .2) (make-vec 0 0 0 1))))
     (load-objfile-and-create-objects-with-separate-vbos "/home/kai/render-data/models/bunny-70k.obj" "bunny70k" create-drawelement bunny-mat))
   
-  (let ((dragon-mat (make-material "dragonmat" (make-vec 0 0 0 0) (make-vec 0 .7 0 .4) (make-vec 0 0 0 1))))
+  (let ((dragon-mat (make-material "dragonmat" (make-vec 0 0 0 0) (make-vec 0 .7 0 .2) (make-vec 0 0 0 1))))
     (load-objfile-and-create-objects-with-separate-vbos "/home/kai/render-data/models/drache.obj" "dragon" create-drawelement dragon-mat))
   
 ;  (let ((kb-mat (make-material "kbmat" (make-vec 0 0 0 0) (make-vec 0 .7 0 .4) (make-vec 0 0 0 1))))
@@ -114,7 +114,7 @@
          (trafo-x (make-rotation-matrix (make-vec 1 0 0) (/ 3.1416 -2)))
          (trafo-y (make-rotation-matrix (make-vec 0 0 1) (/ 3.1416 -2)))
          (trafo (multiply-matrices trafo-x trafo-y)))
-    (set-material-diffuse-color! (drawelement-material dragon) (make-vec 0 .7 0 .4))
+    (set-material-diffuse-color! (drawelement-material dragon) (make-vec 0 .7 0 .2))
     (mset! trafo 3 0 -700)
     (mset! trafo 3 1 -43)
     (mset! trafo 3 2 150)
@@ -127,7 +127,7 @@
                      (diffuse (material-diffuse-color material))
                      (use-coll-shader (cond ((and (< (vec-a diffuse) 1) (> (vec-a diffuse) 0)) #t)
                                             ((string-contains (material-name material) "fabric")
-                                             (set-material-diffuse-color! material (make-vec 1 1 1 .4))
+                                             (set-material-diffuse-color! material (make-vec 1 1 1 .2))
                                              #t)
                                             (else #f))))
                 ;; fabric is not transparent yet, because the shader for use with textures does not exist.

@@ -10,11 +10,19 @@
 
 #include <stdio.h>
 
+#include "basename.h"
+#include <libgen.h>
+
 // objectname may be 0, in which case the filename will be used to prefix the generated objects.
 void load_objfile_and_create_objects_with_separate_vbos(const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max, 
                                                         void (*make_drawelem)(const char*, mesh_ref, material_ref), material_ref fallback_material) {
 	obj_data objdata;
 	const char *modelname = object_name ? object_name : filename;
+
+	char *dirname_tmp = strdup(filename);
+	prepend_image_path(dirname(dirname_tmp));
+	free(dirname_tmp);
+
 	load_objfile(modelname, filename, &objdata);
 
 	// convert the materials
@@ -92,6 +100,8 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 			if (objdata.vertex_data[i].z > bb_max->z) bb_max->z = objdata.vertex_data[i].z;
 		}
 	}
+
+	pop_image_path_front();
 }
 
 #ifdef WITH_GUILE

@@ -210,20 +210,12 @@
       (let ((dragon-mat (make-material "dragonmat" (make-vec 0 0 0 0) (make-vec 0 .7 0 .2) (make-vec 0 0 0 1))))
 	(load-objfile-and-create-objects-with-separate-vbos "/home/kai/render-data/models/drache.obj" "dragon" create-drawelement dragon-mat)))
   
-;  (let ((kb-mat (make-material "kbmat" (make-vec 0 0 0 0) (make-vec 0 .7 0 .4) (make-vec 0 0 0 1))))
-;    (load-objfile-and-create-objects-with-separate-vbos "/home/kai/render-data/models/a-kleinbottle.obj" "kleinbottle" create-drawelement kb-mat))
-  
   (let ((bunny (find-drawelement "bunny70k/bunny"))
         (trafo (make-rotation-matrix (make-vec 1 0 0) (/ 3.1416 -2))))
     (mset! trafo 3 1 -43)
     (mset! trafo 3 0 -750)
     (set-de-trafo! bunny trafo))
    
-;  (let ((bottle (find-drawelement "kleinbottle/Circle_Circle_Material.001"))
-;        (trafo (make-scale-matrix 30 30 30)))
-;    (mset! trafo 3 0 -350)
-;    (set-de-trafo! bottle trafo))
-  
   (if use-dragon
       (let* ((dragon (find-drawelement "dragon/dragon_nObject1Shape"))
 	     (trafo-x (make-rotation-matrix (make-vec 1 0 0) (/ 3.1416 -2)))

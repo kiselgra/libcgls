@@ -129,7 +129,11 @@
 (defmacro make-pass (name drawelements classification . body)
   `(let* ((shaders '())
 	  (drawelements ,drawelements)
-	  (render-drawelements (lambda () (for-each render-drawelement-with-shader drawelements shaders)))
+	  (render-drawelements (lambda* (:optional code) (for-each (lambda (de sh)
+								     (when sh
+								       (when code (code de sh))
+								       (render-drawelement-with-shader de sh)))
+								   drawelements shaders)))
 	  (classify (lambda () (set! shaders (map ,classification drawelements))))
 	  (body (lambda () ,@body))
 	  (name ,name)
@@ -149,6 +153,14 @@
 	 ((name) name)
 	 (else (throw 'invalid-pass-message message args))))))
 	 
+(define (is-transparent de)
+  (let* ((material (drawelement-material de))
+	 (diffuse (material-diffuse-color material)))
+    (cond ((and (< (vec-a diffuse) 1) (> (vec-a diffuse) 0)) #t)
+	  ((string-contains (material-name material) "fabric")
+	   (set-material-diffuse-color! material (make-vec 1 1 1 .2))
+	   #t)
+	  (else #f))))
 
 (define (setup-scene)
   (define use-dragon #t)
@@ -225,14 +237,8 @@
   
   (for-each (lambda (de)
               (let* ((de-id (find-drawelement de))
-                     (shader (drawelement-shader de-id))
-                     (material (drawelement-material de-id))
-                     (diffuse (material-diffuse-color material))
-                     (use-coll-shader (cond ((and (< (vec-a diffuse) 1) (> (vec-a diffuse) 0)) #t)
-                                            ((string-contains (material-name material) "fabric")
-                                             (set-material-diffuse-color! material (make-vec 1 1 1 .2))
-                                             #t)
-                                            (else #f))))
+		     (shader (drawelement-shader de-id))
+                     (use-coll-shader (is-transparent de-id)))
                 ;; fabric is not transparent yet, because the shader for use with textures does not exist.
                 (set! drawelements (cons de-id drawelements))
                 (set! drawelement-shaders (cons (if use-coll-shader (find-shader (string-append (shader-name shader) "/collect")) #f)
@@ -311,6 +317,29 @@
 		 (save-texture/png sm "shadow.png")
 		 (gl:disable gl#polygon-offset-fill)
 		 (unbind-texture sm)))))
+
+(define transparent-shadow-list-pass
+  (let ((hemi+spot (find-shader "shadow-collect"))
+	(hemi+spot+tex (find-shader "shadow-collect+tex")))
+    (make-pass "transparent shadow linked list pass" drawelements
+	       (lambda (de)
+		 (if (is-transparent de)
+		     (if (material-has-textures? (drawelement-material de))
+			 hemi+spot+tex
+			 hemi+spot)
+		     #f))
+	       (let ((opaque-depth-texture (find-texture "shadow-depth")))
+		 (reset-atomic-buffer atomic-counter 0)
+		 (bind-atomic-buffer atomic-counter 0)
+		 (disable-color-output
+		   (disable-depth-output
+		     (shadow-oit 'bind 'colors 'depths 'head 'tail)
+		     (render-drawelements (lambda (de sh) 
+					    (bind-texture opaque-depth-texture (material-number-of-textures (drawelement-material de)))))
+		     (shadow-oit 'unbind 'colors 'depths 'head 'tail)
+		     (unbind-texture opaque-depth-texture)))
+		 (unbind-atomic-buffer atomic-counter 0)))))
+
 	     
 				   
 ;; the display routine registered with glut
@@ -331,6 +360,12 @@
 (define fps 'not-ready)
 (define print-timings #t)
 
+(define (print-pass-timings)
+  (for-each (lambda (pass)
+	      (format #t "~a: ~8,3f ms.~%" (pass 'name) (pass 'time)))
+	    (list shadow-map-pass
+		  transparent-shadow-list-pass)))
+
 (let* (; the opaque render target
        (fbo (find-framebuffer "opaque"))
        (coltex (find-texture "opaque-color"))
@@ -350,6 +385,7 @@
             (set! fps (/ frames 5)))
           (when (and (> (- (glut:time-stamp) print-timer) 5000)
                      print-timings)
+	    (print-pass-timings)
             (letrec-syntax ((varname (syntax-rules () ((varname x) (quote x))))
                             (pr (syntax-rules () 
                                   ((print x n)    
@@ -384,22 +420,6 @@
 	   (use-camera (find-camera "shadowcam"))
 
            ;; render shadow map
-           ;(let ((fbo (find-framebuffer "shadow"))
-           ;      (sm (find-texture "shadow-depth")))
-           ;  (bind-framebuffer fbo)
-           ;  (gl:clear gl#depth-buffer-bit)
-           ;  (gl:enable gl#polygon-offset-fill)
-           ;  (gl:polygon-offset 1 1)
-           ;  (disable-color-output
-           ;    (for-each (lambda (de shader)
-           ;                (render-drawelement de))
-           ;              drawelements
-           ;              drawelement-shaders))
-           ;  (unbind-framebuffer fbo)
-           ;  (bind-texture sm 0)
-           ;  (save-texture/png sm "shadow.png")
-           ;  (gl:disable gl#polygon-offset-fill)
-           ;  (unbind-texture sm))
 	   (shadow-map-pass 'run)
 
            (check-for-gl-errors "after sm")
@@ -416,21 +436,22 @@
            (check-for-gl-errors "after sm")
  
            ;; render to shadow fragment array buffer
-           (with-timer t-collect
-             (reset-atomic-buffer atomic-counter 0)
-             (bind-atomic-buffer atomic-counter 0)
-             (disable-color-output
-               (disable-depth-output
-                 (for-each (lambda (de shader)
-                             (when shader
-                               (bind-texture (find-texture "shadow-depth") (material-number-of-textures (drawelement-material de)))
-			       (shadow-oit 'bind 'colors 'depths 'head 'tail)
-                               (render-drawelement-with-shader de shader)
-			       (shadow-oit 'unbind 'colors 'depths 'head 'tail)
-                               (unbind-texture depthtex)))
-                           drawelements
-                           drawelement-shaders)))
-             (unbind-atomic-buffer atomic-counter 0))
+	   (transparent-shadow-list-pass 'run)
+           ;(with-timer t-collect
+           ;  (reset-atomic-buffer atomic-counter 0)
+           ;  (bind-atomic-buffer atomic-counter 0)
+           ;  (disable-color-output
+           ;    (disable-depth-output
+           ;      (for-each (lambda (de shader)
+           ;                  (when shader
+           ;                    (bind-texture (find-texture "shadow-depth") (material-number-of-textures (drawelement-material de)))
+	   ; 		       (shadow-oit 'bind 'colors 'depths 'head 'tail)
+           ;                    (render-drawelement-with-shader de shader)
+	   ; 		       (shadow-oit 'unbind 'colors 'depths 'head 'tail)
+           ;                    (unbind-texture depthtex)))
+           ;                drawelements
+           ;                drawelement-shaders)))
+           ;  (unbind-atomic-buffer atomic-counter 0))
  
            (check-for-gl-errors "after sm")
 

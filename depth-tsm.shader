@@ -222,14 +222,14 @@
 	,(use "collector/decls")
 
 	void main() {
-		if (texture(cam_opaque_depth, gl_FragCoord.xy/vec2(wh)).r <= gl_FragCoord.z)
-			discard;
-        ivec2 coord = ivec2(gl_FragCoord.xy);
+            if (texture(cam_opaque_depth, gl_FragCoord.xy/vec2(wh)).r <= gl_FragCoord.z)
+		discard;
+            ivec2 coord = ivec2(gl_FragCoord.xy);
 
-        float n_dot_l = max(0, 0.5*(1+dot(norm_wc, hemi_dir)));
-		vec4 result = vec4(diffuse_color.rgb * light_col * n_dot_l, diffuse_color.a);
+	    float n_dot_l = max(0, 0.5*(1+dot(norm_wc, hemi_dir)));
+	    vec4 result = vec4(diffuse_color.rgb * light_col * n_dot_l, diffuse_color.a);
 
-		,(use "collector/collect")
+	    ,(use "collector/collect")
 	}
 }
 #:inputs (list "in_pos" "in_norm")
@@ -252,15 +252,15 @@
 	uniform sampler2D tex0;
 	,(use "collector/decls")
 	void main() {
-		if (texture(cam_opaque_depth, gl_FragCoord.xy/vec2(wh)).r <= gl_FragCoord.z)
-			discard;
-        ivec2 coord = ivec2(gl_FragCoord.xy);
+	    if (texture(cam_opaque_depth, gl_FragCoord.xy/vec2(wh)).r <= gl_FragCoord.z)
+		discard;
+	    ivec2 coord = ivec2(gl_FragCoord.xy);
 
-		float n_dot_l = max(0, 0.5*(1+dot(norm_wc, hemi_dir)));
-		vec4 color = texture(tex0, tc);
-		vec4 result = vec4(color.rgb * diffuse_color.rgb * light_col * n_dot_l, color.a * diffuse_color.a);
+	    float n_dot_l = max(0, 0.5*(1+dot(norm_wc, hemi_dir)));
+	    vec4 color = texture(tex0, tc);
+	    vec4 result = vec4(color.rgb * diffuse_color.rgb * light_col * n_dot_l, color.a * diffuse_color.a);
 
-		,(use "collector/collect")
+	    ,(use "collector/collect")
 	}
 }
 #:inputs (list "in_pos" "in_norm")

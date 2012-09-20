@@ -107,9 +107,12 @@
 	      (else (throw 'unknown-oit-message message)))))))))
 			 
 (define cam-oit (make-oit-buffers "cam" x-res y-res 10))
+(define shadow-oit (make-oit-buffers "shadow" 512 512 10))
 
 (define (atomic-buffer-handler de u l)
-  ((cam-oit 'handle) de u l))
+  (if (= (current-camera) shadow-cam)
+      ((shadow-oit 'handle) de u l)
+      ((cam-oit 'handle) de u l)))
 ;  (cond ((string=? u "per_frag_colors") (gl:uniform1i l 1))
 ;        ((string=? u "per_frag_depths") (gl:uniform1i l 2))
 ;        ((string=? u "head_buffer") (gl:uniform1i l 3))
@@ -334,10 +337,14 @@
      
            (check-for-gl-errors "right at the beginning")
 
+	   ;;
+	   ;; shadow stuff
+	   ;; 
+	   (use-camera (find-camera "shadowcam"))
+
            ;; render shadow map
            (let ((fbo (find-framebuffer "shadow"))
                  (sm (find-texture "shadow-depth")))
-             (use-camera (find-camera "shadowcam"))
              (bind-framebuffer fbo)
              (gl:clear gl#depth-buffer-bit)
              (gl:enable gl#polygon-offset-fill)
@@ -350,11 +357,46 @@
              (unbind-framebuffer fbo)
              (bind-texture sm 0)
              (save-texture/png sm "shadow.png")
-             (use-camera (find-camera "cam"))
              (gl:disable gl#polygon-offset-fill)
              (unbind-texture sm))
 
            (check-for-gl-errors "after sm")
+
+           ;; clear shadow arrays
+           (with-timer t-clear-arr
+	     (shadow-oit 'bind 'head 'tail)
+             (render-drawelement (find-drawelement "texquad/clear-array"))
+	     (shadow-oit 'unbind 'head 'tail)
+	     (shadow-oit 'bind 'colors 'depths)
+             (render-drawelement (find-drawelement "texquad/clear-color"))
+	     (shadow-oit 'unbind 'colors 'depths))
+           
+           (check-for-gl-errors "after sm")
+ 
+           ;; render to shadow fragment array buffer
+           (with-timer t-collect
+             (reset-atomic-buffer atomic-counter 0)
+             (bind-atomic-buffer atomic-counter 0)
+             (disable-color-output
+               (disable-depth-output
+                 (for-each (lambda (de shader)
+                             (when shader
+                               (bind-texture (find-texture "shadow-depth") (material-number-of-textures (drawelement-material de)))
+			       (shadow-oit 'bind 'colors 'depths 'head 'tail)
+                               (render-drawelement-with-shader de shader)
+			       (shadow-oit 'unbind 'colors 'depths 'head 'tail)
+                               (unbind-texture depthtex)))
+                           drawelements
+                           drawelement-shaders)))
+             (unbind-atomic-buffer atomic-counter 0))
+ 
+           (check-for-gl-errors "after sm")
+
+	   ;; 
+	   ;; base image
+	   ;; 
+
+           (use-camera (find-camera "cam"))
 
            ;; generate the base image.
            (with-timer t-base-image
@@ -370,6 +412,10 @@
              (unbind-texture shadow-depth)
              (unbind-framebuffer fbo))
      
+	   ;; 
+	   ;; transparency
+	   ;; 
+
            ;; clear arrays
            (with-timer t-clear-arr
              (check-for-gl-errors "before array clear")

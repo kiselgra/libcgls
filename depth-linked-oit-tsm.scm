@@ -47,7 +47,7 @@
         ((string=? uniform "spot_dir") (gl:uniform3f location (vec-x spot-dir) (vec-y spot-dir) (vec-z spot-dir)))
         ((string=? uniform "spot_col") (gl:uniform3f location 1 .9 .9))
         ((string=? uniform "spot_cutoff") (gl:uniform1f location (* 3.1416 25 1/180)))
-        ((string=? uniform "light_col") (gl:uniform3f location 1 .9 .9)) ;(gl:uniform3f location .2 .2 .3))
+        ((string=? uniform "light_col") (gl:uniform3f location .6 .4 .4)) ;(gl:uniform3f location .2 .2 .3))
         ((string=? uniform "hemi_dir") 
            (let ((h (cmdline hemi-dir))) 
               (gl:uniform3f location (car h) (cadr h) (caddr h))))
@@ -129,15 +129,29 @@
 (define drawelements '())
 (define drawelement-shaders '())
 
+(defmacro make-pass (name drawelements classification . body)
+  `(let* ((shaders '())
+	  (drawelements ,drawelements)
+	  (render-drawelements (lambda () (for-each render-drawelement-with-shader drawelements shaders)))
+	  (classify (lambda () (set! shaders (map ,classification drawelements))))
+	  (body (lambda () ,@body)))
+     (classify)
+     (lambda (message . args)
+       (case message
+	 ((run) (body))
+	 ((reset-drawelements!) (set! drawelements (car args)) (classify))
+	 (else (throw 'invalid-pass-message message args))))))
+	 
+
 (define (setup-scene)
   (define use-dragon #t)
   (define (create-drawelement name mesh material)
     (let* ((shader (if (cmdline hemi)
                        (if (material-has-textures? material)
-                           ;(find-shader "diffuse-hemi+spot+tex")
-                           ;(find-shader "diffuse-hemi+spot"))
-                           (find-shader "diffuse-hemi+tex")
-                           (find-shader "diffuse-hemi"))
+                           (find-shader "diffuse-hemi+spot+tex")
+                           (find-shader "diffuse-hemi+spot"))
+                           ;(find-shader "diffuse-hemi+tex")
+                           ;(find-shader "diffuse-hemi"))
                        (if (material-has-textures? material)
                            (find-shader "diffuse-dl+tex")
                            (find-shader "diffuse-dl"))))
@@ -272,6 +286,26 @@
 (define gl!!write-only #x88B9)
 (define gl!!read-write #x088ba)
 
+
+(define shadow-map-pass
+  (let ((shader (find-shader "render-shadowmap")))
+    (make-pass "shadow map generation" drawelements
+	       (lambda (de) shader)
+	       (let ((fbo (find-framebuffer "shadow"))
+		     (sm (find-texture "shadow-depth")))
+		 (bind-framebuffer fbo)
+		 (gl:clear gl#depth-buffer-bit)
+		 (gl:enable gl#polygon-offset-fill)
+		 (gl:polygon-offset 1 1)
+		 (disable-color-output
+		   (render-drawelements))
+		 (unbind-framebuffer fbo)
+		 (bind-texture sm 0)
+		 (save-texture/png sm "shadow.png")
+		 (gl:disable gl#polygon-offset-fill)
+		 (unbind-texture sm)))))
+	     
+				   
 ;; the display routine registered with glut
 (set-move-factor! (/ (move-factor) 2))
 
@@ -343,22 +377,23 @@
 	   (use-camera (find-camera "shadowcam"))
 
            ;; render shadow map
-           (let ((fbo (find-framebuffer "shadow"))
-                 (sm (find-texture "shadow-depth")))
-             (bind-framebuffer fbo)
-             (gl:clear gl#depth-buffer-bit)
-             (gl:enable gl#polygon-offset-fill)
-             (gl:polygon-offset 1 1)
-             (disable-color-output
-               (for-each (lambda (de shader)
-                           (render-drawelement de))
-                         drawelements
-                         drawelement-shaders))
-             (unbind-framebuffer fbo)
-             (bind-texture sm 0)
-             (save-texture/png sm "shadow.png")
-             (gl:disable gl#polygon-offset-fill)
-             (unbind-texture sm))
+           ;(let ((fbo (find-framebuffer "shadow"))
+           ;      (sm (find-texture "shadow-depth")))
+           ;  (bind-framebuffer fbo)
+           ;  (gl:clear gl#depth-buffer-bit)
+           ;  (gl:enable gl#polygon-offset-fill)
+           ;  (gl:polygon-offset 1 1)
+           ;  (disable-color-output
+           ;    (for-each (lambda (de shader)
+           ;                (render-drawelement de))
+           ;              drawelements
+           ;              drawelement-shaders))
+           ;  (unbind-framebuffer fbo)
+           ;  (bind-texture sm 0)
+           ;  (save-texture/png sm "shadow.png")
+           ;  (gl:disable gl#polygon-offset-fill)
+           ;  (unbind-texture sm))
+	   (shadow-map-pass 'run)
 
            (check-for-gl-errors "after sm")
 

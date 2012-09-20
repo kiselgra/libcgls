@@ -87,6 +87,23 @@
 #:uniforms (list "hemi_dir" "light_col" "tex0")>
 
 
+
+#<make-shader "render-shadowmap"
+#:vertex-shader #{
+#version 150 core
+    ,(use "vs:default")
+}
+#:fragment-shader #{
+#version 150 core
+    out vec4 out_col;
+    void main() {
+	out_col = vec4(1,1,1,1);
+    }
+}
+#:inputs (list "in_pos" "in_norm")
+#:uniforms (list)>
+
+
 #<shader-fragment "spot"
 #{
     uniform vec3 spot_pos;
@@ -204,6 +221,29 @@
     imageStore(cam_tail_buffer, pos_c, ivec4(old,0,0,0));
     imageStore(cam_frag_colors, pos_c, result);
     imageStore(cam_frag_depths, pos_c, vec4(gl_FragCoord.z,0,0,0));
+}>
+
+#<shader-fragment "shadow-collector/decls"
+#{
+    layout(binding = 0, offset = 0) uniform atomic_uint counter;
+    coherent uniform layout(rgba8) image2D shadow_frag_colors;
+    coherent uniform layout(r32f) image2D shadow_frag_depths;
+    coherent uniform layout(size1x32) iimage2D shadow_tail_buffer;
+    coherent uniform layout(size1x32) iimage2D shadow_head_buffer;
+    uniform sampler2D cam_opaque_depth;
+    uniform ivec2 wh;
+}
+#:uniforms (list "shadow_frag_colors" "shadow_frag_depths" "shadow_tail_buffer" "shadow_head_buffer" "shadow_opaque_depth" "wh")>
+
+#<shader-fragment "shadow-collector/collect"
+#{
+    int pos = int(atomicCounterIncrement(counter));
+    int old = imageAtomicExchange(cam_head_buffer, coord, pos);
+        
+	ivec2 pos_c = ivec2(pos % wh.x, pos / wh.x);
+    imageStore(shadow_tail_buffer, pos_c, ivec4(old,0,0,0));
+    imageStore(shadow_frag_colors, pos_c, result);
+    imageStore(shadow_frag_depths, pos_c, vec4(gl_FragCoord.z,0,0,0));
 }>
 
 #<make-shader "diffuse-hemi/collect"

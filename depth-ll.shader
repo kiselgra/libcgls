@@ -282,7 +282,6 @@
 #version 420 core
 #extension GL_NV_gpu_shader5 : enable
 	out vec4 out_col;
-    coherent uniform layout(size1x32) uimage2D mutex_buffer;
     coherent uniform layout(rgba8) image2D per_frag_colors;
     coherent uniform layout(r32f) image2D per_frag_depths;
     coherent uniform layout(size1x32) iimage2D head_buffer;
@@ -339,7 +338,7 @@
 	}
 }
 #:inputs (list "in_pos")
-#:uniforms (list "mutex_buffer" "per_frag_colors" "per_frag_depths" "wh" "tex0" "head_buffer" "tail_buffer")>
+#:uniforms (list "per_frag_colors" "per_frag_depths" "wh" "tex0" "head_buffer" "tail_buffer")>
 
 
 
@@ -353,19 +352,17 @@
 }
 #:fragment-shader #{
 #version 420 core
-    coherent uniform layout(size1x32) uimage2D mutex_buffer;
     coherent uniform layout(size1x32) iimage2D head_buffer;
     coherent uniform layout(size1x32) iimage2D tail_buffer;
 	uniform ivec2 wh;
 	void main() {
-        imageStore(mutex_buffer, ivec2(gl_FragCoord.xy), uvec4(0,0,0,0));
         imageStore(head_buffer, ivec2(gl_FragCoord.xy), ivec4(-1,0,0,0));
 		for (int i = 0; i < 4; ++i)
 			imageStore(tail_buffer, ivec2(gl_FragCoord.xy) + ivec2(0,wh.y*i), ivec4(-1,0,0,0));
 	}
 }
 #:inputs (list "in_pos")
-#:uniforms (list "mutex_buffer" "head_buffer" "tail_buffer" "wh")>
+#:uniforms (list "head_buffer" "tail_buffer" "wh")>
 
 
 

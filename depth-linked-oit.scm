@@ -18,7 +18,7 @@
 (define spot-follow-cam #f)
 (define spot-pos (make-vec -908 330 -256))
 (define spot-dir (make-vec 0.3 -0.55 .78))
-(define shadow-cam (make-perspective-camera "shadowcam" spot-pos spot-dir (make-vec  0.29 0.83 0.48) 25 1 1 16384))
+(define shadow-cam (make-perspective-camera "shadowcam" spot-pos spot-dir (make-vec  0.29 0.83 0.48) 25 1 1 5000));16384))
 
 (define gl#compare-r-to-texture gl#compare-ref-to-texture)
 
@@ -277,7 +277,7 @@
                             (pr t-clear-b    "clear buffer:              ")
                             (pr t-collect    "collect transp. fragments: ")
                             (pr t-apply      "apply transparency:        "))))
-                (format #t "sum: ~8,3f ms -> ~,3f fps (timed code, only, no swap).~%" (exact->inexact sum) (exact->inexact (/ 1000 sum)))))
+                (format #t "sum: ~8,3f ms -> ~,3f fps (timed code, only, no swap).~%" (exact->inexact sum) (if (> sum 0) (exact->inexact (/ 1000 sum)) 0))))
             (set! print-timer (glut:time-stamp))
             (set! frames 0))))
        ; the actual display function

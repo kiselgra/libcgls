@@ -223,29 +223,6 @@
     imageStore(cam_frag_depths, pos_c, vec4(gl_FragCoord.z,0,0,0));
 }>
 
-#<shader-fragment "shadow-collector/decls"
-#{
-    layout(binding = 0, offset = 0) uniform atomic_uint counter;
-    coherent uniform layout(rgba8) image2D shadow_frag_colors;
-    coherent uniform layout(r32f) image2D shadow_frag_depths;
-    coherent uniform layout(size1x32) iimage2D shadow_tail_buffer;
-    coherent uniform layout(size1x32) iimage2D shadow_head_buffer;
-    uniform sampler2D cam_opaque_depth;
-    uniform ivec2 wh;
-}
-#:uniforms (list "shadow_frag_colors" "shadow_frag_depths" "shadow_tail_buffer" "shadow_head_buffer" "shadow_opaque_depth" "wh")>
-
-#<shader-fragment "shadow-collector/collect"
-#{
-    int pos = int(atomicCounterIncrement(counter));
-    int old = imageAtomicExchange(cam_head_buffer, coord, pos);
-        
-	ivec2 pos_c = ivec2(pos % wh.x, pos / wh.x);
-    imageStore(shadow_tail_buffer, pos_c, ivec4(old,0,0,0));
-    imageStore(shadow_frag_colors, pos_c, result);
-    imageStore(shadow_frag_depths, pos_c, vec4(gl_FragCoord.z,0,0,0));
-}>
-
 #<make-shader "diffuse-hemi/collect"
 #:vertex-shader #{
 #version 150 core
@@ -307,6 +284,88 @@
 #:uniforms (list "hemi_dir" "light_col" "diffuse_color" "tex0")>
 
 
+;; 
+;; shadow version
+;; 
+
+#<shader-fragment "shadow-collector/decls"
+#{
+    layout(binding = 0, offset = 0) uniform atomic_uint counter;
+    coherent uniform layout(rgba8) image2D shadow_frag_colors;
+    coherent uniform layout(r32f) image2D shadow_frag_depths;
+    coherent uniform layout(size1x32) iimage2D shadow_tail_buffer;
+    coherent uniform layout(size1x32) iimage2D shadow_head_buffer;
+    uniform sampler2D shadow_opaque_depth;
+    uniform ivec2 wh;
+}
+#:uniforms (list "shadow_frag_colors" "shadow_frag_depths" "shadow_tail_buffer" "shadow_head_buffer" "shadow_opaque_depth" "wh")>
+
+
+#<shader-fragment "shadow-collector/collect"
+#{
+    int pos = int(atomicCounterIncrement(counter));
+    int old = imageAtomicExchange(shadow_head_buffer, coord, pos);
+        
+    ivec2 pos_c = ivec2(pos % wh.x, pos / wh.x);
+    imageStore(shadow_tail_buffer, pos_c, ivec4(old,0,0,0));
+    imageStore(shadow_frag_colors, pos_c, result);
+    imageStore(shadow_frag_depths, pos_c, vec4(gl_FragCoord.z,0,0,0));
+}>
+
+
+#<make-shader "shadow-collect"
+#:vertex-shader #{
+#version 150 core
+	,(use "vs:default")
+}
+#:fragment-shader #{
+#version 420 core
+	out vec4 out_col;
+	uniform vec4 diffuse_color;
+	in vec4 pos_wc;
+	in vec3 norm_wc;
+	,(use "shadow-collector/decls")
+	void main() {
+	    if (texture(shadow_opaque_depth, gl_FragCoord.xy/vec2(wh)).r <= gl_FragCoord.z)
+		discard;
+	    ivec2 coord = ivec2(gl_FragCoord.xy);
+	    vec4 result = diffuse_color;
+	    ,(use "shadow-collector/collect")
+	}
+}
+#:inputs (list "in_pos" "in_norm")
+#:uniforms (list "diffuse_color")>
+
+
+#<make-shader "shadow-collect+tex"
+#:vertex-shader #{
+#version 150 core
+	,(use "vs/tc:default")
+}
+#:fragment-shader #{
+#version 420 core
+	out vec4 out_col;
+        uniform sampler2D tex0;
+	in vec4 pos_wc;
+	in vec3 norm_wc;
+	in vec2 tc;
+	,(use "shadow-collector/decls")
+	void main() {
+	    if (texture(shadow_opaque_depth, gl_FragCoord.xy/vec2(wh)).r <= gl_FragCoord.z)
+		discard;
+	    ivec2 coord = ivec2(gl_FragCoord.xy);
+	    vec4 result = texture(tex0, tc);
+	    ,(use "shadow-collector/collect")
+	}
+}
+#:inputs (list "in_pos" "in_norm" "in_tc")
+#:uniforms (list "tex0")>
+
+
+
+;; 
+;; apply linked-list
+;;
 
 
 
@@ -392,17 +451,17 @@
 }
 #:fragment-shader #{
 #version 420 core
-    coherent uniform layout(size1x32) iimage2D cam_head_buffer;
-    coherent uniform layout(size1x32) iimage2D cam_tail_buffer;
+    coherent uniform layout(size1x32) iimage2D head_buffer;
+    coherent uniform layout(size1x32) iimage2D tail_buffer;
     uniform ivec2 wh;
     void main() {
-	imageStore(cam_head_buffer, ivec2(gl_FragCoord.xy), ivec4(-1,0,0,0));
+	imageStore(head_buffer, ivec2(gl_FragCoord.xy), ivec4(-1,0,0,0));
 	for (int i = 0; i < 4; ++i)
-	    imageStore(cam_tail_buffer, ivec2(gl_FragCoord.xy) + ivec2(0,wh.y*i), ivec4(-1,0,0,0));
+	    imageStore(tail_buffer, ivec2(gl_FragCoord.xy) + ivec2(0,wh.y*i), ivec4(-1,0,0,0));
     }
 }
 #:inputs (list "in_pos")
-#:uniforms (list "cam_head_buffer" "cam_tail_buffer" "wh")>
+#:uniforms (list "head_buffer" "tail_buffer" "wh")>
 
 
 
@@ -416,16 +475,16 @@
 }
 #:fragment-shader #{
 #version 420 core
-    coherent uniform layout(rgba8) image2D cam_frag_colors;
-    coherent uniform layout(size1x32) image2D cam_frag_depths;
+    coherent uniform layout(rgba8) image2D frag_colors;
+    coherent uniform layout(size1x32) image2D frag_depths;
     uniform ivec2 wh;
     void main() {
-        imageStore(cam_frag_colors, ivec2(gl_FragCoord.xy), vec4(0,0,0,0));
-        imageStore(cam_frag_depths, ivec2(gl_FragCoord.xy), vec4(1,0,0,0));
+        imageStore(frag_colors, ivec2(gl_FragCoord.xy), vec4(0,0,0,0));
+        imageStore(frag_depths, ivec2(gl_FragCoord.xy), vec4(1,0,0,0));
     }
 }
 #:inputs (list "in_pos")
-#:uniforms (list "cam_frag_colors" "cam_frag_depths" "wh")>
+#:uniforms (list "frag_colors" "frag_depths" "wh")>
 
 
 

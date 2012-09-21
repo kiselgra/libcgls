@@ -319,7 +319,7 @@
         
     ivec2 pos_c = ivec2(pos % wh.x, pos / wh.x);
     imageStore(shadow_tail_buffer, pos_c, ivec4(old,0,0,0));
-    imageStore(shadow_frag_colors, coord, result);
+    imageStore(shadow_frag_colors, pos_c, result);
     imageStore(shadow_frag_depths, pos_c, vec4(gl_FragCoord.z,0,0,0));
 }>
 

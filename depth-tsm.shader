@@ -118,6 +118,14 @@
         float ndotl = dot(normalize(norm_wc), -to_spot);
         return spot_col * factor * (.5+ndotl*.5);
     }
+    float spot_factor_only() {
+        vec3 to_spot = normalize(pos_wc.xyz - spot_pos);
+        vec3 spot_to_pos = to_spot;
+        float theta = acos(dot(spot_to_pos, normalize(spot_dir)));
+        float factor = 1.0 - smoothstep(spot_cutoff*.5, spot_cutoff, theta);
+        float ndotl = dot(normalize(norm_wc), -to_spot);
+        return factor * (.5+ndotl*.5);
+    }
 }
 #:uniforms (list "spot_pos" "spot_dir" "spot_col" "spot_cutoff")>
 
@@ -187,6 +195,7 @@
         vec2 tc = shadow_frag.xy / shadow_frag.w;
 
         vec3 pr = shadow_frag.xyz / shadow_frag.w;
+	float reference_depth = pr.z;
         float r = 0;
         if (tc.x <= 1 && tc.x >= 0 && tc.y <= 1 && tc.y >= 0) {
             float d = texture(shadow_map, pr.xy).r;
@@ -194,16 +203,56 @@
                 r = 1;
         }
 
-	out_col.rgb += spot_factor() * color * r;
+	// use linked data only if the fragment is not shadowed by opaque geometry.
+	if (r == 1) {
+	    vec2 shadow_tc = pr.xy;
+	    ivec2 coord = ivec2(shadow_tc * vec2(wh));
 
-	vec2 shadow_tc = pr.xy;
-	ivec2 coord = ivec2(shadow_tc * vec2(wh));
-
-	int run = imageLoad(shadow_head_buffer, coord).r;
-        if (tc.x <= 1 && tc.x >= 0 && tc.y <= 1 && tc.y >= 0) {
-	    if (run >= 0)
+	    int run = imageLoad(shadow_head_buffer, coord).r;
+	    if (run >= 0) {
+		int array_len = 0;
+		float depth_vals[16];
+		vec4 color_vals[16];
+		while (run >= 0 && array_len < 16) {
+		    ivec2 pos_c = ivec2(run % 512, run / 512);
+		    depth_vals[array_len] = imageLoad(shadow_frag_depths, pos_c).r;
+		    color_vals[array_len] = imageLoad(shadow_frag_colors, pos_c);
+		    run = imageLoad(shadow_tail_buffer, pos_c).r;
+		    ++array_len;
+		}
+		for (int i = 0; i < array_len-1; ++i) {
+		    float d = depth_vals[i];
+		    int swap_id = i;
+		    for (int j = i; j < array_len; ++j) {
+			float dj = depth_vals[j];
+			if (dj < d) {
+			    d = dj;
+			    swap_id = j;
+			}
+		    }
+		    if (swap_id != i) {
+			depth_vals[swap_id] = depth_vals[i];
+			depth_vals[i] = d;
+			vec4 tmp = color_vals[i];
+			color_vals[i] = color_vals[swap_id];
+			color_vals[swap_id] = tmp;
+		    }
+		    if (depth_vals[i] >= reference_depth) {
+			array_len = i;
+			break;
+		    }
+		}
+		vec3 base = spot_col;
+		for (int i = array_len-1; i >= 0; --i) {
+		    vec4 src = color_vals[i];
+		    base = base.rgb * src.rgb * (1.0-src.a);
+		}
+		out_col.rgb = spot_factor_only() * color * base;
+	    }
+	    else
 		out_col.rgb += spot_factor() * color;
 	}
+
 
      }
 }
@@ -359,6 +408,7 @@
 #version 420 core
 	out vec4 out_col;
         uniform sampler2D tex0;
+	uniform vec4 diffuse_color;
 	in vec4 pos_wc;
 	in vec3 norm_wc;
 	in vec2 tc;
@@ -368,12 +418,13 @@
 	    if (texture(shadow_opaque_depth, gl_FragCoord.xy/vec2(wh)).r <= gl_FragCoord.z)
 		discard;
 	    ivec2 coord = ivec2(gl_FragCoord.xy);
-	    vec4 result = texture(tex0, tc);
+	    vec4 color = texture(tex0, tc);
+	    vec4 result = vec4(color.rgb * diffuse_color.rgb, color.a * diffuse_color.a);
 	    ,(use "shadow-collector/collect")
 	}
 }
 #:inputs (list "in_pos" "in_norm" "in_tc")
-#:uniforms (list "tex0")>
+#:uniforms (list "tex0" "diffuse_color")>
 
 
 
@@ -470,8 +521,7 @@
     uniform ivec2 wh;
     void main() {
 	imageStore(head_buffer, ivec2(gl_FragCoord.xy), ivec4(-1,0,0,0));
-	for (int i = 0; i < 4; ++i)
-	    imageStore(tail_buffer, ivec2(gl_FragCoord.xy) + ivec2(0,wh.y*i), ivec4(-1,0,0,0));
+	imageStore(tail_buffer, ivec2(gl_FragCoord.xy), ivec4(-1,0,0,0));
     }
 }
 #:inputs (list "in_pos")

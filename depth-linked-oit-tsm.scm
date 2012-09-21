@@ -46,8 +46,8 @@
   (cond ((string=? uniform "spot_pos") (gl:uniform3f location (vec-x spot-pos) (vec-y spot-pos) (vec-z spot-pos)))
         ((string=? uniform "spot_dir") (gl:uniform3f location (vec-x spot-dir) (vec-y spot-dir) (vec-z spot-dir)))
         ((string=? uniform "spot_col") (gl:uniform3f location 1 .9 .9))
-        ((string=? uniform "spot_cutoff") (gl:uniform1f location (* 3.1416 25 1/180)))
-        ((string=? uniform "light_col") (gl:uniform3f location .6 .4 .4)) ;(gl:uniform3f location .2 .2 .3))
+	((string=? uniform "spot_cutoff") (gl:uniform1f location (* 3.1416 25 1/180)))
+	((string=? uniform "light_col") (gl:uniform3f location .15 .1 .1)) ;(gl:uniform3f location .2 .2 .3))
         ((string=? uniform "hemi_dir") 
            (let ((h (cmdline hemi-dir))) 
               (gl:uniform3f location (car h) (cadr h) (caddr h))))
@@ -165,7 +165,7 @@
 	 (diffuse (material-diffuse-color material)))
     (cond ((and (< (vec-a diffuse) 1) (> (vec-a diffuse) 0)) #t)
 	  ((string-contains (material-name material) "fabric")
-	   (set-material-diffuse-color! material (make-vec 1 1 1 .2))
+	   (set-material-diffuse-color! material (make-vec 1 1 1 .1))
 	   #t)
 	  (else #f))))
 
@@ -302,7 +302,10 @@
 (define shadow-map-pass
   (let ((shader (find-shader "render-shadowmap")))
     (make-pass "shadow map generation" drawelements
-	       (lambda (de) shader)
+	       (lambda (de)
+		 (if (is-transparent de)
+		     #f
+		     shader))
 	       (let ((fbo (find-framebuffer "shadow"))
 		     (sm (find-texture "shadow-depth")))
 		 (bind-framebuffer fbo)
@@ -331,6 +334,8 @@
 	       (let ((opaque-depth-texture (find-texture "shadow-depth")))
 		 (reset-atomic-buffer atomic-counter 0)
 		 (bind-atomic-buffer atomic-counter 0)
+		 (gl:enable gl#polygon-offset-fill)
+		 (gl:polygon-offset 1 1)
 		 (disable-color-output
 		   (disable-depth-output
 		     (shadow-oit 'bind 'colors 'depths 'head 'tail)
@@ -338,13 +343,10 @@
 					    (bind-texture opaque-depth-texture (material-number-of-textures (drawelement-material de)))))
 		     (shadow-oit 'unbind 'colors 'depths 'head 'tail)
 		     (unbind-texture opaque-depth-texture)))
+		 (gl:disable gl#polygon-offset-fill)
 		 (gl:finish 0)
 		 (memory-barrier!!)
 		 (gl:viewport 0 0 1366 768)
-		 (let ((fc (find-texture "shadow_frag_colors")))
-		   (bind-texture fc 0)
-		   (save-texture/png fc "fc.png")
-		   (unbind-texture fc))
 		 (unbind-atomic-buffer atomic-counter 0)))))
 
 	     

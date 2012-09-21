@@ -80,13 +80,15 @@
 			       ((string=? u frag-tail-name) (gl:uniform1i loc frag-tail-id))
 			       ((string=? u frag-colors-name) (gl:uniform1i loc frag-colors-id))
 			       ((string=? u frag-depths-name) (gl:uniform1i loc frag-depths-id))
-			       ((string=? u "head_buffer") (gl:uniform1i loc frag-head-id))
-			       ((string=? u "tail_buffer") (gl:uniform1i loc frag-tail-id))
-			       ((string=? u "frag_colors") (gl:uniform1i loc frag-colors-id))
-			       ((string=? u "frag_depths") (gl:uniform1i loc frag-depths-id))
 			       ((string=? u opaque-name) (gl:uniform1i loc (material-number-of-textures (drawelement-material de))))
 			       ((string=? u "wh") (gl:uniform2i loc w h))
 			       (else #f))))
+	      (short-handler (lambda (de u loc)
+			       (cond ((string=? u "head_buffer") (gl:uniform1i loc frag-head-id))
+				     ((string=? u "tail_buffer") (gl:uniform1i loc frag-tail-id))
+				     ((string=? u "frag_colors") (gl:uniform1i loc frag-colors-id))
+				     ((string=? u "frag_depths") (gl:uniform1i loc frag-depths-id))
+				     (else #f))))
 	      (bind (lambda (args)
 		      (for-each (lambda (arg) (case arg
 						((head) (bind-texture-as-image frag-head frag-head-id 0 gl!!read-write gl#r32i))
@@ -106,6 +108,7 @@
 	  (lambda (message . args)
 	    (case message
 	      ((handle) handler)
+	      ((handle-shorthand) short-handler)
 	      ((bind) (bind args))
 	      ((unbind) (unbind args))
 	      (else (throw 'unknown-oit-message message)))))))))
@@ -114,9 +117,13 @@
 (define shadow-oit (make-oit-buffers "shadow" 512 512 10))
 
 (define (atomic-buffer-handler de u l)
-  (if (= (current-camera) shadow-cam)
-      ((shadow-oit 'handle) de u l)
-      ((cam-oit 'handle) de u l)))
+  (let ((handled (if (= (current-camera) shadow-cam)
+		     ((shadow-oit 'handle-shorthand) de u l)
+		     ((cam-oit 'handle-shorthand) de u l))))
+    (cond (handled #t)
+	  (((cam-oit 'handle) de u l) #t)
+	  (((shadow-oit 'handle) de u l) #t)
+	  (else #f))))
 
 ;; this one is for debugging, only.
 (define atomic-counter (make-atomic-buffer "test" 1 1))
@@ -163,7 +170,7 @@
 	  (else #f))))
 
 (define (setup-scene)
-  (define use-dragon #t)
+  (define use-dragon #f)
   (define (create-drawelement name mesh material)
     (let* ((shader (if (cmdline hemi)
                        (if (material-has-textures? material)
@@ -320,6 +327,7 @@
 			 hemi+spot+tex
 			 hemi+spot)
 		     #f))
+	       (gl:viewport 0 0 512 512)
 	       (let ((opaque-depth-texture (find-texture "shadow-depth")))
 		 (reset-atomic-buffer atomic-counter 0)
 		 (bind-atomic-buffer atomic-counter 0)
@@ -330,6 +338,13 @@
 					    (bind-texture opaque-depth-texture (material-number-of-textures (drawelement-material de)))))
 		     (shadow-oit 'unbind 'colors 'depths 'head 'tail)
 		     (unbind-texture opaque-depth-texture)))
+		 (gl:finish 0)
+		 (memory-barrier!!)
+		 (gl:viewport 0 0 1366 768)
+		 (let ((fc (find-texture "shadow_frag_colors")))
+		   (bind-texture fc 0)
+		   (save-texture/png fc "fc.png")
+		   (unbind-texture fc))
 		 (unbind-atomic-buffer atomic-counter 0)))))
 
 	     
@@ -451,7 +466,7 @@
 	   ;; base image
 	   ;; 
 
-           (use-camera (find-camera "cam"))
+           ;(use-camera (find-camera "cam"))
 
            ;; generate the base image.
            (with-timer t-base-image
@@ -459,13 +474,17 @@
              (gl:clear-color .1 .3 .6 1)
              (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
              (bind-texture shadow-depth 7)
+	     (shadow-oit 'bind 'colors 'depths 'head 'tail)
              (for-each (lambda (de transparent)
                          (when (not transparent)
                            (render-drawelement de)))
                        drawelements
                        drawelement-shaders)
+	     (shadow-oit 'unbind 'colors 'depths 'head 'tail)
              (unbind-texture shadow-depth)
              (unbind-framebuffer fbo))
+
+           (use-camera (find-camera "cam"))
      
 	   ;; 
 	   ;; transparency
@@ -521,6 +540,7 @@
            (set! frames (1+ frames))
            (glut:swap-buffers))))
   (register-display-function display/glut))
+
 
 ;; initial gl setup
 ;;

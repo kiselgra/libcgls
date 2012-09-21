@@ -466,7 +466,7 @@
 	   ;; base image
 	   ;; 
 
-           ;(use-camera (find-camera "cam"))
+           (use-camera (find-camera "cam"))
 
            ;; generate the base image.
            (with-timer t-base-image
@@ -484,8 +484,6 @@
              (unbind-texture shadow-depth)
              (unbind-framebuffer fbo))
 
-           (use-camera (find-camera "cam"))
-     
 	   ;; 
 	   ;; transparency
 	   ;; 

@@ -176,7 +176,7 @@
     coherent uniform layout(size1x32) iimage2D shadow_tail_buffer;
 
     void main() {
-	ivec2 wh = ivec2(512, 512);
+	ivec2 wh = ivec2(511, 511);
 	out_col = vec4(0.,0.,0.,1.);
 
 	float n_dot_l = max(0, 0.5*(1+dot(norm_wc, hemi_dir)));
@@ -185,13 +185,7 @@
         
         vec4 shadow_frag = mat4(vec4(.5,0,0,0), vec4(0,.5,0,0), vec4(0,0,.5,0), vec4(.5,.5,.5,1)) * shadow_proj * shadow_view * pos_wc;
         vec2 tc = shadow_frag.xy / shadow_frag.w;
-        /* old school
-	   float r = 0;
-	   if (tc.x <= 1 && tc.x >= 0 && tc.y <= 1 && tc.y >= 0) {
-	   r = textureProj(shadow_map, shadow_frag);
-	   }
-	   out_col.rgb += spot_factor() * color * r;
-        */
+
         vec3 pr = shadow_frag.xyz / shadow_frag.w;
         float r = 0;
         if (tc.x <= 1 && tc.x >= 0 && tc.y <= 1 && tc.y >= 0) {
@@ -202,29 +196,14 @@
 
 	out_col.rgb += spot_factor() * color * r;
 
-	vec2 tcc = vec2(gl_FragCoord.xy / vec2(1366, 768));
-	ivec2 itcc = ivec2((gl_FragCoord.xy / vec2(1366, 768)) * vec2(512, 512));
-	//ivec2 itcc = ivec2((gl_FragCoord.xy / vec2(512, 512)) * vec2(1366, 512));
-	int run = imageLoad(shadow_head_buffer, itcc).r;
-	vec3 col = imageLoad(shadow_frag_colors, itcc).rgb;
-	float dp = pow(texture(shadow_map, tcc).r, 100);
-	out_col.rgb = col;
-	return;
-	if (run >= 0)
-	    out_col.rgb = vec3(0,.5,dp);
-	else
-	    out_col.rgb = vec3(.5,0,dp);
-
-	/*
 	vec2 shadow_tc = pr.xy;
-	ivec2 coord = ivec2(shadow_tc * vec2(wh) * 2);
+	ivec2 coord = ivec2(shadow_tc * vec2(wh));
 
 	int run = imageLoad(shadow_head_buffer, coord).r;
-	if (run >= 0)
-	    out_col.rgb += vec3(0,.5,0);
-	else
-	    out_col.rgb += vec3(.5,0,0);
-	*/
+        if (tc.x <= 1 && tc.x >= 0 && tc.y <= 1 && tc.y >= 0) {
+	    if (run >= 0)
+		out_col.rgb += spot_factor() * color;
+	}
 
      }
 }
@@ -340,10 +319,7 @@
         
     ivec2 pos_c = ivec2(pos % wh.x, pos / wh.x);
     imageStore(shadow_tail_buffer, pos_c, ivec4(old,0,0,0));
-    if (gl_FragCoord.x >= 500 || gl_FragCoord.y >= 500)
-	imageStore(shadow_frag_colors, coord, vec4(0,0,1,1));//result);
-    else
-	imageStore(shadow_frag_colors, coord, vec4(coord.x/512.0f, coord.y/512.0f, 0,1));//result);
+    imageStore(shadow_frag_colors, coord, result);
     imageStore(shadow_frag_depths, pos_c, vec4(gl_FragCoord.z,0,0,0));
 }>
 
@@ -362,8 +338,8 @@
 	,(use "shadow-collector/decls")
 	void main() {
 	    ivec2 wh = ivec2(512, 512);
-	    //if (texture(shadow_opaque_depth, gl_FragCoord.xy/vec2(wh)).r <= gl_FragCoord.z)
-		//discard;
+	    if (texture(shadow_opaque_depth, gl_FragCoord.xy/vec2(wh)).r <= gl_FragCoord.z)
+		discard;
 	    ivec2 coord = ivec2(gl_FragCoord.xy);
 	    vec4 result = diffuse_color;
 	    ,(use "shadow-collector/collect")

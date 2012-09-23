@@ -245,7 +245,8 @@
 		vec3 base = spot_col;
 		for (int i = array_len-1; i >= 0; --i) {
 		    vec4 src = color_vals[i];
-		    base = base.rgb * src.rgb * (1.0-src.a);
+		    // base = base.rgb * src.rgb * (1.0-src.a);
+		    base = (1-src.a) * base.rgb + src.rgb * (src.a);
 		}
 		out_col.rgb = spot_factor_only() * color * base;
 	    }
@@ -306,6 +307,38 @@
 
 	    float n_dot_l = max(0, 0.5*(1+dot(norm_wc, hemi_dir)));
 	    vec4 result = vec4(diffuse_color.rgb * light_col * n_dot_l, diffuse_color.a);
+
+	    ,(use "collector/collect")
+	}
+}
+#:inputs (list "in_pos" "in_norm")
+#:uniforms (list "hemi_dir" "light_col" "diffuse_color")>
+
+
+#<make-shader "diffuse-hemi+spot/collect"
+#:vertex-shader #{
+#version 150 core
+	,(use "vs:default")
+}
+#:fragment-shader #{
+#version 420 core
+	out vec4 out_col;
+	uniform vec3 hemi_dir;
+	uniform vec3 light_col;
+	uniform vec4 diffuse_color;
+	in vec4 pos_wc;
+	in vec3 norm_wc;
+	,(use "collector/decls")
+	,(use "spot")
+
+	void main() {
+            if (texture(cam_opaque_depth, gl_FragCoord.xy/vec2(wh)).r <= gl_FragCoord.z)
+		discard;
+            ivec2 coord = ivec2(gl_FragCoord.xy);
+
+	    float n_dot_l = max(0, 0.5*(1+dot(norm_wc, hemi_dir)));
+	    vec4 result = vec4(diffuse_color.rgb * light_col * n_dot_l, diffuse_color.a);
+	    result.rgb += spot_factor() * diffuse_color.rgb;
 
 	    ,(use "collector/collect")
 	}

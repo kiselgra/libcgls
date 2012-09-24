@@ -156,6 +156,68 @@
 #:uniforms (list "hemi_dir" "light_col" "diffuse_color")>
 
 
+#<shader-fragment "apply-linked-shadows"
+#{
+    coherent uniform layout(rgba8) image2D shadow_frag_colors;
+    coherent uniform layout(r32f) image2D shadow_frag_depths;
+    coherent uniform layout(size1x32) iimage2D shadow_head_buffer;
+    coherent uniform layout(size1x32) iimage2D shadow_tail_buffer;
+    float depth_vals[16];
+    vec4 color_vals[16];
+
+    vec3 apply_linked_shadows(vec3 projected, vec3 light_color) {
+	vec2 shadow_tc = projected.xy;
+	float reference_depth = projected.z;
+	ivec2 wh = ivec2(511, 511);
+	ivec2 coord = ivec2(shadow_tc * vec2(wh));
+	vec3 result;
+
+	int run = imageLoad(shadow_head_buffer, coord).r;
+	if (run >= 0) {
+	    int array_len = 0;
+	    while (run >= 0 && array_len < 16) {
+		ivec2 pos_c = ivec2(run % 512, run / 512);
+		depth_vals[array_len] = imageLoad(shadow_frag_depths, pos_c).r;
+		color_vals[array_len] = imageLoad(shadow_frag_colors, pos_c);
+		run = imageLoad(shadow_tail_buffer, pos_c).r;
+		++array_len;
+	    }
+	    for (int i = 0; i < array_len-1; ++i) {
+		float d = depth_vals[i];
+		int swap_id = i;
+		for (int j = i; j < array_len; ++j) {
+		    float dj = depth_vals[j];
+		    if (dj < d) {
+			d = dj;
+			swap_id = j;
+		    }
+		}
+		if (swap_id != i) {
+		    depth_vals[swap_id] = depth_vals[i];
+		    depth_vals[i] = d;
+		    vec4 tmp = color_vals[i];
+		    color_vals[i] = color_vals[swap_id];
+		    color_vals[swap_id] = tmp;
+		}
+		if (depth_vals[i] >= reference_depth) {
+		    array_len = i;
+		    break;
+		}
+	    }
+	    result = light_color;
+	    for (int i = array_len-1; i >= 0; --i) {
+		vec4 src = color_vals[i];
+		result = result.rgb * src.rgb * (1.0-src.a);
+		// result = (1-src.a) * result.rgb + src.rgb * (src.a);
+	    }
+	}
+	else
+	    result = light_color;
+	return result;
+    }
+}
+#:uniforms (list "shadow_frag_colors" "shadow_frag_depths" "shadow_head_buffer" "shadow_tail_buffer")>
+
 
 #<make-shader "diffuse-hemi+spot+tex"
 #:vertex-shader #{
@@ -177,14 +239,9 @@
     in vec3 norm_wc;
     in vec2 tc;
     ,(use "spot")
-
-    coherent uniform layout(rgba8) image2D shadow_frag_colors;
-    coherent uniform layout(r32f) image2D shadow_frag_depths;
-    coherent uniform layout(size1x32) iimage2D shadow_head_buffer;
-    coherent uniform layout(size1x32) iimage2D shadow_tail_buffer;
+    ,(use "apply-linked-shadows")
 
     void main() {
-	ivec2 wh = ivec2(511, 511);
 	out_col = vec4(0.,0.,0.,1.);
 
 	float n_dot_l = max(0, 0.5*(1+dot(norm_wc, hemi_dir)));
@@ -195,7 +252,6 @@
         vec2 tc = shadow_frag.xy / shadow_frag.w;
 
         vec3 pr = shadow_frag.xyz / shadow_frag.w;
-	float reference_depth = pr.z;
         float r = 0;
         if (tc.x <= 1 && tc.x >= 0 && tc.y <= 1 && tc.y >= 0) {
             float d = texture(shadow_map, pr.xy).r;
@@ -205,60 +261,14 @@
 
 	// use linked data only if the fragment is not shadowed by opaque geometry.
 	if (r == 1) {
-	    vec2 shadow_tc = pr.xy;
-	    ivec2 coord = ivec2(shadow_tc * vec2(wh));
-
-	    int run = imageLoad(shadow_head_buffer, coord).r;
-	    if (run >= 0) {
-		int array_len = 0;
-		float depth_vals[16];
-		vec4 color_vals[16];
-		while (run >= 0 && array_len < 16) {
-		    ivec2 pos_c = ivec2(run % 512, run / 512);
-		    depth_vals[array_len] = imageLoad(shadow_frag_depths, pos_c).r;
-		    color_vals[array_len] = imageLoad(shadow_frag_colors, pos_c);
-		    run = imageLoad(shadow_tail_buffer, pos_c).r;
-		    ++array_len;
-		}
-		for (int i = 0; i < array_len-1; ++i) {
-		    float d = depth_vals[i];
-		    int swap_id = i;
-		    for (int j = i; j < array_len; ++j) {
-			float dj = depth_vals[j];
-			if (dj < d) {
-			    d = dj;
-			    swap_id = j;
-			}
-		    }
-		    if (swap_id != i) {
-			depth_vals[swap_id] = depth_vals[i];
-			depth_vals[i] = d;
-			vec4 tmp = color_vals[i];
-			color_vals[i] = color_vals[swap_id];
-			color_vals[swap_id] = tmp;
-		    }
-		    if (depth_vals[i] >= reference_depth) {
-			array_len = i;
-			break;
-		    }
-		}
-		vec3 base = spot_col;
-		for (int i = array_len-1; i >= 0; --i) {
-		    vec4 src = color_vals[i];
-		    // base = base.rgb * src.rgb * (1.0-src.a);
-		    base = (1-src.a) * base.rgb + src.rgb * (src.a);
-		}
-		out_col.rgb = spot_factor_only() * color * base;
-	    }
-	    else
-		out_col.rgb += spot_factor() * color;
+	    out_col.rgb += apply_linked_shadows(pr, spot_col) * spot_factor_only() * color;
 	}
 
 
      }
 }
 #:inputs (list "in_pos" "in_norm" "in_tc")
-#:uniforms (list "hemi_dir" "light_col" "tex0" "shadow_map" "shadow_proj" "shadow_view"    "shadow_frag_colors" "shadow_frag_depths" "shadow_head_buffer" "shadow_tail_buffer")>
+#:uniforms (list "hemi_dir" "light_col" "tex0" "shadow_map" "shadow_proj" "shadow_view")>
 
 
 

@@ -280,16 +280,16 @@
     coherent uniform layout(size1x32) iimage2D cam_tail_buffer;
     coherent uniform layout(size1x32) iimage2D cam_head_buffer;
     uniform sampler2D cam_opaque_depth;
-    uniform ivec2 wh;
+    uniform ivec2 cam_buffer_size;
 }
-#:uniforms (list "cam_frag_colors" "cam_frag_depths" "cam_tail_buffer" "cam_head_buffer" "cam_opaque_depth" "wh")>
+#:uniforms (list "cam_frag_colors" "cam_frag_depths" "cam_tail_buffer" "cam_head_buffer" "cam_opaque_depth" "cam_buffer_size")>
 
 #<shader-fragment "collector/collect"
 #{
     int pos = int(atomicCounterIncrement(counter));
     int old = imageAtomicExchange(cam_head_buffer, coord, pos);
         
-    ivec2 pos_c = ivec2(pos % wh.x, pos / wh.x);
+    ivec2 pos_c = ivec2(pos % cam_buffer_size.x, pos / cam_buffer_size.x);
     imageStore(cam_tail_buffer, pos_c, ivec4(old,0,0,0));
     imageStore(cam_frag_colors, pos_c, result);
     imageStore(cam_frag_depths, pos_c, vec4(gl_FragCoord.z,0,0,0));
@@ -311,7 +311,7 @@
 	,(use "collector/decls")
 
 	void main() {
-            if (texture(cam_opaque_depth, gl_FragCoord.xy/vec2(wh)).r <= gl_FragCoord.z)
+            if (texture(cam_opaque_depth, gl_FragCoord.xy/vec2(cam_buffer_size)).r <= gl_FragCoord.z)
 		discard;
             ivec2 coord = ivec2(gl_FragCoord.xy);
 
@@ -342,7 +342,7 @@
 	,(use "spot")
 
 	void main() {
-            if (texture(cam_opaque_depth, gl_FragCoord.xy/vec2(wh)).r <= gl_FragCoord.z)
+            if (texture(cam_opaque_depth, gl_FragCoord.xy/vec2(cam_buffer_size)).r <= gl_FragCoord.z)
 		discard;
             ivec2 coord = ivec2(gl_FragCoord.xy);
 
@@ -373,7 +373,7 @@
 	uniform sampler2D tex0;
 	,(use "collector/decls")
 	void main() {
-	    if (texture(cam_opaque_depth, gl_FragCoord.xy/vec2(wh)).r <= gl_FragCoord.z)
+	    if (texture(cam_opaque_depth, gl_FragCoord.xy/vec2(cam_buffer_size)).r <= gl_FragCoord.z)
 		discard;
 	    ivec2 coord = ivec2(gl_FragCoord.xy);
 
@@ -494,7 +494,7 @@
     coherent uniform layout(size1x32) iimage2D cam_head_buffer;
     coherent uniform layout(size1x32) iimage2D cam_tail_buffer;
     uniform sampler2D tex0;
-    uniform ivec2 wh;
+    uniform ivec2 cam_buffer_size;
     uniform int array_layers;
 	
     void main() {
@@ -506,7 +506,7 @@
         if (run >= 0) {
             int array_len = 0;
 	    while (run >= 0 && array_len < 16) {
-                ivec2 pos_c = ivec2(run % wh.x, run / wh.x);
+                ivec2 pos_c = ivec2(run % cam_buffer_size.x, run / cam_buffer_size.x);
                 depth_vals[array_len] = imageLoad(cam_frag_depths, pos_c).r;
                 color_vals[array_len] = imageLoad(cam_frag_colors, pos_c);
     	    	run = imageLoad(cam_tail_buffer, pos_c).r;
@@ -532,7 +532,7 @@
 		}
 	    }
 		
-	    vec4 base = vec4(texture(tex0, gl_FragCoord.xy/vec2(wh)).rgb, 1);
+	    vec4 base = vec4(texture(tex0, gl_FragCoord.xy/vec2(cam_buffer_size)).rgb, 1);
 	    for (int i = int (array_len)-1; i >= 0; --i) {
 		vec4 src = color_vals[i];
 		base = src.rgba * src.a + base.rgba * (1-src.a);
@@ -541,11 +541,11 @@
 	    out_col = base;
 	}
 	else 
-	    out_col = vec4(texture(tex0, gl_FragCoord.xy/vec2(wh)).rgb, 1);
+	    out_col = vec4(texture(tex0, gl_FragCoord.xy/vec2(cam_buffer_size)).rgb, 1);
     }
 }
 #:inputs (list "in_pos")
-#:uniforms (list "cam_frag_colors" "cam_frag_depths" "wh" "tex0" "cam_head_buffer" "cam_tail_buffer")>
+#:uniforms (list "cam_frag_colors" "cam_frag_depths" "cam_buffer_size" "tex0" "cam_head_buffer" "cam_tail_buffer")>
 
 
 

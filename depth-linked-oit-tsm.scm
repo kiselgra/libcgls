@@ -167,7 +167,7 @@
 	 (diffuse (material-diffuse-color material)))
     (cond ((and (< (vec-a diffuse) 1) (> (vec-a diffuse) 0)) #t)
 	  ((string-contains (material-name material) "fabric")
-	   (set-material-diffuse-color! material (make-vec 1 1 1 .1))
+	   (set-material-diffuse-color! material (make-vec 1 1 1 .3))
 	   #t)
 	  (else #f))))
 

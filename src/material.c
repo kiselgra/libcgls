@@ -27,16 +27,12 @@ struct material {
 	void *aux;
 };
 
-#define TYPE material
-#define ARRAY materials
-#define REF material_ref
 #include <libcgl/mm.h>
-#undef REF
-#undef TYPE
-#undef ARRAY
+define_mm(material, materials, material_ref);
+#include "material.xx"
 
 material_ref make_material(const char *name, vec4f *amb, vec4f *diff, vec4f *spec) {
-	material_ref ref = allocate_ref();
+	material_ref ref = allocate_material_ref();
 	struct material *mat = materials+ref.id;
 	
 	mat->name = strdup(name);
@@ -61,7 +57,7 @@ material_ref make_material3f(const char *name, vec3f *amb, vec3f *diff, vec3f *s
 material_ref find_material(const char *name) {
 	material_ref ref = { -1 };
 	if (!name || strlen(name) == 0) return ref;
-	for (int i = 0; i < next_index; ++i)
+	for (int i = 0; i < next_material_index; ++i)
 		if (strcmp(materials[i].name, name) == 0) {
 			ref.id = i;
 			return ref;

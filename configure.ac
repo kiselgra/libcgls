@@ -26,6 +26,10 @@ AC_PROG_LIBTOOL
 AC_CHECK_LIB([cgl], [main])
 AC_CHECK_LIB([glut], [main])
 
+cgldata="$(pkg-config --variable=datadir libcgl)"
+
+AC_SUBST([cgldata])
+
 ifdef([GUILE_FLAGS], [can_use_guile="yes"], [can_use_guile="no"])
 if test "x$can_use_guile" = "xyes" ; then
 	GUILE_FLAGS

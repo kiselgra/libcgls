@@ -151,12 +151,14 @@
      (classify)
      (lambda (message . args)
        (case message
-	 ((run) (let ((start (glut:time-stamp)))
+	 ((run) (check-for-gl-errors (string-append "beroe " ,name))
+	        (let ((start (glut:time-stamp)))
 		  (body)
 		  (let* ((stop (glut:time-stamp))
 			 (diff (- stop start)))
 		    (vector-set! timer tidx diff)
-		    (set! tidx (modulo (1+ tidx) 20)))))
+		    (set! tidx (modulo (1+ tidx) 20))))
+		(check-for-gl-errors (string-append "after " ,name)))
 	 ((reset-drawelements!) (set! drawelements (car args)) (classify))
 	 ((time) (/ (reduce + 0 (vector->list timer)) 20))
 	 ((name) name)
@@ -474,79 +476,54 @@
 	     t-frame
 	     (check-for-gl-errors "right at the beginning")
 
-	     ;;
-	     ;; shadow stuff
-	     ;; 
-	     (use-camera (find-camera "shadowcam"))
-	      
-             ;; render shadow map
-	     (shadow-map-pass 'run)
-	      
-             (check-for-gl-errors "after sm")
-	      
-             ;; clear shadow arrays
-	     (clear-shadow-arrays-pass 'run)
-              
-             (check-for-gl-errors "after sm")
+	     (begin   ;; shadow stuff
+	       (use-camera (find-camera "shadowcam"))
+	       (shadow-map-pass 'run)
+	       (clear-shadow-arrays-pass 'run)
+	       (transparent-shadow-list-pass 'run)
+	       (use-camera (find-camera "cam")))
  	      
-             ;; render to shadow fragment array buffer
-	     (transparent-shadow-list-pass 'run)
- 	      
-             (check-for-gl-errors "after sm")
-	      
-	     ;; 
-	     ;; base image
-	     ;; 
-	      
-             (use-camera (find-camera "cam"))
-	      
              ;; generate the base image.
 	     (base-image-pass 'run)
 	      
-	     ;; 
-	     ;; transparency
-	     ;; 
-	      
-             ;; clear arrays
-	     (clear-transparency-arrays-pass 'run)
-
-             ;(memory-barrier!!)
-             ;(gl:finish 0)
-              
-             ; clear the 'real' framebuffer
-             (with-timer t-clear-b
+	     (begin   ;; transparency
+	       (clear-transparency-arrays-pass 'run)
+               ;(memory-barrier!!)
+               ;(gl:finish 0)
+               ; clear the 'real' framebuffer
                (gl:clear-color .1 .3 .6 1)
-               (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit)))
+               (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
      	      
-             ;; render to fragment array buffer
-             (check-for-gl-errors "before array collect shader")
-             (with-timer t-collect
-               (reset-atomic-buffer atomic-counter 0)
-               (bind-atomic-buffer atomic-counter 0)
-               (disable-color-output
-                 (disable-depth-output
-                   (for-each (lambda (de shader)
-                               (when shader
-                                 (bind-texture depthtex (material-number-of-textures (drawelement-material de)))
-	      		       (cam-oit 'bind 'colors 'depths 'head 'tail)
-                                 (render-drawelement-with-shader de shader)
-	      		       (cam-oit 'unbind 'colors 'depths 'head 'tail)
-                                 (unbind-texture depthtex)))
-                             drawelements
-                             drawelement-shaders)))
-               (unbind-atomic-buffer atomic-counter 0))
+               ;; render to fragment array buffer
+               (check-for-gl-errors "before array collect shader")
+               (with-timer t-collect
+                 (reset-atomic-buffer atomic-counter 0)
+                 (bind-atomic-buffer atomic-counter 0)
+                 (disable-color-output
+                   (disable-depth-output
+                     (for-each (lambda (de shader)
+                                 (when shader
+                                   (bind-texture depthtex (material-number-of-textures (drawelement-material de)))
+	        		       (cam-oit 'bind 'colors 'depths 'head 'tail)
+                                   (render-drawelement-with-shader de shader)
+	        		       (cam-oit 'unbind 'colors 'depths 'head 'tail)
+                                   (unbind-texture depthtex)))
+                               drawelements
+                               drawelement-shaders)))
+                 (unbind-atomic-buffer atomic-counter 0))
               
-             (check-for-gl-errors "before using the array info")
-             ;(memory-barrier!!)
-             ;(gl:finish 0)
-             ;(memory-barrier!!)
+               (check-for-gl-errors "before using the array info")
+               ;(memory-barrier!!)
+               ;(gl:finish 0)
+               ;(memory-barrier!!)
      	      
-             (with-timer t-apply
-	       (cam-oit 'bind 'colors 'depths 'head 'tail)
-               (render-drawelement (find-drawelement "texquad/apply-array"))
-	       (cam-oit 'unbind 'colors 'depths 'head 'tail))
-             ;(memory-barrier!!)
-     	      
+               (with-timer t-apply
+	         (cam-oit 'bind 'colors 'depths 'head 'tail)
+                 (render-drawelement (find-drawelement "texquad/apply-array"))
+	         (cam-oit 'unbind 'colors 'depths 'head 'tail))
+               ;(memory-barrier!!)
+	       )
+     	       
              (set! frames (1+ frames))
              (glut:swap-buffers)))))
   (register-display-function display/glut))

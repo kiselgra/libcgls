@@ -16,6 +16,20 @@
 }
 #:uniforms (list "proj" "view" "model")>
 
+#<shader-fragment "vs/no-norm:default"
+#{
+	in vec3 in_pos;
+	uniform mat4 proj;
+	uniform mat4 view;
+	uniform mat4 model;
+	out vec4 pos_wc;
+	void main() {
+	    pos_wc = model * vec4(in_pos, 1.0);
+	    gl_Position = proj * view * pos_wc;
+	}
+}
+#:uniforms (list "proj" "view" "model")>
+
 #<shader-fragment "vs/tc:default"
 #{
 	in vec3 in_pos;
@@ -35,6 +49,25 @@
 	}
 }
 #:uniforms (list "proj" "view" "model")>
+
+
+
+#<make-shader "solid-line"
+#:vertex-shader #{
+#version 150 core
+	,(use "vs/no-norm:default")
+}
+#:fragment-shader #{
+#version 150 core
+	out vec4 out_col;
+	uniform vec4 diffuse_color;
+	in vec4 pos_wc;
+	void main() {
+		out_col = vec4(diffuse_color.rgb,1.);
+	}
+}
+#:inputs (list "in_pos")
+#:uniforms (list "diffuse_color")>
 
 
 

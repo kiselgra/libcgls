@@ -166,7 +166,7 @@ void render_drawelement(drawelement_ref ref) {
 	}
 
 	bind_mesh_to_gl(de->mesh);
-	draw_mesh(de->mesh, GL_TRIANGLES);
+	draw_mesh(de->mesh);
 	unbind_mesh_from_gl(de->mesh);
 
 	unbind_shader(de->shader);

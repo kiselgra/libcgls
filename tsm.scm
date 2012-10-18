@@ -372,6 +372,15 @@
   (prepend-uniform-handler de atomic-buffer-handler)
   (prepend-uniform-handler de 'default-material-uniform-handler))
 
+(let* ((f-mat (make-material "frumat" (make-vec 1 1 0 1) (make-vec 1 1 0 1) (make-vec 0 0 0 1)))
+       (f-mesh (make-simple-wire-frustum "frufru" spot-pos spot-dir (make-vec  0.29 0.83 0.48) 25 1 10 5000))
+       (f-shader (find-shader "solid-line"))
+       (de (make-drawelement "frustum" f-mesh f-shader f-mat)))
+  (prepend-uniform-handler de 'default-material-uniform-handler)
+  (prepend-uniform-handler de 'default-matrix-uniform-handler)
+  )
+  ;(set! drawelements (cons de drawelements)))
+
 (defmacro with-viewport (vp . body)
   (let-optional vp (ox oy dx dy)
     `(receive (oldox oldoy olddx olddy) (get-viewport)
@@ -508,6 +517,7 @@
 		 (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
 		 (bind-texture shadow-depth 7)
 		 (render-drawelements)
+                 (render-drawelement (find-drawelement "frufru"))
 		 (unbind-texture shadow-depth)
 		 (unbind-framebuffer fbo)
 		 ))))

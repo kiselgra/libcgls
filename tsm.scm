@@ -22,6 +22,43 @@
 
 (define gl#compare-r-to-texture gl#compare-ref-to-texture)
 
+(define (make-gbuffer w h)
+  (letrec ((diffuse-tex  (make-texture-without-file "gbuffer/diff" gl#texture-2d w h gl#rgba gl#rgba8 gl#unsigned-byte))
+	   (specular-tex (make-texture-without-file "gbuffer/spec" gl#texture-2d w h gl#rgba gl#rgba8 gl#unsigned-byte))
+	   (normal-tex   (make-texture-without-file "gbuffer/norm" gl#texture-2d w h gl#rgba gl#rgba16f gl#unsigned-short))
+	   (position-tex (make-texture-without-file "gbuffer/wpos" gl#texture-2d w h gl#rgba gl#rgba32f gl#float))
+	   (depth-tex    (make-texture-without-file "gbuffer/depth" gl#texture-2d w h gl#depth-component gl#depth-component32f gl#float))
+	   (fbo          (make-framebuffer "gbuffer" w h))
+	   (link         (lambda (fun tex pos name)
+			   (bind-texture tex pos)
+			   (fun fbo name tex))))
+    (bind-framebuffer fbo)
+    (bind-texture diffuse-tex 0)
+    (link attach-texture-as-colorbuffer diffuse-tex  0 "diffuse")
+    (link attach-texture-as-colorbuffer specular-tex 1 "specular")
+    (link attach-texture-as-colorbuffer normal-tex   2 "normal")
+    (link attach-texture-as-colorbuffer position-tex 3 "position")
+    (link attach-texture-as-depthbuffer depth-tex    4 "depth" )
+    (check-framebuffer-setup fbo)
+    (unbind-framebuffer fbo)
+    (for-each unbind-texture (list diffuse-tex specular-tex normal-tex position-tex depth-tex))
+    ; return our handler
+    (lambda (msg . x)
+      (case (msg)
+	((bind) (bind-framebuffer fbo))
+	((unbind) (unbind-framebuffer fbo))
+	((tex) (case (car x)
+		 ((diffuse)  diffuse-tex)
+		 ((specular) specular-tex)
+		 ((normal)   normal-tex)
+		 ((position) position-tex)
+		 ((depth)    depth-tex)
+		 (else       #f)))
+	((size) (values w h))
+	(else #f)))))
+
+(define gbuffer (make-gbuffer x-res y-res))
+
 (define (setup-shadow-fbo)
   (let ((depth (make-texture-without-file "shadow-depth" gl#texture-2d 512 512 gl#depth-component gl#depth-component32f gl#float))
 	(color (make-texture-without-file "shadow-color" gl#texture-2d 512 512 gl#rgba gl#rgba8 gl#unsigned-byte)) ; for debug visualization
@@ -510,7 +547,7 @@
 	(shadow-depth (find-texture "shadow-depth")))
     (make-pass "base image" drawelements
 	       (lambda (de)
-		 (drawelement-shader de))
+		 (find-shader "gbuffer:vnt")) ;(drawelement-shader de))
 	       (begin
 		 (bind-framebuffer fbo)
 		 (gl:clear-color .1 .3 .6 1)

@@ -52,6 +52,113 @@
 
 
 
+;;; gbuffer stuff
+
+#<shader-fragment "gbuffer:v:vn" #{
+#version 150 core
+    in vec3 in_pos;
+    in vec3 in_norm;
+    uniform mat4 proj;
+    uniform mat4 view;
+    uniform mat4 model;
+    out vec4 pos_wc;
+    out vec3 norm_wc;    
+    void main() {
+	pos_wc = model * vec4(in_pos, 1.0);
+	gl_Position = proj * view * pos_wc;
+	norm_wc = in_norm;
+    }
+}
+#:uniforms (list "proj" "view" "model")>
+
+#<shader-fragment "gbuffer:v:vnt" #{
+#version 150 core
+    in vec3 in_pos;
+    in vec3 in_norm;
+    in vec2 in_tc;
+    uniform mat4 proj;
+    uniform mat4 view;
+    uniform mat4 model;
+    out vec4 pos_wc;
+    out vec3 norm_wc;    
+    out vec2 tc;
+    void main() {
+	pos_wc = model * vec4(in_pos, 1.0);
+	gl_Position = proj * view * pos_wc;
+	norm_wc = in_norm;
+	tc = in_tc;
+    }
+}
+#:uniforms (list "proj" "view" "model")>
+
+#<shader-fragment "gbuffer:f:out-spec" #{
+    out vec4 out_diff;
+    out vec4 out_norm;
+    out vec4 out_spec;
+    out vec4 out_wpos;
+}> 
+
+#<shader-fragment "gbuffer:f:vn" #{
+    in vec4 pos_wc;
+    in vec3 norm_wc;
+  ,(use "gbuffer:f:out-spec");
+}>
+	
+#<shader-fragment "gbuffer:f:vnt" #{
+    in vec4 pos_wc;
+    in vec3 norm_wc;
+    in vec2 tc;
+    ,(use "gbuffer:f:out-spec");
+}>
+	  
+
+;; actual shaders
+
+#<make-shader "gbuffer:vn"
+#:vertex-shader #{
+    ,(use "gbuffer:v:vn");
+}
+#:fragment-shader #{
+    #version 150 core
+    ,(use "gbuffer:f:vn");
+      uniform vec4 diffuse_color;
+      uniform vec4 specular_color;
+      void main() {
+	  out_diff = diffuse_color;
+	  out_spec = specular_color;
+	  out_norm = vec4(norm_wc, 0);
+	  out_wpos = pos_wc;
+      }
+}
+#:uniforms (list "diffuse_color" "specular_color")
+#:inputs (list "in_pos" "in_norm")>
+	
+
+#<make-shader "gbuffer:vnt"
+#:vertex-shader #{
+    ,(use "gbuffer:v:vnt");
+}
+#:fragment-shader #{
+    #version 150 core
+    ,(use "gbuffer:f:vnt");
+      uniform sampler2D tex0;
+      uniform vec4 specular_color;
+      void main() {
+	  out_diff = texture(tex0, tc);
+	  out_spec = specular_color;
+	  out_norm = vec4(norm_wc, 0);
+	  out_wpos = pos_wc;
+      }
+}
+#:uniforms (list "tex0" "specular_color")
+#:inputs (list "in_pos" "in_norm" "in_tc")>
+	
+	  
+
+
+;;; old stuff
+
+
 #<make-shader "solid-line"
 #:vertex-shader #{
 #version 150 core

@@ -881,6 +881,116 @@
 
 
 
+#<make-shader "sort-shadow-frags"
+#:vertex-shader #{
+#version 150 core
+	in vec3 in_pos;
+	void main() {
+		gl_Position = vec4(in_pos.xy, .9,1);
+	}
+}
+#:fragment-shader #{
+#version 420 core
+#extension GL_NV_gpu_shader5 : enable
+    out vec4 out_col;
+    coherent uniform layout(r32f) image2D shadow_frag_depths;
+    coherent uniform layout(size1x32) iimage2D shadow_head_buffer;
+    coherent uniform layout(size1x32) iimage2D shadow_tail_buffer;
+	
+    void main() {
+
+	const unsigned int N = 16;
+	float depth_vals[N];
+	unsigned int depth_index[N];
+	ivec2 wh = ivec2(512, 512);
+        
+        int run = imageLoad(shadow_head_buffer, ivec2(gl_FragCoord.xy)).r;
+        if (run >= 0) {
+            int array_len = 0;
+	    while (run >= 0 && array_len < N) {
+                ivec2 pos_c = ivec2(run % wh.x, run / wh.x);
+                depth_vals[array_len] = imageLoad(shadow_frag_depths, pos_c).r;
+		depth_index[array_len] = run;
+    	    	run = imageLoad(shadow_tail_buffer, pos_c).r;
+                ++array_len;
+            }
+
+	    for (int i = 0; i < array_len-1; ++i) {
+                float d = depth_vals[i];
+                int swap_id = i;
+                for (int j = i; j < array_len; ++j) {
+		    float dj = depth_vals[j];
+		    if (dj < d) {
+			d = dj;
+			swap_id = j;
+		    }
+		}
+		if (swap_id != i) {
+		    depth_vals[swap_id] = depth_vals[i];
+		    depth_vals[i] = d;
+		}
+	    }
+	    for (int i = 0; i < array_len; ++i) {
+		imageStore(shadow_frag_depths, ivec2(depth_index[i] % wh.x, depth_index[i] / wh.x), vec4(depth_vals[i],0,0,0));
+	    }
+		
+	    if (run >= 0)
+		out_col = vec4(1,.6,0,0);
+	    else
+		out_col = vec4(0,float(array_len)/float(N),0,0);
+	}
+	else 
+	    out_col = vec4(0,0,1,1);
+    }
+}
+#:inputs (list "in_pos")
+#:uniforms (list "shadow_frag_depths" "shadow_head_buffer" "shadow_tail_buffer")>
+
+
+
+#<make-shader "check-shadow-sort"
+#:vertex-shader #{
+#version 150 core
+	in vec3 in_pos;
+	void main() {
+		gl_Position = vec4(in_pos.xy, .9,1);
+	}
+}
+#:fragment-shader #{
+#version 420 core
+#extension GL_NV_gpu_shader5 : enable
+    out vec4 out_col;
+    coherent uniform layout(r32f) image2D shadow_frag_depths;
+    coherent uniform layout(size1x32) iimage2D shadow_head_buffer;
+    coherent uniform layout(size1x32) iimage2D shadow_tail_buffer;
+	
+    void main() {
+
+	float prev_d = -1;
+	ivec2 wh = ivec2(512, 512);
+
+        int run = imageLoad(shadow_head_buffer, ivec2(gl_FragCoord.xy)).r;
+        if (run >= 0) {
+	    while (run >= 0) {
+                ivec2 pos_c = ivec2(run % wh.x, run / wh.x);
+                float d = imageLoad(shadow_frag_depths, pos_c).r;
+		if (d < prev_d) {
+		    out_col = vec4(1,0,0,1);
+		    return;
+		}
+		prev_d = d;
+    	    	run = imageLoad(shadow_tail_buffer, pos_c).r;
+            }
+	    out_col = vec4(0,.7,0,1);
+	}
+	else
+	    out_col = vec4(0,0,1,1);
+    }
+}
+#:inputs (list "in_pos")
+#:uniforms (list "shadow_frag_depths" "shadow_head_buffer" "shadow_tail_buffer")>
+
+
 
 ;; 
 ;; 

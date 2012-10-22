@@ -295,7 +295,7 @@
                        (if (material-has-textures? material)
                            (find-shader "diffuse-dl+tex")
                            (find-shader "diffuse-dl"))))
-	   (bla (format #t "create de ~a ~a ~a~%" name mesh material))
+	   ;(bla (format #t "create de ~a ~a ~a~%" name mesh material))
            (de (make-drawelement name mesh shader material)))
       (add-drawelement-to-scene the-scene de)
       (prepend-uniform-handler de 'default-matrix-uniform-handler)
@@ -422,7 +422,7 @@
   (let-optional vp (ox oy dx dy)
     `(receive (oldox oldoy olddx olddy) (get-viewport)
        (gl:viewport ,ox ,oy ,dx ,dy)
-       (let ((res ,body))
+       (let ((res (begin ,@body)))
          (gl:viewport oldox oldoy olddx olddy)
          res))))
 
@@ -547,7 +547,7 @@
 	(shadow-depth (find-texture "shadow-depth")))
     (make-pass "base image" drawelements
 	       (lambda (de)
-		 (find-shader "gbuffer:vnt")) ;(drawelement-shader de))
+		 (drawelement-shader de))
 	       (begin
 		 (bind-framebuffer fbo)
 		 (gl:clear-color .1 .3 .6 1)
@@ -607,6 +607,36 @@
 		 (gl:enable gl#depth-test)
 		 (unbind-texture depthtex)
 		 (unbind-texture coltex)))))
+
+(define show-shadowcam-sort-bla
+  (let ((coltex (find-texture "shadow-color"))
+	(depthtex (find-texture "shadow-depth"))
+	(texquad (find-drawelement "texquad"))
+	(sort-f (find-shader "sort-shadow-frags")))
+    (make-pass "sort fragments and output some dummy color" '()
+	       (lambda (de) #f)
+	       (begin
+		 (gl:disable gl#depth-test)
+		 (with-viewport (0 0 512 512)
+		   (mmsm 'bind 'depths 'head 'tail)
+		   (render-drawelement-with-shader texquad sort-f)
+		   (mmsm 'unbind 'depths 'head 'tail))
+		   (gl:enable gl#depth-test)))))
+
+(define show-shadowcam-sort-bla2
+  (let ((coltex (find-texture "shadow-color"))
+	(depthtex (find-texture "shadow-depth"))
+	(texquad (find-drawelement "texquad"))
+	(sort-c (find-shader "check-shadow-sort")))
+    (make-pass "sort fragments and output some dummy color" '()
+	       (lambda (de) #f)
+	       (begin
+		 (gl:disable gl#depth-test)
+		 (with-viewport (0 0 512 512)
+		   (mmsm 'bind 'depths 'head 'tail)
+		   (render-drawelement-with-shader texquad sort-c)
+		   (mmsm 'unbind 'depths 'head 'tail))
+		   (gl:enable gl#depth-test)))))
 	
 (define collect-transparent-fragments-pass
   (let ((depthtex (find-texture "opaque-depth"))) ; depth from cam.
@@ -683,7 +713,7 @@
        (print-timer (glut:time-stamp))
        (print-timings 
         (lambda ()
-          (when (and (> (- (glut:time-stamp) print-timer) 30000)
+          (when (and (> (- (glut:time-stamp) print-timer) 10000)
                      print-timings)
 	    (print-pass-timings)
             (set! print-timer (glut:time-stamp)))))
@@ -696,7 +726,11 @@
            (when spot-follow-cam
              (set! spot-pos (vec-add (cam-pos (current-camera)) (make-vec 4 0 2)))
              (set! spot-dir (cam-dir (current-camera))))
-     
+
+	   (with-viewport (0 0 10 10)
+			  (let ((x 1)) x)
+			  )
+
 	   (set! t-frame 0)
 	   (with-timer
 	     t-frame
@@ -726,8 +760,40 @@
 		(begin
 		  (use-camera (find-camera "shadowcam"))
 		  (shadowcam-image-pass 'run)
-		  (show-shadowcam-image-pass 'run))))
-	      
+		  (show-shadowcam-image-pass 'run)))
+
+	       ((sort-vis sort-vis2)
+		(begin
+		  (use-camera (find-camera "shadowcam"))
+		  (shadow-map-pass 'run)
+		  (clear-shadow-arrays-pass 'run)
+		  (shadow-frag-collector-pass 'run)
+		  (use-camera (find-camera "cam"))
+		  (show-shadowcam-sort-bla 'run)
+		  (if (eq? render-mode 'sort-vis2)
+		      (show-shadowcam-sort-bla2 'run))
+
+
+		  (let ((head (find-texture "shadow_head_buffer"))
+			(tail (find-texture "shadow_tail_buffer"))
+			(depth (find-texture "shadow_frag_depths")))
+		    (let ((h (download-texture1i head))
+			  (t #f);(download-texture1i tail))
+			  (d #f);(download-texture1f depth))
+			  (int (lambda (bv i) (bytevector-s32-native-ref bv i)))
+			  (float (lambda (bv i) (bytevector-ieee-single-native-ref bv i))))
+		      (let loop ((i 0))
+			(when (< i 30)
+			  ;(format #t "at ~a: ~a~%" i (int h i))
+			  (loop (1+ i))))
+		      ;(format #t "---------------~%")))
+		      ))
+		      
+		     
+
+		  ))
+	       )   ; rendermode
+
 ;	     (begin   ;; transparency
 ;	       (clear-transparency-arrays-pass 'run)
 ;               ;(memory-barrier!!)
@@ -752,6 +818,8 @@
       ((#\1) (set! render-mode 'default) (ms))
       ((#\2) (set! render-mode 'shadowmap) (ms))
       ((#\3) (set! render-mode 'shadow-frag-len) (ms))
+      ((#\4) (set! render-mode 'sort-vis) (ms))
+      ((#\5) (set! render-mode 'sort-vis2) (ms))
       ((#\+) (set! level (1+ level)))
       ((#\-) (set! level (1- level)))
       (else

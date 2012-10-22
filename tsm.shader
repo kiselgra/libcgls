@@ -426,21 +426,20 @@
 	coherent uniform layout(r32f) image2D shadow_frag_depths;
 	coherent uniform layout(size1x32) iimage2D shadow_tail_buffer;
 	coherent uniform layout(size1x32) iimage2D shadow_head_buffer;
-	//uniform vec2 wh;
+	uniform ivec2 shadow_buffer_size;
 	void main() {
-	    vec2 wh = vec2(512, 512);
 	    ivec2 coord = ivec2(gl_FragCoord.xy);
 
 	    int pos = int(atomicCounterIncrement(counter));
 	    int old = imageAtomicExchange(shadow_head_buffer, coord, pos);
         
-	    ivec2 pos_c = ivec2(pos % int(wh.x), pos / int(wh.x));
+	    ivec2 pos_c = ivec2(pos % int(shadow_buffer_size.x), pos / int(shadow_buffer_size.x));
 	    imageStore(shadow_tail_buffer, pos_c, ivec4(old,0,0,0));
 	    imageStore(shadow_frag_depths, pos_c, vec4(gl_FragCoord.z,0,0,0));
 	}
 }
 #:inputs (list "in_pos" "in_norm")
-#:uniforms (list "diffuse_color" "shadow_frag_depths" "shadow_tail_buffer" "shadow_head_buffer")>
+#:uniforms (list "diffuse_color" "shadow_frag_depths" "shadow_tail_buffer" "shadow_head_buffer" "shadow_buffer_size")>
 
 
 
@@ -460,13 +459,14 @@
 #version 420 core
     coherent uniform layout(size1x32) iimage2D shadow_head_buffer;
     coherent uniform layout(size1x32) iimage2D shadow_tail_buffer;
+    uniform ivec2 shadow_buffer_size;
     uniform ivec4 xywh;
     in vec2 tc;
     out vec4 out_col;
     void main() {
 	out_col = vec4(0.,0.,0.,1.);
 	int n = 0;
-        ivec2 coord = ivec2(tc * vec2(512));
+        ivec2 coord = ivec2(tc * shadow_buffer_size);
 	int run = imageLoad(shadow_head_buffer, coord).r;
 
 	if (coord.x == xywh.x || coord.x == xywh.x+xywh.w-1)
@@ -483,7 +483,7 @@
 
 
 	while (run >= 0) {
-	    ivec2 pos_c = ivec2(run % 512, run / 512);
+	    ivec2 pos_c = ivec2(run % shadow_buffer_size.x, run / shadow_buffer_size.x);
 	    run = imageLoad(shadow_tail_buffer, pos_c).r;	
 	    ++n;
 	}
@@ -494,7 +494,7 @@
      }
 }
 #:inputs (list "in_pos" "in_tc")
-#:uniforms (list "shadow_head_buffer" "shadow_tail_buffer" "xywh")>
+#:uniforms (list "shadow_head_buffer" "shadow_tail_buffer" "xywh" "shadow_buffer_size")>
 
 
 
@@ -513,19 +513,19 @@
     coherent uniform layout(r32f) image2D shadow_frag_depths;
     coherent uniform layout(size1x32) iimage2D shadow_head_buffer;
     coherent uniform layout(size1x32) iimage2D shadow_tail_buffer;
+    uniform ivec2 shadow_buffer_size;
 	
     void main() {
 
 	const unsigned int N = 16;
 	float depth_vals[N];
 	unsigned int depth_index[N];
-	ivec2 wh = ivec2(512, 512);
         
         int run = imageLoad(shadow_head_buffer, ivec2(gl_FragCoord.xy)).r;
         if (run >= 0) {
             int array_len = 0;
 	    while (run >= 0 && array_len < N) {
-                ivec2 pos_c = ivec2(run % wh.x, run / wh.x);
+                ivec2 pos_c = ivec2(run % shadow_buffer_size.x, run / shadow_buffer_size.x);
                 depth_vals[array_len] = imageLoad(shadow_frag_depths, pos_c).r;
 		depth_index[array_len] = run;
     	    	run = imageLoad(shadow_tail_buffer, pos_c).r;
@@ -548,7 +548,7 @@
 		}
 	    }
 	    for (int i = 0; i < array_len; ++i) {
-		imageStore(shadow_frag_depths, ivec2(depth_index[i] % wh.x, depth_index[i] / wh.x), vec4(depth_vals[i],0,0,0));
+		imageStore(shadow_frag_depths, ivec2(depth_index[i] % shadow_buffer_size.x, depth_index[i] / shadow_buffer_size.x), vec4(depth_vals[i],0,0,0));
 	    }
 		
 	    if (run >= 0)
@@ -561,7 +561,7 @@
     }
 }
 #:inputs (list "in_pos")
-#:uniforms (list "shadow_frag_depths" "shadow_head_buffer" "shadow_tail_buffer")>
+#:uniforms (list "shadow_frag_depths" "shadow_head_buffer" "shadow_tail_buffer" "shadow_buffer_size")>
 
 
 
@@ -580,16 +580,15 @@
     coherent uniform layout(r32f) image2D shadow_frag_depths;
     coherent uniform layout(size1x32) iimage2D shadow_head_buffer;
     coherent uniform layout(size1x32) iimage2D shadow_tail_buffer;
+    uniform ivec2 shadow_buffer_size;
 	
     void main() {
 
 	float prev_d = -1;
-	ivec2 wh = ivec2(512, 512);
-
         int run = imageLoad(shadow_head_buffer, ivec2(gl_FragCoord.xy)).r;
         if (run >= 0) {
 	    while (run >= 0) {
-                ivec2 pos_c = ivec2(run % wh.x, run / wh.x);
+                ivec2 pos_c = ivec2(run % shadow_buffer_size.x, run / shadow_buffer_size.x);
                 float d = imageLoad(shadow_frag_depths, pos_c).r;
 		if (d < prev_d) {
 		    out_col = vec4(1,0,0,1);
@@ -605,7 +604,7 @@
     }
 }
 #:inputs (list "in_pos")
-#:uniforms (list "shadow_frag_depths" "shadow_head_buffer" "shadow_tail_buffer")>
+#:uniforms (list "shadow_frag_depths" "shadow_head_buffer" "shadow_tail_buffer" "shadow_buffer_size")>
 
 
 
@@ -626,13 +625,12 @@
     coherent uniform layout(size1x32) iimage2D head_buffer;
     coherent uniform layout(size1x32) iimage2D tail_buffer;
     void main() {
-	ivec2 wh = ivec2(512, 512);
 	imageStore(head_buffer, ivec2(gl_FragCoord.xy), ivec4(-1,0,0,0));
 	imageStore(tail_buffer, ivec2(gl_FragCoord.xy), ivec4(-1,0,0,0));
     }
 }
 #:inputs (list "in_pos")
-#:uniforms (list "shadow_head_buffer" "shadow_tail_buffer" "shadow_buffer_size")>
+#:uniforms (list "shadow_head_buffer" "shadow_tail_buffer")>
 
 
 

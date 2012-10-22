@@ -59,24 +59,6 @@
 
 (define gbuffer (make-gbuffer x-res y-res))
 
-(define (setup-shadow-fbo)
-  (let ((depth (make-texture-without-file "shadow-depth" gl#texture-2d 512 512 gl#depth-component gl#depth-component32f gl#float))
-	(color (make-texture-without-file "shadow-color" gl#texture-2d 512 512 gl#rgba gl#rgba8 gl#unsigned-byte)) ; for debug visualization
-        (fbo (make-framebuffer "shadow" 512 512)))
-    (bind-framebuffer fbo)
-    (bind-texture depth 0)
-    (attach-texture-as-colorbuffer fbo (texture-name color) color)
-    (attach-texture-as-depthbuffer fbo (texture-name depth) depth)
-    (check-framebuffer-setup fbo)
-    (unbind-framebuffer fbo)))
-(setup-shadow-fbo)
-
-(define (shaodw-uniform-handler de uniform location)
-  (cond ((string=? uniform "shadow_view") (uniform-camera-view-matrix location shadow-cam))
-        ((string=? uniform "shadow_proj") (uniform-camera-proj-matrix location shadow-cam))
-        ((string=? uniform "shadow_map") (gl:uniform1i location 7))
-        (else #f)))
-
 ;; scene handling
 (define (custom-uniform-handler de uniform location)
   (cond ((string=? uniform "spot_pos") (gl:uniform3f location (vec-x spot-pos) (vec-y spot-pos) (vec-z spot-pos)))
@@ -103,6 +85,18 @@
 	(else #f)))
 
 (define (make-mm-shadow-buffers name w h storage-factor)
+  (define (setup-shadow-fbo)
+    (let ((depth (make-texture-without-file "shadow-depth" gl#texture-2d w h gl#depth-component gl#depth-component32f gl#float))
+	  (color (make-texture-without-file "shadow-color" gl#texture-2d w h gl#rgba gl#rgba8 gl#unsigned-byte)) ; for debug visualization
+	  (fbo (make-framebuffer "shadow" w h)))
+      (bind-framebuffer fbo)
+      (bind-texture depth 0)
+      (attach-texture-as-colorbuffer fbo (texture-name color) color)
+      (attach-texture-as-depthbuffer fbo (texture-name depth) depth)
+      (check-framebuffer-setup fbo)
+      (unbind-framebuffer fbo)))  
+  (setup-shadow-fbo)
+
   (let ((frag-head-name (string-append name "_" "head_buffer"))
 	(frag-tail-name (string-append name "_" "tail_buffer"))
 	(frag-depths-name (string-append name "_" "frag_depths"))
@@ -147,9 +141,17 @@
 	      ((handle-shorthand) short-handler)
 	      ((bind) (bind args))
 	      ((unbind) (unbind args))
+	      ((size) (values w h))
 	      (else (throw 'unknown-mm-shadow-message message)))))))))
+
+
+(define (shaodw-uniform-handler de uniform location)
+  (cond ((string=? uniform "shadow_view") (uniform-camera-view-matrix location shadow-cam))
+        ((string=? uniform "shadow_proj") (uniform-camera-proj-matrix location shadow-cam))
+        ((string=? uniform "shadow_map") (gl:uniform1i location 7))
+        (else #f)))
 	
-(define mmsm (make-mm-shadow-buffers "shadow" 512 512 10))
+(define mmsm (make-mm-shadow-buffers "shadow" 1024 1024 10))
 (define (mmsm-handler de u l)
   ((mmsm 'handle) de u l))
 
@@ -157,8 +159,9 @@
 (define mouse-y 0)
 (define level 1)
 (define (selection-uniform-handler de u l)
-  (cond ((string=? u "xywh") (gl:uniform4i l (floor (* 512 (/ mouse-x x-res))) (floor (- 512 (* 512 (/ mouse-y y-res)))) (1- (expt 2 level)) (1- (expt 2 level))) #t)
-	(else #f)))
+  (receive (w h) (mmsm 'size)
+    (cond ((string=? u "xywh") (gl:uniform4i l (floor (* w (/ mouse-x x-res))) (floor (- h (* h (/ mouse-y y-res)))) (1- (expt 2 level)) (1- (expt 2 level))) #t)
+	  (else #f))))
 
 ;; this one is for debugging, only.
 (define atomic-counter (make-atomic-buffer "test" 1 1))
@@ -370,28 +373,26 @@
 		 (mmsm 'unbind 'depths)))))
 
 (define shadow-frag-collector-pass
-  (let ((shader (find-shader "shadow-frag-collect"))
-	(resx 512)
-	(resy 512))
-    (make-pass "collect shadow fragments" drawelements
-	       (lambda (de)
-		 shader)
-	       (gl:viewport 0 0 resx resy)
-	       (reset-atomic-buffer atomic-counter 0)
-	       (bind-atomic-buffer atomic-counter 0)
-	       (gl:enable gl#polygon-offset-fill)
-	       (gl:polygon-offset 1 1)
-	       (disable-color-output
-		 (disable-depth-output
-		   (mmsm 'bind 'depths 'head 'tail)
-		   (render-drawelements)
-		   (mmsm 'unbind 'depths 'head 'tail)))
-	       (gl:disable gl#polygon-offset-fill)
-	       (gl:finish 0)
-	       (memory-barrier!!)
-	       (gl:viewport 0 0 1366 768)
-	       (unbind-atomic-buffer atomic-counter 0)
-	       )))
+  (let ((shader (find-shader "shadow-frag-collect")))
+    (receive (w h) (mmsm 'size)
+      (make-pass "collect shadow fragments" drawelements
+		 (lambda (de)
+		   shader)
+		 (with-viewport (0 0 w h)
+	           (reset-atomic-buffer atomic-counter 0)
+		   (bind-atomic-buffer atomic-counter 0)
+		   (gl:enable gl#polygon-offset-fill)
+		   (gl:polygon-offset 1 1)
+		   (disable-color-output
+		    (disable-depth-output
+		     (mmsm 'bind 'depths 'head 'tail)
+		     (render-drawelements)
+		     (mmsm 'unbind 'depths 'head 'tail)))
+		   (gl:disable gl#polygon-offset-fill)
+		   (gl:finish 0)
+		   (memory-barrier!!)
+		   (unbind-atomic-buffer atomic-counter 0)
+		   )))))
 
 (define base-image-pass
   (let ((fbo (find-framebuffer "colorbuffer"))
@@ -459,35 +460,35 @@
 		 (unbind-texture depthtex)
 		 (unbind-texture coltex)))))
 
-(define show-shadowcam-sort-bla
-  (let ((coltex (find-texture "shadow-color"))
-	(depthtex (find-texture "shadow-depth"))
-	(texquad (find-drawelement "texquad"))
+(define show-shadowcam-sort
+  (let ((texquad (find-drawelement "texquad"))
 	(sort-f (find-shader "sort-shadow-frags")))
-    (make-pass "sort fragments and output some dummy color" '()
-	       (lambda (de) #f)
-	       (begin
-		 (gl:disable gl#depth-test)
-		 (with-viewport (0 0 512 512)
-		   (mmsm 'bind 'depths 'head 'tail)
-		   (render-drawelement-with-shader texquad sort-f)
-		   (mmsm 'unbind 'depths 'head 'tail))
-		   (gl:enable gl#depth-test)))))
+    (receive (w h) (mmsm 'size)
+      (make-pass "sort fragments (and output some dummy color)" '()
+		 (lambda (de) #f)
+		 (begin
+		   (gl:disable gl#depth-test)
+		   (with-viewport (0 0 w h)
+		     (mmsm 'bind 'depths 'head 'tail)
+		     (render-drawelement-with-shader texquad sort-f)
+		     (mmsm 'unbind 'depths 'head 'tail))
+		   (gl:enable gl#depth-test))))))
 
 (define show-shadowcam-sort-bla2
   (let ((coltex (find-texture "shadow-color"))
 	(depthtex (find-texture "shadow-depth"))
 	(texquad (find-drawelement "texquad"))
 	(sort-c (find-shader "check-shadow-sort")))
-    (make-pass "sort fragments and output some dummy color" '()
-	       (lambda (de) #f)
-	       (begin
-		 (gl:disable gl#depth-test)
-		 (with-viewport (0 0 512 512)
-		   (mmsm 'bind 'depths 'head 'tail)
-		   (render-drawelement-with-shader texquad sort-c)
-		   (mmsm 'unbind 'depths 'head 'tail))
-		   (gl:enable gl#depth-test)))))
+    (receive (w h) (mmsm 'size)
+      (make-pass "check fragment ordering" '()
+		 (lambda (de) #f)
+		 (begin
+		   (gl:disable gl#depth-test)
+		   (with-viewport (0 0 w h)
+		     (mmsm 'bind 'depths 'head 'tail)
+		     (render-drawelement-with-shader texquad sort-c)
+		     (mmsm 'unbind 'depths 'head 'tail))
+		   (gl:enable gl#depth-test))))))
 	
 (define whole-frame-time 0)
 (define number-of-frames 0)
@@ -567,6 +568,7 @@
 		  (clear-shadow-arrays-pass 'run)
 		  (shadow-frag-collector-pass 'run)
 		  (use-camera (find-camera "cam"))
+		  (show-shadowcam-sort 'run)
 		  
 		  ;; generate the base image.
 		  (base-image-pass 'run)
@@ -586,7 +588,7 @@
 		  (clear-shadow-arrays-pass 'run)
 		  (shadow-frag-collector-pass 'run)
 		  (use-camera (find-camera "cam"))
-		  (show-shadowcam-sort-bla 'run)
+		  (show-shadowcam-sort 'run)
 		  (if (eq? render-mode 'sort-vis2)
 		      (show-shadowcam-sort-bla2 'run))
 

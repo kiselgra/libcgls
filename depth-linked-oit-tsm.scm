@@ -47,7 +47,7 @@
         ((string=? uniform "spot_dir") (gl:uniform3f location (vec-x spot-dir) (vec-y spot-dir) (vec-z spot-dir)))
         ((string=? uniform "spot_col") (gl:uniform3f location 1 .9 .9))
 	((string=? uniform "spot_cutoff") (gl:uniform1f location (* 3.1416 25 1/180)))
-	((string=? uniform "light_col") (gl:uniform3f location .15 .1 .1)) ;(gl:uniform3f location .2 .2 .3))
+	((string=? uniform "light_col") (gl:uniform3f location .4 .4 .4));(gl:uniform3f location .15 .1 .1)) ;(gl:uniform3f location .2 .2 .3))
         ((string=? uniform "hemi_dir") 
            (let ((h (cmdline hemi-dir))) 
               (gl:uniform3f location (car h) (cadr h) (caddr h))))
@@ -149,20 +149,26 @@
 	  (timer (make-vector 20 0))
 	  (tidx 0))
      (classify)
-     (lambda (message . args)
-       (case message
-	 ((run) (check-for-gl-errors (string-append "beroe " ,name))
-	        (let ((start (glut:time-stamp)))
-		  (body)
-		  (let* ((stop (glut:time-stamp))
-			 (diff (- stop start)))
-		    (vector-set! timer tidx diff)
-		    (set! tidx (modulo (1+ tidx) 20))))
-		(check-for-gl-errors (string-append "after " ,name)))
-	 ((reset-drawelements!) (set! drawelements (car args)) (classify))
-	 ((time) (/ (reduce + 0 (vector->list timer)) 20))
-	 ((name) name)
-	 (else (throw 'invalid-pass-message message args))))))
+     (let ((handler (lambda (message . args)
+		      (case message
+			((run) (check-for-gl-errors (string-append "before " ,name))
+			 (gl:finish 0)
+			 (memory-barrier!!)
+			 (let ((start (glut:time-stamp)))
+			   (body)
+			   (let* ((stop (glut:time-stamp))
+				  (diff (- stop start)))
+			     (vector-set! timer tidx diff)
+			     (set! tidx (modulo (1+ tidx) 20))))
+			 (gl:finish 0)
+			 (memory-barrier!!)
+			 (check-for-gl-errors (string-append "after " ,name)))
+			((reset-drawelements!) (set! drawelements (car args)) (classify))
+			((time) (/ (reduce + 0 (vector->list timer)) 20))
+			((name) name)
+			(else (throw 'invalid-pass-message message args))))))
+       (set! all-passes (append all-passes (list handler)))  ; we want to keep the order.
+       handler)))
 	 
 (define (is-transparent de)
   (let* ((material (drawelement-material de))
@@ -174,7 +180,7 @@
 	  (else #f))))
 
 (define (setup-scene)
-  (define use-dragon #f)
+  (define use-dragon #t)
   (define (create-drawelement name mesh material)
     (let* ((shader (if (cmdline hemi)
                        (if (material-has-textures? material)
@@ -232,10 +238,10 @@
 	     (trafo-x (make-rotation-matrix (make-vec 1 0 0) (/ 3.1416 -2)))
 	     (trafo-y (make-rotation-matrix (make-vec 0 0 1) (/ 3.1416 -2)))
 	     (trafo (multiply-matrices trafo-x trafo-y)))
-	(set-material-diffuse-color! (drawelement-material dragon) (make-vec 0 .7 0 .2))
-	(mset! trafo 3 0 -700)
+	(set-material-diffuse-color! (drawelement-material dragon) (make-vec 0 .7 0 .7))
+	(mset! trafo 3 0 -790)
 	(mset! trafo 3 1 -43)
-	(mset! trafo 3 2 150)
+	(mset! trafo 3 2 250)
 	(set-de-trafo! dragon trafo)))
   
   (for-each (lambda (de)
@@ -302,6 +308,7 @@
 (define gl!!write-only #x88B9)
 (define gl!!read-write #x088ba)
 
+(define all-passes '())
 
 (define shadow-map-pass
   (let ((shader (find-shader "render-shadowmap")))
@@ -398,8 +405,51 @@
 		 (unbind-texture shadow-depth)
 		 (unbind-framebuffer fbo)))))
 	
-	     
-				   
+(define collect-transparent-fragments-pass
+  (let ((depthtex (find-texture "opaque-depth"))) ; depth from cam.
+    (make-pass "transparent fragment collector" drawelements
+	       (lambda (de)
+		 (if (is-transparent de)
+		     (find-shader (string-append (shader-name (drawelement-shader de)) "/collect"))
+		     #f))
+	       (begin
+		 (reset-atomic-buffer atomic-counter 0)
+		 (bind-atomic-buffer atomic-counter 0)
+		 (disable-color-output
+		  (disable-depth-output
+		   (for-each (lambda (de shader)
+			       (when shader
+				 (bind-texture depthtex (material-number-of-textures (drawelement-material de)))
+				 (cam-oit 'bind 'colors 'depths 'head 'tail)
+				 (render-drawelement-with-shader de shader)
+				 (cam-oit 'unbind 'colors 'depths 'head 'tail)
+				 (unbind-texture depthtex)))
+			     drawelements
+			     shaders)))
+		 (unbind-atomic-buffer atomic-counter 0)))))
+
+(define apply-transparency-pass
+  (let ((quad (find-drawelement "texquad/apply-array")))
+    (make-pass "apply transparency" '()
+	       (lambda (de) #f)
+	       (begin
+		 (gl:clear-color .1 .3 .6 1)
+		 (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
+	         (cam-oit 'bind 'colors 'depths 'head 'tail)
+                 (render-drawelement quad)
+	         (cam-oit 'unbind 'colors 'depths 'head 'tail)))))
+
+(define whole-frame-time 0)
+(define number-of-frames 0)
+(define (print-pass-timings)
+  (for-each (lambda (pass) (format #t "~10,3f ms | ~a~%" (pass 'time) (pass 'name)))
+	    all-passes)
+  (let ((sum (fold (lambda (p sum) (+ (p 'time) sum)) 0 all-passes)))
+    (format #t "--------------+~%~10,3f ms   (~3,3f ms)~%~%" sum (exact->inexact (/ whole-frame-time number-of-frames))))
+  (set! whole-frame-time 0)
+  (set! number-of-frames 0))
+
+
 ;; the display routine registered with glut
 (set-move-factor! (/ (move-factor) 2))
 
@@ -418,50 +468,20 @@
 (define fps 'not-ready)
 (define print-timings #t)
 
-(define (print-pass-timings)
-  (for-each (lambda (pass)
-	      (format #t "~a: ~8,3f ms.~%" (pass 'name) (pass 'time)))
-	    (list shadow-map-pass
-		  transparent-shadow-list-pass)))
-
 (let* (; the opaque render target
        (fbo (find-framebuffer "opaque"))
        (coltex (find-texture "opaque-color"))
        (depthtex (find-texture "opaque-depth"))
        (shadow-depth (find-texture "shadow-depth"))
        ; timer-stuff
-       (t-base-image 0)
-       (t-clear-arr 0)
-       (t-clear-b 0)
-       (t-collect 0)
-       (t-apply 0)
        (t-frame 0)
-       (frames 0)
        (print-timer (glut:time-stamp))
        (print-timings 
         (lambda ()
-          (when (> (- (glut:time-stamp) print-timer) 5000)
-            (set! fps (/ frames 5)))
-          (when (and (> (- (glut:time-stamp) print-timer) 5000)
+          (when (and (> (- (glut:time-stamp) print-timer) 30000)
                      print-timings)
 	    (print-pass-timings)
-            (letrec-syntax ((varname (syntax-rules () ((varname x) (quote x))))
-                            (pr (syntax-rules () 
-                                  ((print x n)    
-                                   (let ((avg (/ x frames)))
-                                     (format #t "~a~8,3f ms.~%" n (exact->inexact avg)) 
-                                     (set! x 0)
-                                     avg)))))
-              (format #t "timings~%-------~%")
-              (let ((sum (+ (pr t-base-image "base image:                ")
-                            (pr t-clear-arr  "clear arrays:              ")
-                            (pr t-clear-b    "clear buffer:              ")
-                            (pr t-collect    "collect transp. fragments: ")
-                            (pr t-apply      "apply transparency:        "))))
-		(pr t-frame      "whole frame:               ")
-                (format #t "sum: ~8,3f ms -> ~,3f fps (timed code, only, no swap).~%" (exact->inexact sum) (if (> sum 0) (exact->inexact (/ 1000 sum)) 0))))
-            (set! print-timer (glut:time-stamp))
-            (set! frames 0))))
+            (set! print-timer (glut:time-stamp)))))
        ; the actual display function
        (display/glut 
          (lambda ()
@@ -472,6 +492,7 @@
              (set! spot-pos (vec-add (cam-pos (current-camera)) (make-vec 4 0 2)))
              (set! spot-dir (cam-dir (current-camera))))
      
+	   (set! t-frame 0)
 	   (with-timer
 	     t-frame
 	     (check-for-gl-errors "right at the beginning")
@@ -490,44 +511,22 @@
 	       (clear-transparency-arrays-pass 'run)
                ;(memory-barrier!!)
                ;(gl:finish 0)
-               ; clear the 'real' framebuffer
-               (gl:clear-color .1 .3 .6 1)
-               (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
-     	      
                ;; render to fragment array buffer
-               (check-for-gl-errors "before array collect shader")
-               (with-timer t-collect
-                 (reset-atomic-buffer atomic-counter 0)
-                 (bind-atomic-buffer atomic-counter 0)
-                 (disable-color-output
-                   (disable-depth-output
-                     (for-each (lambda (de shader)
-                                 (when shader
-                                   (bind-texture depthtex (material-number-of-textures (drawelement-material de)))
-	        		       (cam-oit 'bind 'colors 'depths 'head 'tail)
-                                   (render-drawelement-with-shader de shader)
-	        		       (cam-oit 'unbind 'colors 'depths 'head 'tail)
-                                   (unbind-texture depthtex)))
-                               drawelements
-                               drawelement-shaders)))
-                 (unbind-atomic-buffer atomic-counter 0))
-              
-               (check-for-gl-errors "before using the array info")
+	       (collect-transparent-fragments-pass 'run)
                ;(memory-barrier!!)
                ;(gl:finish 0)
                ;(memory-barrier!!)
-     	      
-               (with-timer t-apply
-	         (cam-oit 'bind 'colors 'depths 'head 'tail)
-                 (render-drawelement (find-drawelement "texquad/apply-array"))
-	         (cam-oit 'unbind 'colors 'depths 'head 'tail))
-               ;(memory-barrier!!)
-	       )
+	       (apply-transparency-pass 'run) )
      	       
-             (set! frames (1+ frames))
-             (glut:swap-buffers)))))
+             (glut:swap-buffers))
+             (set! whole-frame-time (+ whole-frame-time t-frame))
+	     (set! number-of-frames (1+ number-of-frames))
+	     )))
   (register-display-function display/glut))
 
+
+(define (reload-shaders)
+  (enqueue (load "depth-tsm.shader")))
 
 ;; initial gl setup
 ;;

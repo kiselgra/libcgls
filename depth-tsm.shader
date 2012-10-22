@@ -207,9 +207,16 @@
 	    result = light_color;
 	    for (int i = array_len-1; i >= 0; --i) {
 		vec4 src = color_vals[i];
-		result = result.rgb * src.rgb * (1.0-src.a);
+		// result = result.rgb * src.rgb * (1.0-src.a);
 		// result = (1-src.a) * result.rgb + src.rgb * (src.a);
+		// result = result.rgb * exp(-src.a *3* (vec3(1)-src.rgb));
+		// result.r *= exp(-src.a*.001) * exp(-1+src.r);
+		// result.g *= exp(-src.a*.001) * exp(-1+src.g);
+		// result.b *= exp(-src.a*.001) * exp(-1+src.b);
+		// result *= vec3(1)-exp(10.*-src.a*src.rgb);
+		result *= (vec3(1)-exp(-src.a)) * src.rgb;
 	    }
+	    // result = light_color*exp(2*(vec3(1.0)-result));
 	}
 	else
 	    result = light_color;
@@ -418,7 +425,7 @@
 	    ,(use "collector/collect")
 	}
 }
-#:inputs (list "in_pos" "in_norm" "in_tc")
+#:inputs (list "in_pos" "in_norm")
 #:uniforms (list "hemi_dir" "light_col" "diffuse_color" "tex0")>
 
 

@@ -102,75 +102,6 @@
 	((string=? "tex4" uniform) (gl:uniform1i location 4) #t)
 	(else #f)))
 
-(define (make-oit-buffers name w h storage-factor)
-  ;; buffer names
-  (let ((frag-head-name (string-append name "_" "head_buffer"))
-	(frag-tail-name (string-append name "_" "tail_buffer"))
-	(frag-colors-name (string-append name "_" "frag_colors"))
-	(frag-depths-name (string-append name "_" "frag_depths"))
-	(opaque-name (string-append name "_" "opaque_depth"))
-	(wh-name (string-append name "_" "buffer_size")))
-    ;; buffers for depth array management
-    (let ((frag-head (make-texture-without-file frag-head-name gl#texture-2d w h gl#red gl#r32f gl#float))
-	  (frag-tail (make-texture-without-file frag-tail-name gl#texture-2d w (* h storage-factor) gl#red gl#r32f gl#float))
-	  (frag-colors (make-texture-without-file frag-colors-name gl#texture-2d w (* h storage-factor) gl#rgba gl#rgba8 gl#unsigned-byte))
-	  (frag-depths (make-texture-without-file frag-depths-name gl#texture-2d w (* h storage-factor) gl#red gl#r32f gl#float)))
-      ;; buffer ids
-      (let ((frag-head-id 0)
-	    (frag-tail-id 1)
-	    (frag-colors-id 2)
-	    (frag-depths-id 3))
-	(let ((handler (lambda (de u loc)
-			 (cond ((string=? u frag-head-name) (gl:uniform1i loc frag-head-id))
-			       ((string=? u frag-tail-name) (gl:uniform1i loc frag-tail-id))
-			       ((string=? u frag-colors-name) (gl:uniform1i loc frag-colors-id))
-			       ((string=? u frag-depths-name) (gl:uniform1i loc frag-depths-id))
-			       ((string=? u opaque-name) (gl:uniform1i loc (material-number-of-textures (drawelement-material de))))
-			       ((string=? u wh-name) (gl:uniform2i loc w h))
-			       (else #f))))
-	      (short-handler (lambda (de u loc)
-			       (cond ((string=? u "head_buffer") (gl:uniform1i loc frag-head-id))
-				     ((string=? u "tail_buffer") (gl:uniform1i loc frag-tail-id))
-				     ((string=? u "frag_colors") (gl:uniform1i loc frag-colors-id))
-				     ((string=? u "frag_depths") (gl:uniform1i loc frag-depths-id))
-				     ((string=? u "wh") (gl:uniform2i loc w h))
-				     (else #f))))
-	      (bind (lambda (args)
-		      (for-each (lambda (arg) (case arg
-						((head) (bind-texture-as-image frag-head frag-head-id 0 gl!!read-write gl#r32i))
-						((tail) (bind-texture-as-image frag-tail frag-tail-id 0 gl!!read-write gl#r32i))
-						((colors) (bind-texture-as-image frag-colors frag-colors-id 0 gl!!read-write gl#rgba8))
-						((depths) (bind-texture-as-image frag-depths frag-depths-id 0 gl!!read-write gl#r32f))
-						(else (throw 'unknown-oit-buffer arg))))
-				args)))
-	      (unbind (lambda (args)
-			(for-each (lambda (arg) (case arg
-						  ((head) (unbind-texture-as-image frag-head frag-head-id))
-						  ((tail) (unbind-texture-as-image frag-tail frag-tail-id))
-						  ((colors) (unbind-texture-as-image frag-colors frag-colors-id))
-						  ((depths) (unbind-texture-as-image frag-depths frag-depths-id))
-						  (else (throw 'unknown-oit-buffer arg))))
-				  args))))
-	  (lambda (message . args)
-	    (case message
-	      ((handle) handler)
-	      ((handle-shorthand) short-handler)
-	      ((bind) (bind args))
-	      ((unbind) (unbind args))
-	      (else (throw 'unknown-oit-message message)))))))))
-			 
-(define cam-oit (make-oit-buffers "cam" x-res y-res 10))
-(define shadow-oit (make-oit-buffers "shadow" 512 512 10))
-
-(define (atomic-buffer-handler de u l)
-  (let ((handled (if (= (current-camera) shadow-cam)
-		     ((shadow-oit 'handle-shorthand) de u l)
-		     ((cam-oit 'handle-shorthand) de u l))))
-    (cond (handled #t)
-	  (((cam-oit 'handle) de u l) #t)
-	  (((shadow-oit 'handle) de u l) #t)
-	  (else #f))))
-
 (define (make-mm-shadow-buffers name w h storage-factor)
   (let ((frag-head-name (string-append name "_" "head_buffer"))
 	(frag-tail-name (string-append name "_" "tail_buffer"))
@@ -208,7 +139,7 @@
 						  ((head) (unbind-texture-as-image frag-head frag-head-id))
 						  ((tail) (unbind-texture-as-image frag-tail frag-tail-id))
 						  ((depths) (unbind-texture-as-image frag-depths frag-depths-id))
-						  (else (throw 'unknown-oit-buffer arg))))
+						  (else (throw 'unknown-mmsm-buffer arg))))
 				  args))))
 	  (lambda (message . args)
 	    (case message
@@ -235,7 +166,6 @@
 
 ;; scene loading
 (define drawelements '())
-(define drawelement-shaders '())
 
 (define verbose-passes #f)
 (defmacro make-pass (name drawelements classification . body)
@@ -274,15 +204,6 @@
        (set! all-passes (append all-passes (list handler)))  ; we want to keep the order.
        handler)))
 	 
-(define (is-transparent de)
-  (let* ((material (drawelement-material de))
-	 (diffuse (material-diffuse-color material)))
-    (cond ((and (< (vec-a diffuse) 1) (> (vec-a diffuse) 0)) #t)
-	  ((string-contains (material-name material) "fabric")
-	   (set-material-diffuse-color! material (make-vec 1 1 1 .3))
-	   #t)
-	  (else #f))))
-
 (define (setup-scene)
   (define use-dragon #f)
   (define (create-drawelement name mesh material)
@@ -303,7 +224,7 @@
       (prepend-uniform-handler de custom-uniform-handler)
       (prepend-uniform-handler de depth-uniform-handler)
       (prepend-uniform-handler de shaodw-uniform-handler)
-      (prepend-uniform-handler de atomic-buffer-handler)
+      (prepend-uniform-handler de mmsm-handler)
       ))
   
   (let ((fallback-material (make-material "fallback" (make-vec 1 0 0 1) (make-vec 1 0 0 1) (make-vec 0 0 0 1))))
@@ -348,16 +269,9 @@
 	(mset! trafo 3 1 -43)
 	(mset! trafo 3 2 250)
 	(set-de-trafo! dragon trafo)))
-  
-  (for-each (lambda (de)
-              (let* ((de-id (find-drawelement de))
-		     (shader (drawelement-shader de-id))
-                     (use-coll-shader (is-transparent de-id)))
-                ;; fabric is not transparent yet, because the shader for use with textures does not exist.
-                (set! drawelements (cons de-id drawelements))
-                (set! drawelement-shaders (cons (if use-coll-shader (find-shader (string-append (shader-name shader) "/collect")) #f)
-                                                drawelement-shaders))))
-            (list-drawelements))
+
+  (for-each (lambda (de) (set! drawelements (cons (find-drawelement de) drawelements)))
+	    (list-drawelements))
 )
 
 (define (setup-opaque-rendering)
@@ -387,26 +301,18 @@
   (prepend-uniform-handler de selection-uniform-handler)
   (prepend-uniform-handler de lax-tex-uniform-handler))
 
-; (let* ((tqma (make-material "texquad/aa" (make-vec 0 0 0 1) (make-vec 0 1 0 1) (make-vec 0 0 0 1)))
-;        (tqme (make-quad "texquad/apply-array"))
-;        (tqsh (find-shader "texquad/apply-array"))
-;        (de (make-drawelement "texquad" tqme tqsh tqma)))
-;   (material-add-texture tqma (find-texture "colorbuffer-color"))
-;   (prepend-uniform-handler de atomic-buffer-handler)
-;   (prepend-uniform-handler de 'default-material-uniform-handler))
-;  
 (let* ((tqma (make-material "texquad/ca" (make-vec 0 0 0 1) (make-vec 0 1 0 1) (make-vec 0 0 0 1)))
        (tqme (make-quad "texquad/clear-array"))
        (tqsh (find-shader "texquad/clear-array"))
        (de (make-drawelement "texquad/ca" tqme tqsh tqma)))
-  (prepend-uniform-handler de atomic-buffer-handler)
+  (prepend-uniform-handler de mmsm-handler)
   (prepend-uniform-handler de 'default-material-uniform-handler))
  
 (let* ((tqma (make-material "texquad/cc" (make-vec 0 0 0 1) (make-vec 0 1 0 1) (make-vec 0 0 0 1)))
        (tqme (make-quad "texquad/clear-color"))
        (tqsh (find-shader "texquad/clear-color"))
        (de (make-drawelement "texquad/cc" tqme tqsh tqma)))
-  (prepend-uniform-handler de atomic-buffer-handler)
+  (prepend-uniform-handler de mmsm-handler)
   (prepend-uniform-handler de 'default-material-uniform-handler))
 
 (let* ((f-mat (make-material "frumat" (make-vec 1 1 0 1) (make-vec 1 1 0 1) (make-vec 0 0 0 1)))
@@ -416,7 +322,6 @@
   (prepend-uniform-handler de 'default-material-uniform-handler)
   (prepend-uniform-handler de 'default-matrix-uniform-handler)
   )
-  ;(set! drawelements (cons de drawelements)))
 
 (defmacro with-viewport (vp . body)
   (let-optional vp (ox oy dx dy)
@@ -463,60 +368,6 @@
 		 (mmsm 'bind 'depths)
 		 (render-drawelement clear-quad-1)
 		 (mmsm 'unbind 'depths)))))
-
-(define clear-shadow-arrays-pass-oit
-  (let ((clear-quad-1 (find-drawelement "texquad/clear-array"))
-	(clear-quad-2 (find-drawelement "texquad/clear-color")))
-    (make-pass "clear shadow arrays" '()
-	       (lambda (de) #f)
-	       (begin
-		 (shadow-oit 'bind 'head 'tail)
-		 (render-drawelement clear-quad-1)
-		 (shadow-oit 'unbind 'head 'tail)
-		 (shadow-oit 'bind 'colors 'depths)
-		 (render-drawelement clear-quad-1)
-		 (shadow-oit 'unbind 'colors 'depths)))))
-
-(define clear-transparency-arrays-pass
-  (let ((clear-quad-1 (find-drawelement "texquad/clear-array"))
-	(clear-quad-2 (find-drawelement "texquad/clear-color")))
-    (make-pass "clear transparency arrays" '()
-	       (lambda (de) #f)
-	       (begin
-		 (cam-oit 'bind 'head 'tail)
-		 (render-drawelement clear-quad-1)
-		 (cam-oit 'unbind 'head 'tail)
-		 (cam-oit 'bind 'colors 'depths)
-		 (render-drawelement clear-quad-2)
-		 (cam-oit 'unbind 'colors 'depths)))))
- 
-(define transparent-shadow-list-pass
-  (let ((hemi+spot (find-shader "transp-shadow-collect"))
-	(hemi+spot+tex (find-shader "shadow-collect+tex")))
-    (make-pass "transparent shadow linked list pass" drawelements
-	       (lambda (de)
-		 (if (is-transparent de)
-		     (if (material-has-textures? (drawelement-material de))
-			 hemi+spot+tex
-			 hemi+spot)
-		     #f))
-	       (with-viewport (0 0 512 512)
-	         (let ((opaque-depth-texture (find-texture "shadow-depth")))
-	         	 (reset-atomic-buffer atomic-counter 0)
-	         	 (bind-atomic-buffer atomic-counter 0)
-	         	 (gl:enable gl#polygon-offset-fill)
-	         	 (gl:polygon-offset 1 1)
-	         	 (disable-color-output
-	         	   (disable-depth-output
-	         	     (shadow-oit 'bind 'colors 'depths 'head 'tail)
-	         	     (render-drawelements (lambda (de sh) 
-	         	 			    (bind-texture opaque-depth-texture (material-number-of-textures (drawelement-material de)))))
-	         	     (shadow-oit 'unbind 'colors 'depths 'head 'tail)
-	         	     (unbind-texture opaque-depth-texture)))
-	         	 (gl:disable gl#polygon-offset-fill)
-	         	 (gl:finish 0)
-	         	 (memory-barrier!!)
-	         	 (unbind-atomic-buffer atomic-counter 0))))))
 
 (define shadow-frag-collector-pass
   (let ((shader (find-shader "shadow-frag-collect"))
@@ -638,40 +489,6 @@
 		   (mmsm 'unbind 'depths 'head 'tail))
 		   (gl:enable gl#depth-test)))))
 	
-(define collect-transparent-fragments-pass
-  (let ((depthtex (find-texture "opaque-depth"))) ; depth from cam.
-    (make-pass "transparent fragment collector" drawelements
-	       (lambda (de)
-		 (if (is-transparent de)
-		     (find-shader (string-append (shader-name (drawelement-shader de)) "/collect"))
-		     #f))
-	       (begin
-		 (reset-atomic-buffer atomic-counter 0)
-		 (bind-atomic-buffer atomic-counter 0)
-		 (disable-color-output
-		  (disable-depth-output
-		   (for-each (lambda (de shader)
-			       (when shader
-				 (bind-texture depthtex (material-number-of-textures (drawelement-material de)))
-				 (cam-oit 'bind 'colors 'depths 'head 'tail)
-				 (render-drawelement-with-shader de shader)
-				 (cam-oit 'unbind 'colors 'depths 'head 'tail)
-				 (unbind-texture depthtex)))
-			     drawelements
-			     shaders)))
-		 (unbind-atomic-buffer atomic-counter 0)))))
-
-(define apply-transparency-pass
-  (let ((quad (find-drawelement "texquad/apply-array")))
-    (make-pass "apply transparency" '()
-	       (lambda (de) #f)
-	       (begin
-		 (gl:clear-color .1 .3 .6 1)
-		 (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
-	         (cam-oit 'bind 'colors 'depths 'head 'tail)
-                 (render-drawelement quad)
-	         (cam-oit 'unbind 'colors 'depths 'head 'tail)))))
-
 (define whole-frame-time 0)
 (define number-of-frames 0)
 (define (print-pass-timings)

@@ -1,7 +1,14 @@
 (define use-dragon #f)
 
-
 (setup-scene "/home/kai/render-data/models/sponza.obj")
+
+(let* ((oldcam (find-camera "scene-cam"))
+       (near (cam-near oldcam))
+       (far (cam-far oldcam))
+       (bla (delete-camera oldcam))
+       (cam (make-perspective-camera "scene-cam" (make-vec -1242 163 -69) (make-vec 1 0 0) (make-vec 0 1 0) 35 (/ x-res y-res) near far)))  ;near ;far)))
+  (use-camera cam))
+
 
   (let ((bunny-mat (make-material "bunnymat" (make-vec 0 0 0 0) (make-vec .8 0 0 .2) (make-vec 0 0 0 1))))
     (add-model-to-scene "/home/kai/render-data/models/bunny-70k.obj" "bunny70k" bunny-mat))

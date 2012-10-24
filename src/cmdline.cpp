@@ -98,12 +98,19 @@ int parse_cmdline(int argc, char **argv)
     cmdline.include_path = DATADIR;
     cmdline.res.x = 1366; 
     cmdline.res.y = 768;
+	cmdline.scenefile = cmdline.objfile = false;
 	int ret = argp_parse(&parser, argc, argv, /*ARGP_NO_EXIT*/0, 0, 0);
 
 	if (cmdline.filename == 0) {
-		fprintf(stderr, "ERROR: no model file specified. exiting...\n");
+		fprintf(stderr, "ERROR: no model or scene file specified. exiting...\n");
 		exit(EXIT_FAILURE);
 	}
+
+	int dot = string(cmdline.filename).find_last_of(".");
+	if (string(cmdline.filename).substr(dot) == ".obj")
+		cmdline.objfile = true;
+	else
+		cmdline.scenefile = true;
 	return ret;
 }
 	
@@ -125,11 +132,24 @@ extern "C" {
 		free(w);
 		if (s == "hemi")	return (cmdline.hemi ? SCM_BOOL_T : SCM_BOOL_F);
 		else if (s == "hemi-dir") return vec3f_to_list(&cmdline.hemi_dir);
-		else if (s == "model") return scm_from_locale_string(cmdline.filename);
+		else if (s == "model") {
+			if (cmdline.objfile)
+				return scm_from_locale_string(cmdline.filename);
+			scm_throw(scm_from_locale_symbol("cmdline-error"), 
+			          scm_list_2(what, 
+			                    scm_from_locale_string("the program was invoked with a scene file, not a model file.")));
+		}
+		else if (s == "scene") {
+			return scm_from_locale_string(cmdline.filename);
+		}
+		else if (s == "filetype") {
+			return scm_string_to_symbol(scm_from_locale_string((cmdline.objfile ? string("obj") : string("scene")).c_str()));
+		}
+
 
 		scm_throw(scm_from_locale_symbol("cmdline-error"), 
 		          scm_list_2(what, 
-		                    scm_from_locale_string("invalid option. use hemi, hemi-dir, model")));
+		                    scm_from_locale_string("invalid option. use hemi, hemi-dir, model, filetype")));
 	}
 
 	void register_scheme_functions_for_cmdline() {

@@ -43,7 +43,7 @@
           (set! near (/ near 10)))
         (while (< far (* distance 2))
           (set! far (* far 2)))
-        (let ((cam (make-perspective-camera "cam" pos (make-vec 0 0 -1) (make-vec 0 1 0) 35 (/ x-res y-res) near far)))
+        (let ((cam (make-perspective-camera "scene-cam" pos (make-vec 0 0 -1) (make-vec 0 1 0) 35 (/ x-res y-res) near far)))
           (use-camera cam))
         (set-move-factor! (/ distance 40)))))
 )

@@ -200,75 +200,6 @@
        (set! all-passes (append all-passes (list handler)))  ; we want to keep the order.
        handler)))
 	 
-;(define (setup-scene)
-;  (define use-dragon #f)
-;  (define (create-drawelement name mesh material)
-;    (let* ((shader (if (cmdline hemi)
-;                       (if (material-has-textures? material)
-;                           (find-shader "diffuse-hemi+spot+tex")
-;                           (find-shader "diffuse-hemi+spot"))
-;                           ;(find-shader "diffuse-hemi+tex")
-;                           ;(find-shader "diffuse-hemi"))
-;                       (if (material-has-textures? material)
-;                           (find-shader "diffuse-dl+tex")
-;                           (find-shader "diffuse-dl"))))
-; 	   ;(bla (format #t "create de ~a ~a ~a~%" name mesh material))
-;           (de (make-drawelement name mesh shader material)))
-;      (add-drawelement-to-scene the-scene de)
-;      (prepend-uniform-handler de 'default-matrix-uniform-handler)
-;      (prepend-uniform-handler de 'default-material-uniform-handler)
-;      (prepend-uniform-handler de light-uniform-handler)
-;      (prepend-uniform-handler de shaodw-uniform-handler)
-;      (prepend-uniform-handler de mmsm-handler)
-;      ))
-;  
-;  (let ((fallback-material (make-material "fallback" (make-vec 1 0 0 1) (make-vec 1 0 0 1) (make-vec 0 0 0 1))))
-;    (receive (min max) (load-objfile-and-create-objects-with-separate-vbos (cmdline model) (cmdline model) create-drawelement fallback-material)
-;      (let* ((near 1)
-;             (far 1)
-;             (diam (vec-sub max min))
-;             (diam/2 (vec-div-by-scalar diam 2))
-;             (center (vec-add min diam/2))
-;             (distance (vec-length diam))
-;             (pos (vec-add center (make-vec 0 0 distance))))
-;        (while (> near (/ distance 100))
-;          (set! near (/ near 10)))
-;        (while (< far (* distance 2))
-;          (set! far (* far 2)))
-;        (format #t "----> ~a ~a~%" near far)
-;        ;(let ((cam (make-perspective-camera "cam" pos (make-vec 0 0 -1) (make-vec 0 1 0) 35 (/ x-res y-res) near far)))
-; 	(let ((cam (make-perspective-camera "cam" (make-vec -1242 163 -69) (make-vec 1 0 0) (make-vec 0 1 0) 35 (/ x-res y-res) near far)))  ;near ;far)))
-;          (use-camera cam))
-;        (set-move-factor! (/ distance 40)))))
-;  
-;  (let ((bunny-mat (make-material "bunnymat" (make-vec 0 0 0 0) (make-vec .8 0 0 .2) (make-vec 0 0 0 1))))
-;    (load-objfile-and-create-objects-with-separate-vbos "/home/kai/render-data/models/bunny-70k.obj" "bunny70k" create-drawelement bunny-mat))
-;  
-;  (if use-dragon
-;      (let ((dragon-mat (make-material "dragonmat" (make-vec 0 0 0 0) (make-vec 0 .7 0 .2) (make-vec 0 0 0 1))))
-; 	(load-objfile-and-create-objects-with-separate-vbos "/home/kai/render-data/models/drache.obj" "dragon" create-drawelement dragon-mat)))
-;  
-;  (let ((bunny (find-drawelement "bunny70k/bunny"))
-;        (trafo (make-rotation-matrix (make-vec 1 0 0) (/ 3.1416 -2))))
-;    (mset! trafo 3 1 -43)
-;    (mset! trafo 3 0 -750)
-;    (set-de-trafo! bunny trafo))
-;   
-;  (if use-dragon
-;      (let* ((dragon (find-drawelement "dragon/dragon_nObject1Shape"))
-; 	     (trafo-x (make-rotation-matrix (make-vec 1 0 0) (/ 3.1416 -2)))
-; 	     (trafo-y (make-rotation-matrix (make-vec 0 0 1) (/ 3.1416 -2)))
-; 	     (trafo (multiply-matrices trafo-x trafo-y)))
-; 	(set-material-diffuse-color! (drawelement-material dragon) (make-vec 0 .7 0 .7))
-; 	(mset! trafo 3 0 -790)
-; 	(mset! trafo 3 1 -43)
-; 	(mset! trafo 3 2 250)
-; 	(set-de-trafo! dragon trafo)))
-; 
-;  (for-each (lambda (de) (set! drawelements (cons (find-drawelement de) drawelements)))
-; 	    (list-drawelements))
-;)
-
 (define (setup-opaque-rendering)
   (let ((depth (make-texture-without-file "colorbuffer-depth" gl#texture-2d x-res y-res gl#depth-component gl#depth-component32f gl#float))
         (color (make-texture-without-file "colorbuffer-color" gl#texture-2d x-res y-res gl#rgba gl#rgba8 gl#unsigned-byte))
@@ -588,38 +519,9 @@
 		  (if (eq? render-mode 'sort-vis2)
 		      (show-shadowcam-sort-bla2 'run))
 
-
-		  (let ((head (find-texture "shadow_head_buffer"))
-			(tail (find-texture "shadow_tail_buffer"))
-			(depth (find-texture "shadow_frag_depths")))
-		    (let ((h (download-texture1i head))
-			  (t #f);(download-texture1i tail))
-			  (d #f);(download-texture1f depth))
-			  (int (lambda (bv i) (bytevector-s32-native-ref bv i)))
-			  (float (lambda (bv i) (bytevector-ieee-single-native-ref bv i))))
-		      (let loop ((i 0))
-			(when (< i 30)
-			  ;(format #t "at ~a: ~a~%" i (int h i))
-			  (loop (1+ i))))
-		      ;(format #t "---------------~%")))
-		      ))
-		      
-		     
-
 		  ))
 	       )   ; rendermode
 
-;	     (begin   ;; transparency
-;	       (clear-transparency-arrays-pass 'run)
-;               ;(memory-barrier!!)
-;               ;(gl:finish 0)
-;               ;; render to fragment array buffer
-;	       (collect-transparent-fragments-pass 'run)
-;               ;(memory-barrier!!)
-;               ;(gl:finish 0)
-;               ;(memory-barrier!!)
-;	       (apply-transparency-pass 'run) )
-     	       
              (glut:swap-buffers))
              (set! whole-frame-time (+ whole-frame-time t-frame))
 	     (set! number-of-frames (1+ number-of-frames))

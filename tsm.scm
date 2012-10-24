@@ -147,6 +147,7 @@
         (else #f)))
 	
 (define mmsm (make-mm-shadow-buffers "shadow" 1024 1024 10))
+;(define mmsm (make-mm-shadow-buffers "shadow" x-res y-res 10))
 (define (mmsm-handler de u l)
   ((mmsm 'handle) de u l))
 
@@ -319,6 +320,9 @@
 		   (gl:finish 0)
 		   (memory-barrier!!)
 		   (unbind-atomic-buffer atomic-counter 0)
+		   (gl:finish 0) ;; bug in wrapper/gen -> glFinish(void);
+		   (set! copy-of-atomic-buffer (read-atomic-buffer atomic-counter))
+		   (format #t "frag-counter: ~a~%" (bytevector-s32-native-ref copy-of-atomic-buffer 0))
 		   )))))
 
 (define base-image-pass
@@ -519,7 +523,30 @@
 		  (if (eq? render-mode 'sort-vis2)
 		      (show-shadowcam-sort-bla2 'run))
 
+		  (let* ((head-tex (find-texture "shadow_head_buffer"))
+			 (tail-tex (find-texture "shadow_tail_buffer"))
+			 (depth-tex (find-texture "shadow_frag_depths"))
+			 (head (download-texture1f head-tex))
+			 (tail (download-texture1f tail-tex))
+			 (depth (download-texture1f depth-tex))
+			 (int (lambda (bv i) (bytevector-s32-native-ref bv (* 4 i))))
+			 (float (lambda (bv i) (bytevector-ieee-single-native-ref bv (* 4 i))))
+			 (for-each-pixel (lambda (proc)
+					   (receive (w h) (mmsm 'size)
+					     (do ((y 0 (1+ y))) ((>= y h))
+					       (do ((x 0 (1+ x))) ((>= x w))
+						 (proc w h x y))))))
+			 )
+		    (for-each-pixel (lambda (w h x y)
+				      (let traverse-tail ((d -1) (link (int head (+ (* y w) x))) (i 0))
+					(if (and (>= link 0) (< i 16))
+					    (let ((next-d (float depth link)))
+					      (if (> d next-d)
+						  (format #t "error at pixel (~a, ~a)@~a, ~7,6f > ~7,6f!~%" x y i d next-d)
+						  (traverse-tail next-d (int tail (+ (remainder link w) (* w (floor (/ link w))))) (1+ i)))))))))
 		  ))
+
+
 	       )   ; rendermode
 
              (glut:swap-buffers))

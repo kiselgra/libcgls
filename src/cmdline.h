@@ -14,6 +14,8 @@ typedef struct
 	bool hemi;
     const char *config;
     const char *include_path;
+    vec2f res;
+	bool scenefile, objfile;
 } Cmdline;
 
 #ifdef __cplusplus

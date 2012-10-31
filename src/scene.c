@@ -12,13 +12,12 @@ struct scene {
 	drawelement_node *back;
 };
 
-#define TYPE scene
-#define ARRAY scenes
-#define REF scene_ref
 #include <libcgl/mm.h>
+define_mm(scene, scenes, scene_ref);
+#include "scene.xx"
 
 scene_ref make_scene(char *name) { // no pun intended.
-	scene_ref ref = allocate_ref();
+	scene_ref ref = allocate_scene_ref();
 	if (ref.id != 0)
 		fprintf(stderr, "creating more than one scene is not really supported at the moment. good luck.\n");
 	struct scene *scene = scenes+ref.id;

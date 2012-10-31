@@ -27,16 +27,12 @@ struct material {
 	void *aux;
 };
 
-#define TYPE material
-#define ARRAY materials
-#define REF material_ref
 #include <libcgl/mm.h>
-#undef REF
-#undef TYPE
-#undef ARRAY
+define_mm(material, materials, material_ref);
+#include "material.xx"
 
 material_ref make_material(const char *name, vec4f *amb, vec4f *diff, vec4f *spec) {
-	material_ref ref = allocate_ref();
+	material_ref ref = allocate_material_ref();
 	struct material *mat = materials+ref.id;
 	
 	mat->name = strdup(name);
@@ -61,7 +57,7 @@ material_ref make_material3f(const char *name, vec3f *amb, vec3f *diff, vec3f *s
 material_ref find_material(const char *name) {
 	material_ref ref = { -1 };
 	if (!name || strlen(name) == 0) return ref;
-	for (int i = 0; i < next_index; ++i)
+	for (int i = 0; i < next_material_index; ++i)
 		if (strcmp(materials[i].name, name) == 0) {
 			ref.id = i;
 			return ref;
@@ -107,7 +103,7 @@ void material_add_texture(material_ref ref, texture_ref tex) {
 		mat->textures_head = new_node;
 	else {
 		mat->back->next = new_node; 
-		unit = mat->back->unit;
+		unit = mat->back->unit + 1;
 	}
 	mat->back = new_node;
 	mat->back->ref = tex;
@@ -143,15 +139,20 @@ bool default_material_uniform_handler(drawelement_ref ref, const char *uniform, 
 		for (struct texture_node *run = material_textures(mat); run; run = run->next)
 			if (str_eq(uniform, run->name)) {
 				bind_texture(run->ref, run->unit);
+                glUniform1i(location, run->unit);
 				return true;
 			}
+        // texN specifically requests the texture bound to unit N, therefore we don't use ...->unit here.
 		if (strlen(uniform) == 4 && uniform[3] >= '0' && uniform[3] <= '9' && strncmp(uniform, "tex", 3) == 0) {
 			int nr = uniform[3] - '0';
+            int i = 0;
 			for (struct texture_node *run = material_textures(mat); run; run = run->next)
-				if (nr == 0) {
-					bind_texture(run->ref, run->unit);
+				if (i == nr) {
+					bind_texture(run->ref, nr);
+                    glUniform1i(location, nr);
 					return true;
 				}
+                else ++i;
 		}
 		return false;
 	}

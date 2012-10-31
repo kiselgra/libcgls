@@ -10,18 +10,26 @@
 
 #include <stdio.h>
 
+#include "basename.h"
+#include <libgen.h>
+
 // objectname may be 0, in which case the filename will be used to prefix the generated objects.
 void load_objfile_and_create_objects_with_separate_vbos(const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max, 
                                                         void (*make_drawelem)(const char*, mesh_ref, material_ref), material_ref fallback_material) {
 	obj_data objdata;
 	const char *modelname = object_name ? object_name : filename;
+
+	char *dirname_tmp = strdup(filename);
+	prepend_image_path(dirname(dirname_tmp));
+	free(dirname_tmp);
+
 	load_objfile(modelname, filename, &objdata);
 
 	// convert the materials
 	// note: the material names are already prefixed with the model's base name.
 	for (int i = 0; i < objdata.number_of_materials; ++i) {
 		obj_mtl *m = objdata.materials+i;
-		material_ref mat = make_material3f(m->name, &m->col_amb, &m->col_diff, &m->col_spec);
+		material_ref mat = make_material(m->name, &m->col_amb, &m->col_diff, &m->col_spec);
 		tex_params_t p = default_tex_params();
 		if (m->tex_a) material_add_texture(mat, make_texture(basename(m->tex_a), m->tex_a, GL_TEXTURE_2D, &p));
 		if (m->tex_d) material_add_texture(mat, make_texture(basename(m->tex_d), m->tex_d, GL_TEXTURE_2D, &p));
@@ -92,6 +100,8 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 			if (objdata.vertex_data[i].z > bb_max->z) bb_max->z = objdata.vertex_data[i].z;
 		}
 	}
+
+	pop_image_path_front();
 }
 
 #ifdef WITH_GUILE

@@ -31,13 +31,12 @@ struct drawelement {
 	matrix4x4f trafo;
 };
 
-#define TYPE drawelement
-#define ARRAY drawelements
-#define REF drawelement_ref
 #include <libcgl/mm.h>
+define_mm(drawelement, drawelements, drawelement_ref);
+#include "drawelement.xx"
 
 drawelement_ref make_drawelement(const char *modelname, mesh_ref mr, shader_ref sr, material_ref matr) {
-	drawelement_ref ref = allocate_ref();
+	drawelement_ref ref = allocate_drawelement_ref();
 	struct drawelement *de = drawelements+ref.id;
 
 	int meshname_len = strlen(mesh_name(mr));
@@ -53,6 +52,8 @@ drawelement_ref make_drawelement(const char *modelname, mesh_ref mr, shader_ref 
 	}
 	else
 		de->name = strdup(de->shortname);
+
+//     printf("making de %s -> %s\n", modelname, de->name);
 		
 	de->mesh = mr;
 	de->shader = sr;
@@ -165,7 +166,7 @@ void render_drawelement(drawelement_ref ref) {
 	}
 
 	bind_mesh_to_gl(de->mesh);
-	draw_mesh(de->mesh, GL_TRIANGLES);
+	draw_mesh(de->mesh);
 	unbind_mesh_from_gl(de->mesh);
 
 	unbind_shader(de->shader);
@@ -194,14 +195,14 @@ void render_drawelement_with(drawelement_ref ref, shader_ref shader, material_re
 drawelement_ref find_drawelement(const char *name) {
 	drawelement_ref ref = { -1 };
 	if (strlen(name) == 0) return ref;
-	for (int i = 0; i < next_index; ++i) {
+	for (int i = 0; i < next_drawelement_index; ++i) {
 //         printf("is %s == %s?\n", name, drawelements[i].shortname);
 		if (strcmp(drawelements[i].shortname, name) == 0) {
 			ref.id = i;
 			return ref;
 		}
 	}
-    for (int i = 0; i < next_index; ++i) {
+    for (int i = 0; i < next_drawelement_index; ++i) {
 //         printf("is %s == %s?\n", name, drawelements[i].name);
         if (strcmp(drawelements[i].name, name) == 0) {
 			ref.id = i;
@@ -304,7 +305,7 @@ SCM_DEFINE(s_set_de_trafo_x, "set-de-trafo!", 2, 0, 0, (SCM de, SCM bv), "") {
 
 SCM_DEFINE(s_list_des, "list-drawelements", 0, 0, 0, (), "") {
     SCM list = scm_list_1(scm_from_locale_string(drawelements[0].shortname));
-    for (int i = 1; i < next_index; ++i)
+    for (int i = 1; i < next_drawelement_index; ++i)
         list = scm_cons(scm_from_locale_string(drawelements[i].shortname), list);
     return list;
 }
@@ -317,6 +318,20 @@ SCM_DEFINE(s_glUniform3f, "gl:uniform3f", 4, 0, 0, (SCM loc, SCM x, SCM y, SCM z
 	glUniform3f(l, X, Y, Z);
 	return SCM_BOOL_T;
 }
+
+SCM_DEFINE(s_de_name, "drawelement-name", 1, 0, 0, (SCM de), "") {
+    drawelement_ref ref = { scm_to_int(de) };
+    return scm_from_locale_string(drawelement_name(ref));
+}
+
+
+
+
+SCM_DEFINE(s_TMP_mem_barr, "memory-barrier!!", 0, 0, 0, (), "") {
+    glMemoryBarrier(GL_ALL_BARRIER_BITS);
+    return SCM_BOOL_T;
+}
+
 
 void register_scheme_functions_for_drawelement() {
 #include "drawelement.x"

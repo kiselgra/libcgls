@@ -2,6 +2,7 @@
 
 ;;; modules
 (use-modules (ice-9 receive))
+(use-modules (rnrs bytevectors))
 
 ;;; actual code
 
@@ -66,15 +67,37 @@
 		   (pos (vec-add center (make-vec 0 0 distance))))
 	  (while (> near (/ distance 100))
 	    (set! near (/ near 10)))
-	  (while (< far (* distance 2))
+	  (while (< far (* distance 4))
 	    (set! far (* far 2)))
 	  (let ((cam (make-perspective-camera "cam" pos (list 0 0 -1) (list 0 1 0) 35 (/ x-res y-res) near far)))
         (use-camera cam))
       (set-move-factor! (/ distance 20)))))
 
-(define r .5)
-(define g 0)
-(define b 0)
+;; tex textured quad
+;; 
+(make-texture-without-file "mutex" gl#texture-2d 10 10 gl#red gl#r32f gl#float)
+
+(define (testhandler2 de u l)
+  (cond ((string=? u "mutex_buffer") (gl:uniform1i l 0))
+        ((string=? u "per_frag_array") (gl:uniform1i l 1))
+        (else #f)))
+
+(let* ((tqma (make-material "atquad" (make-vec 0 0 0 1) (make-vec 0 1 0 1) (make-vec 0 0 0 1)))
+       (tqme (make-quad-with-tc "atquad"))
+       (tqsh (find-shader "quad/mutex"))
+       ;(tqsh (find-shader "quad/atomic"))
+       (de (make-drawelement "atquad" tqme tqsh tqma)))
+  (material-add-texture tqma (find-texture "mutex"))
+  (prepend-uniform-handler de 'default-material-uniform-handler)
+  (prepend-uniform-handler de testhandler2)
+  (set! drawelements (cons de drawelements)))
+
+(define atomic-counter (make-atomic-buffer "test" 1 1))
+(define copy-of-atomic-buffer #f)
+
+(define r .2)
+(define g .3)
+(define b .8)
 
 (define command-queue '())
 (defmacro enqueue (cmd)
@@ -90,10 +113,19 @@
   (gl:clear-color r g b 1)
   (apply-commands)
   (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
+  (reset-atomic-buffer atomic-counter 0)
+  (bind-atomic-buffer atomic-counter 0)
+  (bind-texture-as-image (find-texture "mutex") 0 0 #x88ba gl#r32i)
   (for-each render-drawelement
             drawelements)
+  (unbind-texture-as-image (find-texture "mutex") 0)
+  (unbind-atomic-buffer atomic-counter 0)
+  (gl:finish 0) ;; bug in wrapper/gen -> glFinish(void);
+  (set! copy-of-atomic-buffer (read-atomic-buffer atomic-counter))
+  (format #t "bv0: ~a~%" (bytevector-s32-native-ref copy-of-atomic-buffer 0))
   (glut:swap-buffers))
 
 (register-display-function display)
 (gl:enable gl#depth-test)
+
 (format #t "Leaving ~a.~%" (current-filename))

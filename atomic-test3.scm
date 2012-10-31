@@ -2,6 +2,7 @@
 
 ;;; modules
 (use-modules (ice-9 receive))
+(use-modules (rnrs bytevectors))
 
 ;;; actual code
 
@@ -39,11 +40,20 @@
 
 (define drawelements '())
 
+(make-texture-without-file "frag_mutex" gl#texture-2d x-res y-res gl#red gl#r32f gl#float)
+(make-texture-without-file "frag_arrays" gl#texture-2d x-res (* y-res 10) gl#rgba gl#rgba32f gl#float)   ; 32 slots per pixel
+
+(define (atomic-buffer-handler de u l)
+  (cond ((string=? u "mutex_buffer") (gl:uniform1i l 0))
+        ((string=? u "per_frag_array") (gl:uniform1i l 1))
+        (else #f)))
+
+
 (define (testcall name mesh material)
   (let* ((shader (if (cmdline hemi)
 				     (if (material-has-textures? material)
 				         (find-shader "diffuse-hemi+tex")
-				         (find-shader "diffuse-hemi"))
+				         (find-shader "diffuse-hemi/frag-arrays"))
 					 (if (material-has-textures? material)
 					     (find-shader "diffuse-dl+tex")
 						 (find-shader "diffuse-dl"))))
@@ -52,6 +62,7 @@
 	(prepend-uniform-handler de 'default-matrix-uniform-handler)
 	(prepend-uniform-handler de 'default-material-uniform-handler)
 	(prepend-uniform-handler de custom-uniform-handler)
+	(prepend-uniform-handler de atomic-buffer-handler)
     (set! drawelements (cons de drawelements))
 	))
 
@@ -66,15 +77,36 @@
 		   (pos (vec-add center (make-vec 0 0 distance))))
 	  (while (> near (/ distance 100))
 	    (set! near (/ near 10)))
-	  (while (< far (* distance 2))
+	  (while (< far (* distance 4))
 	    (set! far (* far 2)))
 	  (let ((cam (make-perspective-camera "cam" pos (list 0 0 -1) (list 0 1 0) 35 (/ x-res y-res) near far)))
         (use-camera cam))
       (set-move-factor! (/ distance 20)))))
 
-(define r .5)
-(define g 0)
-(define b 0)
+;; tex textured quad
+(let* ((tqma (make-material "atquad" (make-vec 0 0 0 1) (make-vec 0 1 0 1) (make-vec 0 0 0 1)))
+       (tqme (make-quad-with-tc "atquad"))
+       (tqsh (find-shader "quad/show-frag-array-len"))
+       (de (make-drawelement "atquad" tqme tqsh tqma)))
+  (material-add-texture tqma (find-texture "frag_mutex"))
+  (prepend-uniform-handler de 'default-material-uniform-handler)
+  (prepend-uniform-handler de atomic-buffer-handler))
+
+(let* ((tqma (make-material "clear-mb-mat" (make-vec 0 0 0 1) (make-vec 0 1 0 1) (make-vec 0 0 0 1)))
+       (tqme (make-quad "cmb"))
+       (tqsh (find-shader "quad/clear-mutex-buffer"))
+       (de (make-drawelement "cmb" tqme tqsh tqma)))
+  (material-add-texture tqma (find-texture "frag_mutex"))
+  (prepend-uniform-handler de 'default-material-uniform-handler)
+  (prepend-uniform-handler de atomic-buffer-handler))
+
+
+(define atomic-counter (make-atomic-buffer "test" 1 1))
+(define copy-of-atomic-buffer #f)
+
+(define r .2)
+(define g .3)
+(define b .8)
 
 (define command-queue '())
 (defmacro enqueue (cmd)
@@ -86,14 +118,47 @@
             (reverse command-queue))
   (set! command-queue '()))
 
+(defmacro disable-color-output body
+  `(begin (gl:color-mask gl#false gl#false gl#false gl#false)
+          ,@body
+          (gl:color-mask gl#true gl#true gl#true gl#true)))
+
+(defmacro disable-depth-output body
+  `(begin (gl:depth-mask gl#false)
+          ,@body
+          (gl:depth-mask gl#true)))
+
+
 (define (display)
   (gl:clear-color r g b 1)
   (apply-commands)
   (gl:clear (logior gl#color-buffer-bit gl#depth-buffer-bit))
-  (for-each render-drawelement
-            drawelements)
+  (reset-atomic-buffer atomic-counter 0)
+  (bind-atomic-buffer atomic-counter 0)
+  (bind-texture-as-image (find-texture "frag_mutex") 0 0 #x88ba gl#r32i)
+  (bind-texture-as-image (find-texture "frag_arrays") 1 0 #x88ba gl#r32i)
+  (gl:disable gl#depth-test)
+  (disable-color-output
+    (disable-depth-output
+      (for-each render-drawelement
+                drawelements)))
+  (gl:finish 0)
+  (render-drawelement (find-drawelement "atquad"))
+  (unbind-texture-as-image (find-texture "frag_mutex") 0)
+  (unbind-atomic-buffer atomic-counter 0)
+  (gl:finish 0) ;; bug in wrapper/gen -> glFinish(void);
+  (set! copy-of-atomic-buffer (read-atomic-buffer atomic-counter))
+;  (format #t "bv0: ~a~%" (bytevector-s32-native-ref copy-of-atomic-buffer 0))
+  (let ((clear-de (find-drawelement "cmb"))
+        (frag-mutex (find-texture "frag_mutex" )))
+    (disable-color-output
+      (disable-depth-output
+        (bind-texture-as-image frag-mutex 0 0 #x88ba gl#r32i)
+        (render-drawelement clear-de)
+        (unbind-texture-as-image frag-mutex 0))))
   (glut:swap-buffers))
 
 (register-display-function display)
 (gl:enable gl#depth-test)
+
 (format #t "Leaving ~a.~%" (current-filename))

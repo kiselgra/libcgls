@@ -27,4 +27,5 @@ scheme_DATA = default.scm default.shader dp.scm std.scm depth-array-oit.scm tsm.
 shader_DATA = tsm.shader poster.shader
 
 schemedir = $(pkgdatadir)
+shaderdir = $(pkgdatadir)
 EXTRA_DIST = $(scheme_DATA)

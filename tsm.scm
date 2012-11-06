@@ -469,87 +469,131 @@
        ; the actual display function
        (display/glut 
          (lambda ()
-           (apply-commands)
-           (print-timings)
+	   (catch #t
+	     (lambda ()
+	       (apply-commands)
+	       (print-timings))
+	     (lambda (key . args)
+	       (format #t "~%ERROR --> (~a) ~a~%" key args))
+	     (lambda (key . args)
+	       (display-backtrace (make-stack #t) (current-error-port))))
+	     
 
-           (when spot-follow-cam
-             (set! spot-pos (vec-add (cam-pos (current-camera)) (make-vec 4 0 2)))
-             (set! spot-dir (cam-dir (current-camera))))
-
-	   (with-viewport (0 0 10 10)
-			  (let ((x 1)) x)
-			  )
-
-	   (set! t-frame 0)
-	   (with-timer
-	     t-frame
-	     (check-for-gl-errors "right at the beginning")
-
-;	     (begin   ;; shadow stuff
-;	       (use-camera (find-camera "shadowcam"))
-;	       (shadow-map-pass 'run)
-;	       (clear-shadow-arrays-pass 'run)
-;	       (transparent-shadow-list-pass 'run)
-;	       (use-camera (find-camera "cam")))
-	     (case render-mode
-	       ((default)
-		(begin
-		  (use-camera (find-camera "shadowcam"))
-		  (shadow-map-pass 'run)
-		  (clear-shadow-arrays-pass 'run)
-		  (shadow-frag-collector-pass 'run)
-		  (use-camera (find-camera "scene-cam"))
-		  (show-shadowcam-sort 'run)
-		  
-		  ;; generate the base image.
-		  (base-image-pass 'run)
-		  (show-base-image-pass 'run)
-		  ))
-
-	       ((shadowmap shadow-frag-len)
-		(begin
-		  (use-camera (find-camera "shadowcam"))
-		  (shadowcam-image-pass 'run)
-		  (show-shadowcam-image-pass 'run)))
-
-	       ((sort-vis sort-vis2)
-		(begin
-		  (use-camera (find-camera "shadowcam"))
-		  (shadow-map-pass 'run)
-		  (clear-shadow-arrays-pass 'run)
-		  (shadow-frag-collector-pass 'run)
-		  (use-camera (find-camera "scene-cam"))
-		  (show-shadowcam-sort 'run)
-		  (if (eq? render-mode 'sort-vis2)
-		      (show-shadowcam-sort-bla2 'run))
-
-		  (let* ((head-tex (find-texture "shadow_head_buffer"))
-			 (tail-tex (find-texture "shadow_tail_buffer"))
-			 (depth-tex (find-texture "shadow_frag_depths"))
-			 (head (download-texture1f head-tex))
-			 (tail (download-texture1f tail-tex))
-			 (depth (download-texture1f depth-tex))
-			 (int (lambda (bv i) (bytevector-s32-native-ref bv (* 4 i))))
-			 (float (lambda (bv i) (bytevector-ieee-single-native-ref bv (* 4 i))))
-			 (for-each-pixel (lambda (proc)
-					   (receive (w h) (mmsm 'size)
-					     (do ((y 0 (1+ y))) ((>= y h))
-					       (do ((x 0 (1+ x))) ((>= x w))
-						 (proc w h x y))))))
-			 )
-		    (for-each-pixel (lambda (w h x y)
-				      (let traverse-tail ((d -1) (link (int head (+ (* y w) x))) (i 0))
-					(if (and (>= link 0) (< i 16))
-					    (let ((next-d (float depth link)))
-					      (if (> d next-d)
-						  (format #t "error at pixel (~a, ~a)@~a, ~7,6f > ~7,6f!~%" x y i d next-d)
-						  (traverse-tail next-d (int tail (+ (remainder link w) (* w (floor (/ link w))))) (1+ i)))))))))
-		  ))
-
-
-	       )   ; rendermode
-
-             (glut:swap-buffers))
+	   (catch #t
+	     (lambda ()
+               (when spot-follow-cam
+                 (set! spot-pos (vec-add (cam-pos (current-camera)) (make-vec 4 0 2)))
+                 (set! spot-dir (cam-dir (current-camera))))
+	        
+	       (set! t-frame 0)
+	       (with-timer
+	         t-frame
+	         (check-for-gl-errors "right at the beginning")
+	        
+	         (case render-mode
+	           ((default)
+	        	(begin
+	        	  (use-camera (find-camera "shadowcam"))
+	        	  (shadow-map-pass 'run)
+	        	  (clear-shadow-arrays-pass 'run)
+	        	  (shadow-frag-collector-pass 'run)
+	        	  (use-camera (find-camera "scene-cam"))
+	        	  (show-shadowcam-sort 'run)
+	        	  
+	        	  ;; generate the base image.
+	        	  (base-image-pass 'run)
+	        	  (show-base-image-pass 'run)
+	        	  ))
+	        
+	           ((shadowmap shadow-frag-len)
+	        	(begin
+	        	  (use-camera (find-camera "shadowcam"))
+	        	  (shadowcam-image-pass 'run)
+	        	  (show-shadowcam-image-pass 'run)))
+	        
+	           ((sort-vis sort-vis2)
+	        	(begin
+	        	  (use-camera (find-camera "shadowcam"))
+	        	  (shadow-map-pass 'run)
+	        	  (clear-shadow-arrays-pass 'run)
+	        	  (shadow-frag-collector-pass 'run)
+	        	  (use-camera (find-camera "scene-cam"))
+	        	  (show-shadowcam-sort 'run)
+	        	  (if (eq? render-mode 'sort-vis2)
+	        	      (show-shadowcam-sort-bla2 'run))
+	        
+	        	  (let* ((head-tex (find-texture "shadow_head_buffer"))
+	        		 (tail-tex (find-texture "shadow_tail_buffer"))
+	        		 (depth-tex (find-texture "shadow_frag_depths"))
+	        		 (head (download-texture1f head-tex))
+	        		 (tail (download-texture1f tail-tex))
+	        		 (depth (download-texture1f depth-tex))
+	        		 (int (lambda (bv i) (bytevector-s32-native-ref bv (* 4 i))))
+	        		 (float (lambda (bv i) (bytevector-ieee-single-native-ref bv (* 4 i))))
+	        		 (int! (lambda (bv i v) (bytevector-s32-native-set! bv (* 4 i) v)))
+	        		 (float! (lambda (bv i v) (bytevector-ieee-single-native-set! bv (* 4 i) v)))
+	        		 (for-each-pixel (lambda* (proc :optional (ww 9999) (hh 9999))
+	        				   (receive (w h) (mmsm 'size)
+	        				     (do ((y 0 (1+ y))) ((>= y (min hh h)))
+	        				       (do ((x 0 (1+ x))) ((>= x (min ww w)))
+	        					 (proc (min w ww) (min hh h) x y))))))
+	        		 (index->pixel-offset (lambda (link w h) (+ (remainder link w) (* w (floor (/ link w))))))
+	        		 )
+	        	    ; check that all fragments are sorted
+	        	    (for-each-pixel (lambda (w h x y)
+	        			      (let traverse-tail ((d -1) (link (int head (+ (* y w) x))) (i 0))
+	        				(if (and (>= link 0) (< i 16))
+	        				    (let ((next-d (float depth link)))
+	        				      (if (> d next-d)
+	        					  9;(format #t "error at pixel (~a, ~a)@~a, ~7,6f > ~7,6f!~%" x y i d next-d)
+	        					  (traverse-tail next-d (int tail (+ (remainder link w) (* w (floor (/ link w))))) (1+ i))))))))
+	        	    ; generate mipmap
+	        	    (let ((mm-head (make-bytevector (bytevector-length head)))
+	        		  (mm-tail (make-bytevector (bytevector-length tail)))
+	        		  (mm-depth (make-bytevector (bytevector-length depth)))
+	        		  (counter 0))
+	        	      (receive (w h) (mmsm 'size)
+	        		(for-each-pixel (lambda (w h x y)
+	        				  (let ((x (* x 2)) (y (* y 2))
+	        					(w (* w 2)) (h (* h 2)))
+	        				    (let merge ((curr-id-00 (int head (+ (* y w) x)))
+	        						(curr-id-01 (int head (+ (* y w) x 1)))
+	        						(curr-id-10 (int head (+ (* (1+ y) w) x)))
+	        						(curr-id-11 (int head (+ (* (1+ y) w) x 1))))
+	        				      (let* ((d-00 (if (>= curr-id-00 0) (float depth (index->pixel-offset curr-id-00 w h)) 9999))
+	        					     (d-01 (if (>= curr-id-01 0) (float depth (index->pixel-offset curr-id-01 w h)) 9999))
+	        					     (d-10 (if (>= curr-id-10 0) (float depth (index->pixel-offset curr-id-10 w h)) 9999))
+	        					     (d-11 (if (>= curr-id-11 0) (float depth (index->pixel-offset curr-id-11 w h)) 9999))
+	        					     (min-d (min d-00 d-01 d-10 d-11))
+	        					     (reg (lambda (depth-val)
+	        						    (let ((old-pos counter)
+	        							  (new-head (1+ counter)))
+	        						      (set! counter (1+ counter))
+	        						      (float! depth (index->pixel-offset new-head w h) depth-val)
+	        						      (int! tail (index->pixel-offset new-head w h) old-pos)))))
+	        					(format #t "at ~a ~a with ~a ~a ~a ~a (~a)~%" x y d-00 d-01 d-10 d-11 min-d)
+	        					(cond ((= min-d 9999) 'done)
+	        					      ((= min-d d-00) (reg min-d) (merge (int tail (index->pixel-offset curr-id-00 w h)) curr-id-01 curr-id-10 curr-id-11))
+	        					      ((= min-d d-01) (reg min-d) (merge curr-id-00 (int tail (index->pixel-offset curr-id-01 w h)) curr-id-10 curr-id-11))
+	        					      ((= min-d d-10) (reg min-d) (merge curr-id-00 curr-id-01 (int tail (index->pixel-offset curr-id-10 w h)) curr-id-11))
+	        					      ((= min-d d-11) (reg min-d) (merge curr-id-00 curr-id-01 curr-id-10 (int tail (index->pixel-offset curr-id-11 w h))))))
+	        				  ))
+	        				  (format #t "c ~a~%" counter)
+	        				  )
+	        				(/ w 2) (/ h 2)))
+	        	      )
+	        	    
+	        	  )))
+	        
+	        
+	           )   ; rendermode
+		 ))
+	       (lambda (key . args)
+		 (format #t "~%ERROR --> (~a) ~a~%" key args))
+	       (lambda (key . args)
+		 (display-backtrace (make-stack #t) (current-error-port))))
+	     
+             (glut:swap-buffers)
              (set! whole-frame-time (+ whole-frame-time t-frame))
 	     (set! number-of-frames (1+ number-of-frames))
 	     )))
@@ -566,6 +610,7 @@
       ((#\5) (set! render-mode 'sort-vis2) (ms))
       ((#\+) (set! level (1+ level)))
       ((#\-) (set! level (1- level)))
+      ((#\ ) (glut:post-redisplay))
       (else
         (if (eq? render-mode 'default)
 	    (standard-key-function ch x y))))))
@@ -579,8 +624,13 @@
 	(set! mouse-y y))))
 (register-mouse-motion-function momo)
 
+(register-idle-function #f)
+
 (define (reload-shaders)
   (enqueue (load "depth-tsm.shader")))
+
+(use-modules (system repl server))
+(spawn-server (make-tcp-server-socket :port 8888))
 
 ;; initial gl setup
 ;;

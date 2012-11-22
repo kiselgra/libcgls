@@ -550,6 +550,7 @@
 	    for (int i = 0; i < array_len; ++i) {
 		imageStore(shadow_frag_depths, ivec2(depth_index[i] % shadow_buffer_size.x, depth_index[i] / shadow_buffer_size.x), vec4(depth_vals[i],0,0,0));
 	    }
+	    imageStore(shadow_tail_buffer, ivec2(depth_index[array_len-1] % shadow_buffer_size.x, depth_index[array_len-1] / shadow_buffer_size.x), ivec4(-1,0,0,0));
 		
 	    if (run >= 0)
 		out_col = vec4(1,.6,0,0);

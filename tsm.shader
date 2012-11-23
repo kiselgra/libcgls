@@ -524,6 +524,7 @@
     coherent uniform layout(size1x32) iimage2D shadow_head_buffer;
     coherent uniform layout(size1x32) iimage2D shadow_tail_buffer;
     uniform ivec2 shadow_buffer_size;
+    uniform float epsilon;
 	
     void main() {
 
@@ -557,10 +558,15 @@
 		    depth_vals[i] = d;
 		}
 	    }
-	    for (int i = 0; i < array_len; ++i) {
-		imageStore(shadow_frag_depths, ivec2(depth_index[i] % shadow_buffer_size.x, depth_index[i] / shadow_buffer_size.x), vec4(depth_vals[i],0,0,0));
+	    imageStore(shadow_frag_depths, ivec2(depth_index[0] % shadow_buffer_size.x, depth_index[0] / shadow_buffer_size.x), vec4(depth_vals[0],0,0,0));
+	    int j = 1;
+	    for (int i = 1; i < array_len; ++i) {
+		if (depth_vals[i] - depth_vals[j-1] > epsilon) {
+		    imageStore(shadow_frag_depths, ivec2(depth_index[j] % shadow_buffer_size.x, depth_index[j] / shadow_buffer_size.x), vec4(depth_vals[j],0,0,0));
+		    ++j;
+		}
 	    }
-	    imageStore(shadow_tail_buffer, ivec2(depth_index[array_len-1] % shadow_buffer_size.x, depth_index[array_len-1] / shadow_buffer_size.x), ivec4(-1,0,0,0));
+	    imageStore(shadow_tail_buffer, ivec2(depth_index[j-1] % shadow_buffer_size.x, depth_index[j-1] / shadow_buffer_size.x), ivec4(-1,0,0,0));
 		
 	    if (run >= 0)
 		out_col = vec4(1,.6,0,0);
@@ -572,7 +578,7 @@
     }
 }
 #:inputs (list "in_pos")
-#:uniforms (list "shadow_frag_depths" "shadow_head_buffer" "shadow_tail_buffer" "shadow_buffer_size")>
+#:uniforms (list "shadow_frag_depths" "shadow_head_buffer" "shadow_tail_buffer" "shadow_buffer_size" "epsilon")>
 
 
 
@@ -618,7 +624,34 @@
 #:uniforms (list "shadow_frag_depths" "shadow_head_buffer" "shadow_tail_buffer" "shadow_buffer_size")>
 
 
+#<make-shader "mipmap"
+#:vertex-shader #{
+#version 150 core
+    in vec3 in_pos;
+    void main() {
+	gl_Position = vec4(in_pos.xy, .9,1);
+    }
+}
+#:fragment-shader #{
+#version 420 core
+#extension GL_NV_gpu_shader5 : enable
+    out vec4 out_col;
+    coherent uniform layout(size1x32) iimage2D from_head;
+    coherent uniform layout(size1x32) iimage2D from_tail;
+    coherent uniform layout(r32f) image2D from_depth;
+    coherent uniform layout(size1x32) iimage2D to_head;
+    coherent uniform layout(size1x32) iimage2D to_tail;
+    coherent uniform layout(r32f) image2D to_depth;
+    uniform ivec2 shadow_buffer_size;
+    uniform ivec2 target_level_size;
 
+    void main() {
+	out_col = vec4(0.2, 0.5, 0.8, 1.0);
+    }
+}
+#:inputs (list "in_pos")
+#:uniforms (list "from_head" "from_tail" "from_depth" "to_head" "to_tail" "to_depth" "shadow_buffer_size" "target_level_size")>
+	
 ;; 
 ;; 
 ;; 

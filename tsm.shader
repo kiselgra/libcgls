@@ -443,10 +443,9 @@
 	    int old = imageAtomicExchange(shadow_head_buffer, coord, pos);
         
 	    ivec2 pos_c = ivec2(pos % int(shadow_buffer_size.x), pos / int(shadow_buffer_size.x));
+	    float d = (-pos_ec.z - cam_near_far.x) / (cam_near_far.y - cam_near_far.x);
 	    imageStore(shadow_tail_buffer, pos_c, ivec4(old,0,0,0));
-	    imageStore(shadow_frag_depths, pos_c, vec4(gl_FragCoord.z,0,0,0));
-
-	    gl_FragDepth = (-pos_ec.z - cam_near_far.x) / (cam_near_far.y - cam_near_far.x);
+	    imageStore(shadow_frag_depths, pos_c, vec4(d,0,0,0));
 	}
 }
 #:inputs (list "in_pos")

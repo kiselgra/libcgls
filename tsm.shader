@@ -415,18 +415,27 @@
 #<make-shader "shadow-frag-collect"
 #:vertex-shader #{
 #version 150 core
-	,(use "vs:default")
+	in vec3 in_pos;
+	uniform mat4 proj;
+	uniform mat4 view;
+	uniform mat4 model;
+	out vec4 pos_ec;
+	void main() {
+	    pos_ec = view * model * vec4(in_pos, 1.0);
+	    gl_Position = proj * pos_ec;
+	}
 }
 #:fragment-shader #{
 #version 420 core
 	out vec4 out_col;
-	in vec4 pos_wc;
+	in vec4 pos_ec;
 	in vec3 norm_wc;
  	layout(binding = 0, offset = 0) uniform atomic_uint counter;
 	coherent uniform layout(r32f) image2D shadow_frag_depths;
 	coherent uniform layout(size1x32) iimage2D shadow_tail_buffer;
 	coherent uniform layout(size1x32) iimage2D shadow_head_buffer;
 	uniform ivec2 shadow_buffer_size;
+	uniform vec2 cam_near_far;
 	void main() {
 	    ivec2 coord = ivec2(gl_FragCoord.xy);
 
@@ -436,10 +445,12 @@
 	    ivec2 pos_c = ivec2(pos % int(shadow_buffer_size.x), pos / int(shadow_buffer_size.x));
 	    imageStore(shadow_tail_buffer, pos_c, ivec4(old,0,0,0));
 	    imageStore(shadow_frag_depths, pos_c, vec4(gl_FragCoord.z,0,0,0));
+
+	    gl_FragDepth = (-pos_ec.z - cam_near_far.x) / (cam_near_far.y - cam_near_far.x);
 	}
 }
-#:inputs (list "in_pos" "in_norm")
-#:uniforms (list "diffuse_color" "shadow_frag_depths" "shadow_tail_buffer" "shadow_head_buffer" "shadow_buffer_size")>
+#:inputs (list "in_pos")
+#:uniforms (list "proj" "view" "model" "shadow_frag_depths" "shadow_tail_buffer" "shadow_head_buffer" "shadow_buffer_size" "cam_near_far")>
 
 
 

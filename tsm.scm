@@ -109,6 +109,7 @@
 			       ((string=? u frag-tail-name) (gl:uniform1i loc frag-tail-id))
 			       ((string=? u frag-depths-name) (gl:uniform1i loc frag-depths-id))
 			       ((string=? u wh-name) (gl:uniform2i loc w h))
+			       ((string=? u "cam_near_far") (gl:uniform2f loc (cam-near (current-camera)) (cam-far (current-camera))))
 			       (else #f))))
 	      (short-handler (lambda (de u loc)
 			       (cond ((string=? u "head_buffer") (gl:uniform1i loc frag-head-id))
@@ -556,6 +557,12 @@
 (define fps 'not-ready)
 (define print-timings #t)
 
+(define cpu-task #f)
+(define (kill-cpu)
+  (if cpu-task
+      (values #t (cancel-thread cpu-task))
+      #f))
+
 (let* (; the opaque render target
        (fbo (find-framebuffer "opaque"))
        (coltex (find-texture "colorbuffer-color"))
@@ -654,20 +661,26 @@
 			  ;;  
 	        	  ;; )))
 
-			  (cpu-mmsm 'download)
-			  (cpu-mmsm 'check-all-sorted 0)
-			  (let mm ((i 0))
-			    (when (< i 9)
-			      (cpu-mmsm 'mipmap i)
-			      (cpu-mmsm 'check-all-sorted (1+ i))
-			      (mm (1+ i))))
+			  (when (not cpu-task)
+			    (cpu-mmsm 'download)
+			    (set! cpu-task (call-with-new-thread (lambda ()
+								   (cpu-mmsm 'check-all-sorted 0)
+								   (let mm ((i 0))
+								     (when (< i 9)
+								       (cpu-mmsm 'mipmap i)
+								       (cpu-mmsm 'check-all-sorted (1+ i))
+								       (mm (1+ i))))))))
 
 
 			  ))
 	        
 	        
 	           )   ; rendermode
-		 ))
+		 )
+	       
+	       (if (and cpu-task (thread-exited? cpu-task))
+		   (set! cpu-task #f))
+	       )
 	       (lambda (key . args)
 		 (format #t "~%ERROR --> (~a) ~a~%" key args))
 	       (lambda (key . args)

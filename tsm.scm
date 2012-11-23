@@ -110,7 +110,7 @@
       (let ((frag-head-id 0)
 	    (frag-tail-id 1)
 	    (frag-depths-id 2)
-	    (epsilon 0.01)
+	    (epsilon 0.0001)
 	    (level 0))    ; during mip mapping this is the base level
 	(let ((handler (lambda (de u loc)
 			 (cond ((string=? u frag-head-name) (gl:uniform1i loc frag-head-id))

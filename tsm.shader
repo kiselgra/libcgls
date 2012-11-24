@@ -644,8 +644,125 @@
     coherent uniform layout(r32f) image2D to_depth;
     uniform ivec2 shadow_buffer_size;
     uniform ivec2 target_level_size;
+    layout(binding = 0, offset = 0) uniform atomic_uint counter;
+
+    const int sentinel = 2;
+
+    ivec2 index_to_buffer_pos(int index) {
+	return ivec2(index % shadow_buffer_size.x, index / shadow_buffer_size.x);
+    }
+
+    float read_depth(int run, inout ivec2 buf_pos) {
+	float d;
+	if (run >= 0) {
+	    buf_pos = index_to_buffer_pos(run);
+	    d = imageLoad(from_depth, buf_pos).r;
+	}
+	else
+	    d = sentinel;
+	return d;
+    }
+
+    int write_depth(inout float d, inout int run, inout int out_index, inout ivec2 buf_pos) {
+	if (d == sentinel)
+	    return 1;
+
+	// write the new cell in the tail pointer of the previous cell, if there is such a cell
+	int new_out = int(atomicCounterIncrement(counter));
+	if (out_index >= 0) {
+	    buf_pos = index_to_buffer_pos(out_index);
+	    imageStore(to_tail, buf_pos, ivec4(new_out,0,0,0));
+	}
+	else { // otherwise install the head pointer
+	    imageStore(to_head, ivec2(gl_FragCoord.xy), ivec4(new_out,0,0,0));
+	}
+
+	// write the current depth value into the new cell
+	buf_pos = index_to_buffer_pos(new_out);
+	imageStore(to_depth, buf_pos, vec4(d,0,0,0));
+
+	// update running data structures for next element of the sublist this value written out came from.
+	buf_pos = index_to_buffer_pos(run);
+	run = imageLoad(from_tail, buf_pos).r;
+	d = read_depth(run, buf_pos);
+
+	out_index = new_out;
+	
+	return 0;
+    }
 
     void main() {
+	int run00 = imageLoad(from_head, 2*ivec2(gl_FragCoord.xy)).r,
+	    run01 = imageLoad(from_head, 2*ivec2(gl_FragCoord.xy) + ivec2(0, 1)).r,
+	    run10 = imageLoad(from_head, 2*ivec2(gl_FragCoord.xy) + ivec2(1, 0)).r,
+	    run11 = imageLoad(from_head, 2*ivec2(gl_FragCoord.xy) + ivec2(1, 1)).r;
+	ivec2 buf_pos;
+	float depth00 = read_depth(run00, buf_pos);
+	float depth01 = read_depth(run01, buf_pos);
+	float depth10 = read_depth(run10, buf_pos);
+	float depth11 = read_depth(run11, buf_pos);
+	float last_depth_written = -2;
+	int out_index = -1; // tail of the new list
+	while (true) {
+	    float chosen_d;
+	    int chosen_run, changed_run;
+	    if (depth00 < depth01) {
+		if (depth00 < depth10) {
+		    if (depth00 < depth11) { chosen_d = depth00; chosen_run = changed_run = run00; }
+		    else                   { chosen_d = depth11; chosen_run = changed_run = run11; }
+		}
+		else {
+		    if (depth10 < depth11) { chosen_d = depth10; chosen_run = changed_run = run10; }
+		    else                   { chosen_d = depth11; chosen_run = changed_run = run11; }
+		}
+	    }
+	    else {
+		if (depth01 < depth10) {
+		    if (depth01 < depth11) { chosen_d = depth01; chosen_run = changed_run = run01; }
+		    else                   { chosen_d = depth11; chosen_run = changed_run = run11; }
+		}
+		else {
+		    if (depth10 < depth11) { chosen_d = depth10; chosen_run = changed_run = run10; }
+		    else                   { chosen_d = depth11; chosen_run = changed_run = run11; }
+		}
+	    }
+	    if (write_depth(chosen_d, changed_run, out_index, buf_pos) == 1)
+		break;
+		
+	    if (run00 == chosen_run) run00 = changed_run, depth00 = chosen_d;
+	    else if (run01 == chosen_run) run01 = changed_run, depth01 = chosen_d;
+	    else if (run10 == chosen_run) run10 = changed_run, depth10 = chosen_d;
+	    else if (run11 == chosen_run) run11 = changed_run, depth11 = chosen_d;
+/*
+	    if (depth00 < depth01) {
+		if (depth00 < depth10) {
+		    if (depth00 < depth11) { if (write_depth(depth00, run00, out_index, buf_pos) == 1) break; }
+		    else                   { if (write_depth(depth11, run11, out_index, buf_pos) == 1) break; }
+		}
+		else {
+		    if (depth10 < depth11) { if (write_depth(depth10, run10, out_index, buf_pos) == 1) break; }
+		    else                   { if (write_depth(depth11, run11, out_index, buf_pos) == 1) break; }
+		}
+	    }
+	    else {
+		if (depth01 < depth10) {
+		    if (depth01 < depth11) { if (write_depth(depth01, run01, out_index, buf_pos) == 1) break; }
+		    else                   { if (write_depth(depth11, run11, out_index, buf_pos) == 1) break; }
+		}
+		else {
+		    if (depth10 < depth11) { if (write_depth(depth10, run10, out_index, buf_pos) == 1) break; }
+		    else                   { if (write_depth(depth11, run11, out_index, buf_pos) == 1) break; }
+		}
+	    }
+*/
+	}
+	
+	// write end of list marker in the last cell
+	buf_pos = index_to_buffer_pos(out_index);
+	imageStore(to_tail, buf_pos, ivec4(-1,0,0,0));
+
+	// imageStore(to_head, ivec2(gl_FragCoord.xy), ivec4(out_index,0,0,0));
+
 	out_col = vec4(0.2, 0.5, 0.8, 1.0);
     }
 }

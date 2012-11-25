@@ -644,6 +644,7 @@
     coherent uniform layout(r32f) image2D to_depth;
     uniform ivec2 shadow_buffer_size;
     uniform ivec2 target_level_size;
+    uniform float epsilon;
     layout(binding = 0, offset = 0) uniform atomic_uint counter;
 
     const int sentinel = 2;
@@ -663,30 +664,35 @@
 	return d;
     }
 
-    int write_depth(inout float d, inout int run, inout int out_index, inout ivec2 buf_pos) {
+    int write_depth(inout float d, inout int run, inout int out_index, inout ivec2 buf_pos, inout float last_depth_written) {
 	if (d == sentinel)
 	    return 1;
 
-	// write the new cell in the tail pointer of the previous cell, if there is such a cell
-	int new_out = int(atomicCounterIncrement(counter));
-	if (out_index >= 0) {
-	    buf_pos = index_to_buffer_pos(out_index);
-	    imageStore(to_tail, buf_pos, ivec4(new_out,0,0,0));
-	}
-	else { // otherwise install the head pointer
-	    imageStore(to_head, ivec2(gl_FragCoord.xy), ivec4(new_out,0,0,0));
-	}
+	if (d - last_depth_written > epsilon) {
+	    last_depth_written = d;
 
-	// write the current depth value into the new cell
-	buf_pos = index_to_buffer_pos(new_out);
-	imageStore(to_depth, buf_pos, vec4(d,0,0,0));
+	    // write the new cell in the tail pointer of the previous cell, if there is such a cell
+	    int new_out = int(atomicCounterIncrement(counter));
+	    if (out_index >= 0) {
+		buf_pos = index_to_buffer_pos(out_index);
+		imageStore(to_tail, buf_pos, ivec4(new_out,0,0,0));
+	    }
+	    else { // otherwise install the head pointer
+		imageStore(to_head, ivec2(gl_FragCoord.xy), ivec4(new_out,0,0,0));
+	    }
+	    	 
+	    // write the current depth value into the new cell
+	    buf_pos = index_to_buffer_pos(new_out);
+	    imageStore(to_depth, buf_pos, vec4(d,0,0,0));
 
+	    // reset output position
+	    out_index = new_out;
+	}
+	    	 
 	// update running data structures for next element of the sublist this value written out came from.
 	buf_pos = index_to_buffer_pos(run);
 	run = imageLoad(from_tail, buf_pos).r;
 	d = read_depth(run, buf_pos);
-
-	out_index = new_out;
 	
 	return 0;
     }
@@ -726,7 +732,7 @@
 		    else                   { chosen_d = depth11; chosen_run = changed_run = run11; }
 		}
 	    }
-	    if (write_depth(chosen_d, changed_run, out_index, buf_pos) == 1)
+	    if (write_depth(chosen_d, changed_run, out_index, buf_pos, last_depth_written) == 1)
 		break;
 		
 	    if (run00 == chosen_run) run00 = changed_run, depth00 = chosen_d;
@@ -767,7 +773,7 @@
     }
 }
 #:inputs (list "in_pos")
-#:uniforms (list "from_head" "from_tail" "from_depth" "to_head" "to_tail" "to_depth" "shadow_buffer_size" "target_level_size")>
+#:uniforms (list "from_head" "from_tail" "from_depth" "to_head" "to_tail" "to_depth" "shadow_buffer_size" "target_level_size" "epsilon")>
 	
 ;; 
 ;; 

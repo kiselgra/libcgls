@@ -248,7 +248,7 @@
 						     	 (format #t "check_~a ~a ~a~%" i d link))
 						     (if (>= link 0)
 							 (let ((next-d (float (vector-ref depths level) link)))
-							   (if (and (= x 0) (= y 0)) (format #t "    ~a should be < ~a~%" d next-d))
+							   ;(if (and (= x 0) (= y 0)) (format #t "    ~a should be < ~a~%" d next-d))
 							   (if (> d next-d)
 							       (throw 'pixel-error "error at pixel (~a, ~a)@~a, ~7,6f > ~7,6f!~%" x y i d next-d)
 							       (traverse-tail next-d (int (vector-ref tails level) (+ (remainder link w) (* w (floor (/ link w))))) (1+ i))))
@@ -598,10 +598,11 @@
     (receive (w h) (mmsm 'size)
       (make-pass "mip map one step starting from a given mmsm level." '()
 		 (lambda (de) #f)
-		 (begin
-		   (mmsm 'level! 0)
+		 (let loop ((lv 0))
+		   (mmsm 'level! lv)
 		   (let ((w (/ w (expt 2 (mmsm 'target-level))))
 		         (h (/ h (expt 2 (mmsm 'target-level)))))
+		     (format #t "RENDER MM ~a [~a x ~a]~%" lv w h)
 		     ;(disable-color-output
 		     (gl:disable gl#depth-test)
 		      (disable-depth-output
@@ -616,7 +617,9 @@
 			 (unbind-atomic-buffer atomic-counter 0)))
 		      (set! copy-of-atomic-buffer (read-atomic-buffer atomic-counter))
 		      (format #t "Xfrag-counter: ~a~%" (bytevector-s32-native-ref copy-of-atomic-buffer 0))
-		      (gl:enable gl#depth-test)))))))
+		      (gl:enable gl#depth-test))
+		   (if (< lv 5)
+		       (loop (1+ lv))))))))
 	
 (define whole-frame-time 0)
 (define number-of-frames 0)
@@ -736,14 +739,47 @@
 			    (cpu-mmsm 'download 0)
 			    (format #t ">>> checking level 0~%")
 			    (cpu-mmsm 'check-all-sorted 0)
+
 			    (format #t ">>> computing cpu mipmaps for level 1~%")
 			    (cpu-mmsm 'mipmap 0)
 			    (format #t ">>> checking generated level 1~%")
 			    (cpu-mmsm 'check-all-sorted 1)
+
+			    (format #t ">>> computing cpu mipmaps for level 2~%")
+			    (cpu-mmsm 'mipmap 1)
+			    (format #t ">>> checking generated level 2~%")
+			    (cpu-mmsm 'check-all-sorted 2)
+
+			    (format #t ">>> computing cpu mipmaps for level 3~%")
+			    (cpu-mmsm 'mipmap 2)
+			    (format #t ">>> checking generated level 2~%")
+			    (cpu-mmsm 'check-all-sorted 3)
+
+			    (format #t ">>> computing cpu mipmaps for level 4~%")
+			    (cpu-mmsm 'mipmap 3)
+			    (format #t ">>> checking generated level 2~%")
+			    (cpu-mmsm 'check-all-sorted 4)
+
 			    (format #t ">>> downloading level 1~%")
 			    (cpu-mmsm 'download 1)
 			    (format #t ">>> checking level 1~%")
 			    (cpu-mmsm 'check-all-sorted 1)
+
+			    (format #t ">>> downloading level 2~%")
+			    (cpu-mmsm 'download 2)
+			    (format #t ">>> checking level 2~%")
+			    (cpu-mmsm 'check-all-sorted 2)
+
+			    (format #t ">>> downloading level 3~%")
+			    (cpu-mmsm 'download 3)
+			    (format #t ">>> checking level 3~%")
+			    (cpu-mmsm 'check-all-sorted 3)
+
+			    (format #t ">>> downloading level 4~%")
+			    (cpu-mmsm 'download 4)
+			    (format #t ">>> checking level 4~%")
+			    (cpu-mmsm 'check-all-sorted 4)
+
 			    (format #t ">>> DONE DONE DONE~%")
 			    (sleep 2)
 			    ;(set! cpu-task (call-with-new-thread (lambda ()
@@ -801,7 +837,7 @@
   (glut:post-redisplay))
 (register-mouse-motion-function momo)
 
-;(register-idle-function #f)
+(register-idle-function #f)
 
 (define (reload-shaders)
   (enqueue (load "tsm.shader")))

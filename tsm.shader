@@ -641,9 +641,11 @@
     coherent uniform layout(size1x32) iimage2D from_head;
     coherent uniform layout(size1x32) iimage2D from_tail;
     coherent uniform layout(r32f) image2D from_depth;
+    coherent uniform layout(r32f) image2D from_alpha;
     coherent uniform layout(size1x32) iimage2D to_head;
     coherent uniform layout(size1x32) iimage2D to_tail;
     coherent uniform layout(r32f) image2D to_depth;
+    coherent uniform layout(r32f) image2D to_alpha;
     uniform ivec2 shadow_buffer_size;
     uniform ivec2 target_level_size;
     uniform float epsilon;
@@ -666,7 +668,8 @@
 	return d;
     }
 
-    int write_depth(inout float d, inout int run, inout int out_index, inout ivec2 buf_pos, inout float last_depth_written) {
+    int write_depth(inout float d, inout int run, inout int out_index, inout ivec2 buf_pos, inout float last_depth_written,
+		    inout float[4] alpha, int alpha_id) {
 	if (d == sentinel)
 	    return 1;
 
@@ -678,6 +681,8 @@
 	    if (out_index >= 0) {
 		buf_pos = index_to_buffer_pos(out_index);
 		imageStore(to_tail, buf_pos, ivec4(new_out,0,0,0));
+		// when adding a new tail pointer we have computed an alpha for the previous cell (the values we skipped in between)
+		imageStore(to_alpha, buf_pos, vec4((alpha[0]+alpha[1]+alpha[2]+alpha[3])/4.0,0,0,0));
 	    }
 	    else { // otherwise install the head pointer
 		imageStore(to_head, ivec2(gl_FragCoord.xy), ivec4(new_out,0,0,0));
@@ -689,12 +694,16 @@
 
 	    // reset output position
 	    out_index = new_out;
+	    
+	    // reset alpha
+	    alpha = float[4](0,0,0,0);
 	}
-	    	 
+
 	// update running data structures for next element of the sublist this value written out came from.
 	buf_pos = index_to_buffer_pos(run);
 	run = imageLoad(from_tail, buf_pos).r;
 	d = read_depth(run, buf_pos);
+	alpha[alpha_id] = max(1.0, alpha[alpha_id] + imageLoad(from_alpha, buf_pos).r);
 	
 	return 0;
     }
@@ -711,30 +720,32 @@
 	float depth11 = read_depth(run11, buf_pos);
 	float last_depth_written = -2;
 	int out_index = -1; // tail of the new list
+	float alpha[4] = float[4](0,0,0,0);
+	int alpha_id = 0;
 	while (true) {
 	    float chosen_d;
 	    int chosen_run, changed_run;
 	    if (depth00 < depth01) {
 		if (depth00 < depth10) {
-		    if (depth00 < depth11) { chosen_d = depth00; chosen_run = changed_run = run00; }
-		    else                   { chosen_d = depth11; chosen_run = changed_run = run11; }
+		    if (depth00 < depth11) { chosen_d = depth00; chosen_run = changed_run = run00; alpha_id = 0;}
+		    else                   { chosen_d = depth11; chosen_run = changed_run = run11; alpha_id = 3;}
 		}
 		else {
-		    if (depth10 < depth11) { chosen_d = depth10; chosen_run = changed_run = run10; }
-		    else                   { chosen_d = depth11; chosen_run = changed_run = run11; }
+		    if (depth10 < depth11) { chosen_d = depth10; chosen_run = changed_run = run10; alpha_id = 2;}
+		    else                   { chosen_d = depth11; chosen_run = changed_run = run11; alpha_id = 3;}
 		}
 	    }
 	    else {
 		if (depth01 < depth10) {
-		    if (depth01 < depth11) { chosen_d = depth01; chosen_run = changed_run = run01; }
-		    else                   { chosen_d = depth11; chosen_run = changed_run = run11; }
+		    if (depth01 < depth11) { chosen_d = depth01; chosen_run = changed_run = run01; alpha_id = 1;}
+		    else                   { chosen_d = depth11; chosen_run = changed_run = run11; alpha_id = 3;}
 		}
 		else {
-		    if (depth10 < depth11) { chosen_d = depth10; chosen_run = changed_run = run10; }
-		    else                   { chosen_d = depth11; chosen_run = changed_run = run11; }
+		    if (depth10 < depth11) { chosen_d = depth10; chosen_run = changed_run = run10; alpha_id = 2;}
+		    else                   { chosen_d = depth11; chosen_run = changed_run = run11; alpha_id = 3;}
 		}
 	    }
-	    if (write_depth(chosen_d, changed_run, out_index, buf_pos, last_depth_written) == 1)
+	    if (write_depth(chosen_d, changed_run, out_index, buf_pos, last_depth_written, alpha, alpha_id) == 1)
 		break;
 		
 	    if (run00 == chosen_run) run00 = changed_run, depth00 = chosen_d;
@@ -753,7 +764,7 @@
     }
 }
 #:inputs (list "in_pos")
-#:uniforms (list "from_head" "from_tail" "from_depth" "to_head" "to_tail" "to_depth" "shadow_buffer_size" "target_level_size" "epsilon")>
+#:uniforms (list "from_head" "from_tail" "from_depth" "from_alpha" "to_head" "to_tail" "to_depth" "to_alpha" "shadow_buffer_size" "target_level_size" "epsilon")>
 	
 ;; 
 ;; 

@@ -507,7 +507,6 @@
 #:uniforms (list "shadow_head_buffer" "shadow_tail_buffer" "xywh" "shadow_buffer_size")>
 
 
-
 #<make-shader "sort-shadow-frags"
 #:vertex-shader #{
 #version 150 core
@@ -519,9 +518,11 @@
 #:fragment-shader #{
 #version 420 core
 #extension GL_NV_gpu_shader5 : enable
+// initializes the alpha values, too.
     out vec4 out_col;
     coherent uniform layout(r32f) image2D shadow_frag_depths;
-    coherent uniform layout(size1x32) iimage2D shadow_head_buffer;
+	    coherent uniform layout(r32f) image2D shadow_frag_alpha;
+	    coherent uniform layout(size1x32) iimage2D shadow_head_buffer;
     coherent uniform layout(size1x32) iimage2D shadow_tail_buffer;
     uniform ivec2 shadow_buffer_size;
     uniform float epsilon;
@@ -563,6 +564,7 @@
 	    for (int i = 1; i < array_len; ++i) {
 		if (depth_vals[i] - depth_vals[j-1] > epsilon) {
 		    imageStore(shadow_frag_depths, ivec2(depth_index[j] % shadow_buffer_size.x, depth_index[j] / shadow_buffer_size.x), vec4(depth_vals[j],0,0,0));
+		    imageStore(shadow_frag_alpha, ivec2(depth_index[j] % shadow_buffer_size.x, depth_index[j] / shadow_buffer_size.x), vec4(1,0,0,0));
 		    ++j;
 		}
 	    }
@@ -578,7 +580,7 @@
     }
 }
 #:inputs (list "in_pos")
-#:uniforms (list "shadow_frag_depths" "shadow_head_buffer" "shadow_tail_buffer" "shadow_buffer_size" "epsilon")>
+#:uniforms (list "shadow_frag_depths" "shadow_frag_alpha" "shadow_head_buffer" "shadow_tail_buffer" "shadow_buffer_size" "epsilon")>
 
 
 
@@ -739,28 +741,6 @@
 	    else if (run01 == chosen_run) run01 = changed_run, depth01 = chosen_d;
 	    else if (run10 == chosen_run) run10 = changed_run, depth10 = chosen_d;
 	    else if (run11 == chosen_run) run11 = changed_run, depth11 = chosen_d;
-/*
-	    if (depth00 < depth01) {
-		if (depth00 < depth10) {
-		    if (depth00 < depth11) { if (write_depth(depth00, run00, out_index, buf_pos) == 1) break; }
-		    else                   { if (write_depth(depth11, run11, out_index, buf_pos) == 1) break; }
-		}
-		else {
-		    if (depth10 < depth11) { if (write_depth(depth10, run10, out_index, buf_pos) == 1) break; }
-		    else                   { if (write_depth(depth11, run11, out_index, buf_pos) == 1) break; }
-		}
-	    }
-	    else {
-		if (depth01 < depth10) {
-		    if (depth01 < depth11) { if (write_depth(depth01, run01, out_index, buf_pos) == 1) break; }
-		    else                   { if (write_depth(depth11, run11, out_index, buf_pos) == 1) break; }
-		}
-		else {
-		    if (depth10 < depth11) { if (write_depth(depth10, run10, out_index, buf_pos) == 1) break; }
-		    else                   { if (write_depth(depth11, run11, out_index, buf_pos) == 1) break; }
-		}
-	    }
-*/
 	}
 	
 	// write end of list marker in the last cell

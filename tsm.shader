@@ -549,7 +549,7 @@
                 int swap_id = i;
                 for (int j = i; j < array_len; ++j) {
 		    float dj = depth_vals[j];
-		    if (dj < d) {
+		    if (dj > d) {
 			d = dj;
 			swap_id = j;
 		    }
@@ -562,7 +562,8 @@
 	    imageStore(shadow_frag_depths, ivec2(depth_index[0] % shadow_buffer_size.x, depth_index[0] / shadow_buffer_size.x), vec4(depth_vals[0],0,0,0));
 	    int j = 1;
 	    for (int i = 1; i < array_len; ++i) {
-		if (depth_vals[i] - depth_vals[j-1] > epsilon) {
+		//if (depth_vals[i] - depth_vals[j-1] > epsilon) 
+		if (depth_vals[j-1] - depth_vals[i] > epsilon) {
 		    imageStore(shadow_frag_depths, ivec2(depth_index[j] % shadow_buffer_size.x, depth_index[j] / shadow_buffer_size.x), vec4(depth_vals[j],0,0,0));
 		    imageStore(shadow_frag_alpha, ivec2(depth_index[j] % shadow_buffer_size.x, depth_index[j] / shadow_buffer_size.x), vec4(1,0,0,0));
 		    ++j;
@@ -603,13 +604,13 @@
 	
     void main() {
 
-	float prev_d = -1;
+	float prev_d = 2;
         int run = imageLoad(shadow_head_buffer, ivec2(gl_FragCoord.xy)).r;
         if (run >= 0) {
 	    while (run >= 0) {
                 ivec2 pos_c = ivec2(run % shadow_buffer_size.x, run / shadow_buffer_size.x);
                 float d = imageLoad(shadow_frag_depths, pos_c).r;
-		if (d < prev_d) {
+		if (d > prev_d) {
 		    out_col = vec4(1,0,0,1);
 		    return;
 		}
@@ -651,7 +652,7 @@
     uniform float epsilon;
     layout(binding = 0, offset = 0) uniform atomic_uint counter;
 
-    const int sentinel = 2;
+    const int sentinel = -2;
 
     ivec2 index_to_buffer_pos(int index) {
 	return ivec2(index % shadow_buffer_size.x, index / shadow_buffer_size.x);
@@ -673,7 +674,7 @@
 	if (d == sentinel)
 	    return 1;
 
-	if (d - last_depth_written > epsilon) {
+	if (last_depth_written - d > epsilon) {
 	    last_depth_written = d;
 
 	    // write the new cell in the tail pointer of the previous cell, if there is such a cell
@@ -718,30 +719,30 @@
 	float depth01 = read_depth(run01, buf_pos);
 	float depth10 = read_depth(run10, buf_pos);
 	float depth11 = read_depth(run11, buf_pos);
-	float last_depth_written = -2;
+	float last_depth_written = 2;
 	int out_index = -1; // tail of the new list
 	float alpha[4] = float[4](0,0,0,0);
 	int alpha_id = 0;
 	while (true) {
 	    float chosen_d;
 	    int chosen_run, changed_run;
-	    if (depth00 < depth01) {
-		if (depth00 < depth10) {
-		    if (depth00 < depth11) { chosen_d = depth00; chosen_run = changed_run = run00; alpha_id = 0;}
+	    if (depth00 > depth01) {
+		if (depth00 > depth10) {
+		    if (depth00 > depth11) { chosen_d = depth00; chosen_run = changed_run = run00; alpha_id = 0;}
 		    else                   { chosen_d = depth11; chosen_run = changed_run = run11; alpha_id = 3;}
 		}
 		else {
-		    if (depth10 < depth11) { chosen_d = depth10; chosen_run = changed_run = run10; alpha_id = 2;}
+		    if (depth10 > depth11) { chosen_d = depth10; chosen_run = changed_run = run10; alpha_id = 2;}
 		    else                   { chosen_d = depth11; chosen_run = changed_run = run11; alpha_id = 3;}
 		}
 	    }
 	    else {
-		if (depth01 < depth10) {
-		    if (depth01 < depth11) { chosen_d = depth01; chosen_run = changed_run = run01; alpha_id = 1;}
+		if (depth01 > depth10) {
+		    if (depth01 > depth11) { chosen_d = depth01; chosen_run = changed_run = run01; alpha_id = 1;}
 		    else                   { chosen_d = depth11; chosen_run = changed_run = run11; alpha_id = 3;}
 		}
 		else {
-		    if (depth10 < depth11) { chosen_d = depth10; chosen_run = changed_run = run10; alpha_id = 2;}
+		    if (depth10 > depth11) { chosen_d = depth10; chosen_run = changed_run = run10; alpha_id = 2;}
 		    else                   { chosen_d = depth11; chosen_run = changed_run = run11; alpha_id = 3;}
 		}
 	    }

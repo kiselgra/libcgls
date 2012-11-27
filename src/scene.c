@@ -48,6 +48,11 @@ void scene_set_traverser(scene_ref ref, scene_traverser_t trav) {
 	scene->trav = trav;
 }
 
+scene_traverser_t scene_traverser(scene_ref ref) {
+	struct scene *scene = scenes+ref.id;
+	return scene->trav;
+}
+
 void scene_add_drawelement(scene_ref ref, drawelement_ref de) {
 	struct scene *scene = scenes+ref.id;
 	drawelement_node *new_node = malloc(sizeof(drawelement_node));

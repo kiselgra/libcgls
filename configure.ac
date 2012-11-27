@@ -1,7 +1,7 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 AC_PREREQ(2.61)
-AC_INIT([cgls], [0.0.1])
+AC_INIT([libcgls], [0.0.1])
 AM_INIT_AUTOMAKE
 
 # name one of your source files here

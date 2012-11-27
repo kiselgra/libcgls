@@ -8,6 +8,10 @@
  * extensible the good ol' c way.
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct {
 	int id;
 } material_ref;
@@ -31,6 +35,10 @@ void material_add_texture(material_ref ref, texture_ref tex);
 
 void* material_aux(material_ref ref);
 void material_set_aux(material_ref ref, void *aux);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 

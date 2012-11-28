@@ -212,6 +212,21 @@ drawelement_ref find_drawelement(const char *name) {
 	return ref;
 }
 
+// !!! this does not work when we start removing drawelements!
+struct drawelement_list* list_drawelements() {
+	if (next_drawelement_index == 0)
+		return 0;
+	struct drawelement_list *head = malloc(sizeof(struct drawelement_list));
+	struct drawelement_list *run = head;
+	run->ref.id = 0;
+    for (int i = 1; i < next_drawelement_index; ++i) {
+		run = run->next = malloc(sizeof(struct drawelement_list));
+		run->ref.id = i;
+	}
+	run->next = 0;
+    return head;
+}
+
 #ifdef WITH_GUILE
 
 // drawelement_ref make_drawelement(const char *modelname, mesh_ref mr, shader_ref sr, material_ref matr) {

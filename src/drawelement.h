@@ -13,7 +13,10 @@ typedef struct {
 	int id;
 } drawelement_ref;
 
-
+struct drawelement_list {
+    struct drawelement_list *next;
+    drawelement_ref ref;
+};
 
 typedef bool (*uniform_setter_t)(drawelement_ref drawelement, const char *uniform, int location);
 bool default_matrix_uniform_handler(drawelement_ref ref, const char *uniform, int location);
@@ -38,6 +41,7 @@ void render_drawelement_with(drawelement_ref ref, shader_ref shader, material_re
 void prepend_uniform_handler(drawelement_ref ref, uniform_setter_t handler);
 void render_drawelement(drawelement_ref ref);
 drawelement_ref find_drawelement(const char *name);
+struct drawelement_list* list_drawelements();
 
 
 #ifdef __cplusplus

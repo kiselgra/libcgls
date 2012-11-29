@@ -8,7 +8,7 @@
 (define x-res 1)
 (define y-res 1)
 
-(receive (x y w h) (viewport)
+(receive (x y w h) (get-viewport)
   (format #t "~a x ~a~%" w h)
   (set! x-res w)
   (set! y-res h))

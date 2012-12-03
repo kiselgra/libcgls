@@ -30,14 +30,14 @@ library_include_HEADERS = drawelement.h objloader.h scene.h slist.h basename.h m
 # AM_CXXFLAGS = -Wall -ansi -pedantic -ggdb -pg
 
 # setting c preprocessor flags for main project
-viewer_cgls_CPPFLAGS = -D PACKAGE=\"$(PACKAGE)\" -D VERSION=\"$(VERSION)\" -D DATADIR=\"$(pkgdatadir)\" -D CGL_GL_VERSION=GL3 -D_GNU_SOURCE @GUILE_DEF@ $(GUILE_CFLAGS)
-viewer_cgls_LDFLAGS = $(GUILE_LDFLAGS)
+viewer_cgls_CPPFLAGS = -D PACKAGE=\"$(PACKAGE)\" -D VERSION=\"$(VERSION)\" -D DATADIR=\"$(pkgdatadir)\" -D_GNU_SOURCE @GUILE_DEF@ $(GUILE_CFLAGS) $(CGL_CFLAGS)
+viewer_cgls_LDFLAGS = $(GUILE_LDFLAGS) $(CGL_LIBS)
 
-#tsm_CPPFLAGS = -D PACKAGE=\"$(PACKAGE)\" -D VERSION=\"$(VERSION)\" -D DATADIR=\"$(pkgdatadir)\" -D CGL_GL_VERSION=GL3 -D_GNU_SOURCE @GUILE_DEF@ $(GUILE_CFLAGS)
-#tsm_LDFLAGS = $(GUILE_LDFLAGS)
+#tsm_CPPFLAGS = -D PACKAGE=\"$(PACKAGE)\" -D VERSION=\"$(VERSION)\" -D DATADIR=\"$(pkgdatadir)\" -D_GNU_SOURCE @GUILE_DEF@ $(GUILE_CFLAGS) $(CGL_CFLAGS)
+#tsm_LDFLAGS = $(GUILE_LDFLAGS) $(CGL_LIBS)
 
-libcgls_la_CPPFLAGS = -D PACKAGE=\"$(PACKAGE)\" -D VERSION=\"$(VERSION)\" -D DATADIR=\"$(pkgdatadir)\" -D CGL_GL_VERSION=GL3 -D_GNU_SOURCE @GUILE_DEF@ $(GUILE_CFLAGS)
-libcgls_la_LIBADD = $(GUILE_LDFLAGS)
+libcgls_la_CPPFLAGS = -D PACKAGE=\"$(PACKAGE)\" -D VERSION=\"$(VERSION)\" -D DATADIR=\"$(pkgdatadir)\" -D_GNU_SOURCE @GUILE_DEF@ $(GUILE_CFLAGS) $(CGL_CFLAGS)
+libcgls_la_LIBADD = $(GUILE_LDFLAGS) $(CGL_LIBS)
 
 SUFFIXES: .x .xx
 

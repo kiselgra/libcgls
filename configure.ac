@@ -44,6 +44,17 @@ fi
 AC_SUBST([GUILE_DEF])
 AM_CONDITIONAL([CAN_USE_GUILE], [test "x$can_use_guile" = "xyes"])
 
+AC_ARG_ENABLE(gdb,
+			[AS_HELP_STRING([--enable-gdb], [Wether to use debugging flags. Default: no.])],
+			with_debug_flags="$enableval", with_debug_flags="no")
+if test "x$with_debug_flags" == "xyes" ; then
+	DEBUG_FLAGS="-ggdb3 -O0"
+else
+	DEBUG_FLAGS=""
+fi
+CFLAGS="$CFLAGS $DEBUG_FLAGS"
+CXXFLAGS="$CXXFLAGS $DEBUG_FLAGS"
+
 # Checks for header files.
 AC_HEADER_STDC
 AC_CHECK_HEADERS([inttypes.h stdlib.h string.h unistd.h])

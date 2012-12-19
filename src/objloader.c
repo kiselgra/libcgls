@@ -18,7 +18,7 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
                                                         void (*make_drawelem)(const char*, mesh_ref, material_ref), material_ref fallback_material) {
 	obj_data objdata;
 	const char *modelname = object_name ? object_name : filename;
-
+	
 	char *dirname_tmp = strdup(filename);
 	prepend_image_path(dirname(dirname_tmp));
 	free(dirname_tmp);
@@ -126,21 +126,42 @@ void load_objfile_and_create_objects_with_single_vbo(const char *filename, const
 		if (m->tex_s) material_add_texture(mat, make_texture(basename(m->tex_s), m->tex_s, GL_TEXTURE_2D, &p));
 	}
 
-	// todo: vertex-buffer sharing
+    int comps = 1;
+    if (objdata.normals) comps++;
+    if (objdata.texcoords) comps++;
+    mesh_ref m = make_mesh(modelname, comps);
+	bind_mesh_to_gl(m);
+
+	add_vertex_buffer_to_mesh(m, "in_pos", GL_FLOAT, objdata.vertices, 3, objdata.vertex_data, GL_STATIC_DRAW);
+	if (objdata.normals)
+		add_vertex_buffer_to_mesh(m, "in_norm", GL_FLOAT, objdata.normals, 3, objdata.normal_data, GL_STATIC_DRAW);
+	if (objdata.texcoords)
+		add_vertex_buffer_to_mesh(m, "in_norm", GL_FLOAT, objdata.texcoords, 3, objdata.texcoord_data, GL_STATIC_DRAW);
+
+    int indices = 0;
+
+    // todo: vertex-buffer sharing
 	for (int i = 0; i < objdata.number_of_groups; ++i) {
 		obj_group *group = objdata.groups + i;
+		indices += group->triangles * 3;
+	}
 
-		int pos = 1,
-			norm = 1,
-			tc = group->t_ids ? 1 : 0;
-		mesh_ref m = make_mesh(group->name, pos+norm+tc);
-		bind_mesh_to_gl(m);
+	int *index_buffer = malloc(sizeof(int)*indices);
+	int offset = 0;
+	for (int i = 0; i < objdata.number_of_groups; ++i) {
+		obj_group *group = objdata.groups + i;
+		memcpy(index_buffer+offset, group->v_ids, sizeof(int)*group->triangles*3);
+		offset += group->triangles * 3;
+	}
 
-		int verts = group->triangles*3;
-		vec3f *v = malloc(sizeof(vec3f)*verts);
-		vec3f *n = malloc(sizeof(vec3f)*verts);
-		vec2f *t = tc ? malloc(sizeof(vec2f)*verts) : 0;
+	add_index_buffer_to_mesh(m, indices, index_buffer, GL_STATIC_DRAW);
+	unbind_mesh_from_gl(m);
 
+	free(index_buffer);
+
+	make_drawelem(modelname, m, use_material);
+
+	     /*
 		unsigned int *indices = malloc(sizeof(unsigned int)*verts);
 		for (int tri = 0; tri < group->triangles; ++tri) {
 			v[3*tri+0] = objdata.vertex_data[group->v_ids[tri].x];
@@ -177,6 +198,7 @@ void load_objfile_and_create_objects_with_single_vbo(const char *filename, const
 		// - create material
 		// - call mesh created handler (with mesh and mat, should create shader and de)
 	}
+    */
 	
 	if (bb_min && bb_max) {
 		*bb_min = objdata.vertex_data[0]; 
@@ -201,7 +223,6 @@ bool custom_light_handler(drawelement_ref ref, const char *uniform, int location
 
 SCM_DEFINE(s_load_objfile_and_create_objects_with_separate_vbos,
            "load-objfile-and-create-objects-with-separate-vbos", 4, 0, 0, (SCM filename, SCM object_name, SCM callback, SCM fallback_mat), "") {
-	printf("-------loading obj from scheme\n");
 	char *f = scm_to_locale_string(filename);
 	char *o = scm_to_locale_string(object_name);
 	void create_drawelement_forwarder(const char *modelname, mesh_ref mesh, material_ref mat) {

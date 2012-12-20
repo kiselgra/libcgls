@@ -125,9 +125,68 @@ struct graph_scene_aux {
 };
 
 void graph_scene_drawelement_inserter(scene_ref ref, drawelement_ref de) {
+	if (scene_aux_type(ref) != scene_type_graph) {
+		fprintf(stderr, "Called graph_scene_drawelement_inserter on scene of type %d (expected %d).\n", scene_aux_type(ref), scene_type_graph);
+		return;
+	}
+	default_scene_drawelement_inserter(ref, de);
+	mesh_ref mesh = drawelement_mesh(de);
+	material_ref material = drawelement_material(de);
+	struct graph_scene_aux *gs = scene_aux(ref);
+	bool found = false;
+	struct by_mesh *mit;
+	// find mesh node
+	for (mit = gs->meshes; mit; mit = mit->next)
+		if (equal_mesh_refs(mit->mesh, mesh))
+			break;
+	// if not found
+	if (!mit) {
+		struct by_mesh *new_entry = malloc(sizeof(struct by_mesh));
+		new_entry->next = gs->meshes;
+		gs->meshes = new_entry;
+		new_entry->mesh = mesh;
+		new_entry->materials = 0;
+		mit = new_entry;
+	}
+	// now it's there, anyway; search for material
+	struct by_material *mat;
+	for (mat = mit->materials; mat; mat = mat->next)
+		if (equal_material_refs(mat->mat, material))
+			break;
+	// if not found
+	if (!mat) {
+		struct by_material *new_entry = malloc(sizeof(struct by_material));
+		new_entry->next = mit->materials;
+		mit->materials = new_entry;
+		new_entry->mat = material;
+		new_entry->drawelements = 0;
+		mat = new_entry;
+	}
+	// now it's there, anyway; add drawelement
+	struct drawelement_node *deno = malloc(sizeof(struct drawelement_node));
+	deno->next = mat->drawelements;
+	mat->drawelements = deno;
+	deno->ref = de;
 }
 
 void graph_scene_traverser(scene_ref ref) {
+	if (scene_aux_type(ref) != scene_type_graph) {
+		fprintf(stderr, "Called graph_scene_traverser on scene of type %d (expected %d).\n", scene_aux_type(ref), scene_type_graph);
+		return;
+	}
+	struct graph_scene_aux *gs = scene_aux(ref);
+	for (struct by_mesh *by_mesh = gs->meshes; by_mesh; by_mesh = by_mesh->next) {
+		bind_mesh_to_gl(by_mesh->mesh);
+		for (struct by_material *by_mat = by_mesh->materials; by_mat; by_mat = by_mat->next) {
+			// we'd have to separate material uniforms (textures [incl.
+			// binding], ...) and drawelement uniforms (object trafo)
+			bind_shader(drawelement_shader(by_mat->drawelements->ref));
+			for (struct drawelement_node *deno = by_mat->drawelements; deno; deno = deno->next)
+				bind_uniforms_and_render_indices_of_drawelement(deno->ref);
+			unbind_shader(drawelement_shader(by_mat->drawelements->ref));
+		}
+		unbind_mesh_from_gl(by_mesh->mesh);
+	}
 }
 
 scene_ref make_graph_scene(const char *name) {
@@ -136,6 +195,8 @@ scene_ref make_graph_scene(const char *name) {
     scene_set_traverser(ref, graph_scene_traverser);
     struct graph_scene_aux *aux = malloc(sizeof(struct graph_scene_aux));
     scene_set_aux(ref, scene_type_graph, aux);
+	aux->meshes = 0;
+	return ref;
 }
 
 
@@ -145,6 +206,13 @@ scene_ref make_graph_scene(const char *name) {
 SCM_DEFINE(s_make_scene, "make-scene", 1, 0, 0, (SCM name), "") {
 	char *n = scm_to_locale_string(name);
 	scene_ref ref = make_scene(n);
+	free(n);
+	return scm_from_int(ref.id);
+}
+
+SCM_DEFINE(s_make_graph_scene, "make-graph-scene", 1, 0, 0, (SCM name), "") {
+	char *n = scm_to_locale_string(name);
+	scene_ref ref = make_graph_scene(n);
 	free(n);
 	return scm_from_int(ref.id);
 }

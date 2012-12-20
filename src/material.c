@@ -27,6 +27,9 @@ struct material {
 	void *aux;
 };
 
+// see http://gustedt.wordpress.com/2010/11/29/myth-and-reality-about-inline-in-c99/
+extern inline bool equal_material_refs(material_ref a, material_ref b);
+
 #include <libcgl/mm.h>
 define_mm(material, materials, material_ref);
 #include "material.xx"

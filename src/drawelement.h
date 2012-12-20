@@ -37,6 +37,7 @@ shader_ref drawelement_change_shader(drawelement_ref ref, shader_ref s);
 void render_drawelement_with_shader(drawelement_ref ref, shader_ref shader);
 void render_drawelement_with_material(drawelement_ref ref, material_ref material);
 void render_drawelement_with(drawelement_ref ref, shader_ref shader, material_ref material);
+void bind_uniforms_and_render_indices_of_drawelement(drawelement_ref ref);
 
 void prepend_uniform_handler(drawelement_ref ref, uniform_setter_t handler);
 void render_drawelement(drawelement_ref ref);

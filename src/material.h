@@ -16,6 +16,9 @@ typedef struct {
 	int id;
 } material_ref;
 
+inline bool equal_material_refs(material_ref a, material_ref b) {
+	return a.id == b.id;
+}
 
 define_slist(texture_node, const char *name; texture_ref ref; int unit);
 

@@ -6,6 +6,7 @@
 #include "cmdline.h"
 
 #include <libcgl/libcgl.h>
+#include <libcgl/wall-time.h>
 
 #include <GL/freeglut.h>
 #include <string.h>
@@ -14,6 +15,9 @@
 #include <stdlib.h>
 
 scene_ref the_scene;
+#define samples 128
+float times[samples];
+int valid_pos = 0, curr_pos = 0;
 
 void display() {
 	glClearColor(0,0,0.25,1);
@@ -21,13 +25,25 @@ void display() {
 
 	glEnable(GL_DEPTH_TEST);
 
+	glFinish();
+	wall_time_t start = wall_time_in_ms();
+
 	render_scene(the_scene);
+
+	glFinish();
+	wall_time_t end = wall_time_in_ms();
+
+	times[curr_pos] = end-start;
+	curr_pos = (curr_pos+1) % samples;
+	valid_pos = (valid_pos == samples ? samples : valid_pos+1);
 
 	swap_buffers();
 }
 
 void idle() {
-	glutPostRedisplay(); } 
+	glutPostRedisplay(); 
+}
+
 void keyboard(unsigned char key, int x, int y) {
 	if (key == 'c') {
 		vec3f cam_pos, cam_dir, cam_up;
@@ -38,6 +54,13 @@ void keyboard(unsigned char key, int x, int y) {
 		printf("--pos %f,%f,%f ", cam_pos.x, cam_pos.y, cam_pos.z);
 		printf("--dir %f,%f,%f ", cam_dir.x, cam_dir.y, cam_dir.z);
 		printf("--up %f,%f,%f\n", cam_up.x, cam_up.y, cam_up.z);
+	}
+	else if (key == 'p') {
+		double sum = 0;
+		for (int i = 0; i < valid_pos; ++i)
+			sum += times[i];
+		float avg = sum / (double)valid_pos;
+		printf("average render time: %.3f ms, %.1f fps \t(sum %f, n %d)\n", avg, 1000.0f/avg, (float)sum, valid_pos);
 	}
 	else standard_keyboard(key, x, y);
 }
@@ -84,6 +107,8 @@ static void register_scheme_functions() {
 void actual_main() 
 {
 	dump_gl_info();
+	for (int i = 0; i < samples; ++i)
+		times[i] = 0.0f;
 
 	register_display_function(display);
 	register_idle_function(idle);

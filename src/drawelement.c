@@ -67,6 +67,8 @@ drawelement_ref make_drawelement(const char *modelname, mesh_ref mr, shader_ref 
 #endif
 	make_unit_matrix4x4f(&de->trafo);
 
+	de->use_index_range = false;
+
 // 	printf("create drawelement %s.\n", de->name);
 // 	printf("       drawelement %s.\n", modelname);
 // 	printf("       drawelement %s.\n", mesh_name(mr));
@@ -116,6 +118,7 @@ void set_drawelement_index_buffer_range(drawelement_ref ref, unsigned int start,
 	struct drawelement* de = drawelements+ref.id;
 	de->index_buffer_start = start;
 	de->indices = count;
+	de->use_index_range = true;
 }
 
 // uniform handlers

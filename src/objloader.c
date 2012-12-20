@@ -136,7 +136,7 @@ void load_objfile_and_create_objects_with_single_vbo(const char *filename, const
 	if (objdata.normals)
 		add_vertex_buffer_to_mesh(m, "in_norm", GL_FLOAT, objdata.normals, 3, objdata.normal_data, GL_STATIC_DRAW);
 	if (objdata.texcoords)
-		add_vertex_buffer_to_mesh(m, "in_norm", GL_FLOAT, objdata.texcoords, 3, objdata.texcoord_data, GL_STATIC_DRAW);
+		add_vertex_buffer_to_mesh(m, "in_tc", GL_FLOAT, objdata.texcoords, 2, objdata.texcoord_data, GL_STATIC_DRAW);
 
     int indices = 0;
 
@@ -204,7 +204,7 @@ SCM_DEFINE(s_load_objfile_and_create_objects_with_separate_vbos,
 }
 
 SCM_DEFINE(s_load_objfile_and_create_objects_with_single_vbos,
-           "load-objfile-and-create-objects-with-single-vbos", 4, 0, 0, (SCM filename, SCM object_name, SCM callback, SCM fallback_mat), "") {
+           "load-objfile-and-create-objects-with-single-vbo", 4, 0, 0, (SCM filename, SCM object_name, SCM callback, SCM fallback_mat), "") {
 	char *f = scm_to_locale_string(filename);
 	char *o = scm_to_locale_string(object_name);
 	void create_drawelement_forwarder(const char *modelname, mesh_ref mesh, material_ref mat, unsigned int pos, unsigned int len) {

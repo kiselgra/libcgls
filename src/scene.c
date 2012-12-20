@@ -6,17 +6,21 @@
 
 struct scene {
 	char *name;
-	void *aux;
+    scene_drawelement_inserter_t inserter;
 	scene_traverser_t trav;
 	drawelement_node *drawelements;
 	drawelement_node *back;
+    unsigned int aux_type;
+	void *aux;
 };
 
 #include <libcgl/mm.h>
 define_mm(scene, scenes, scene_ref);
 #include "scene.xx"
 
-scene_ref make_scene(char *name) { // no pun intended.
+// standard, most primitive, scene type
+
+scene_ref make_scene(const char *name) { // no pun intended.
 	scene_ref ref = allocate_scene_ref();
 	if (ref.id != 0)
 		fprintf(stderr, "creating more than one scene is not really supported at the moment. good luck.\n");
@@ -28,6 +32,7 @@ scene_ref make_scene(char *name) { // no pun intended.
 
 	scene->drawelements = 0;
 	scene->aux = 0;
+    scene->inserter = default_scene_drawelement_inserter;
 	scene->trav = default_scene_renderer;
 
 	return ref;
@@ -38,9 +43,25 @@ void* scene_aux(scene_ref ref) {
 	return scene->aux;
 }
 
-void scene_set_aux(scene_ref ref, void *aux) {
+unsigned int scene_aux_type(scene_ref ref) {
 	struct scene *scene = scenes+ref.id;
+	return scene->aux_type;
+}
+
+void scene_set_aux(scene_ref ref, unsigned int type, void *aux) {
+	struct scene *scene = scenes+ref.id;
+    scene->aux_type = type;
 	scene->aux = aux;
+}
+
+void scene_set_drawelement_inserter(scene_ref ref, scene_drawelement_inserter_t ins) {
+	struct scene *scene = scenes+ref.id;
+	scene->inserter = ins;
+}
+
+scene_drawelement_inserter_t scene_drawelement_inserter(scene_ref ref) {
+	struct scene *scene = scenes+ref.id;
+	return scene->inserter;
 }
 
 void scene_set_traverser(scene_ref ref, scene_traverser_t trav) {
@@ -53,7 +74,7 @@ scene_traverser_t scene_traverser(scene_ref ref) {
 	return scene->trav;
 }
 
-void scene_add_drawelement(scene_ref ref, drawelement_ref de) {
+void default_scene_drawelement_inserter(scene_ref ref, drawelement_ref de) {
 	struct scene *scene = scenes+ref.id;
 	drawelement_node *new_node = malloc(sizeof(drawelement_node));
 	if (scene->drawelements == 0)
@@ -64,6 +85,11 @@ void scene_add_drawelement(scene_ref ref, drawelement_ref de) {
 	}
 	scene->back->ref = de;
 	scene->back->next = 0;
+}
+
+void scene_add_drawelement(scene_ref ref, drawelement_ref de) {
+	struct scene *scene = scenes+ref.id;
+    scene->inserter(ref, de);
 }
 
 drawelement_node* scene_drawelements(scene_ref ref) {
@@ -80,6 +106,38 @@ void default_scene_renderer(scene_ref ref) {
 	for (drawelement_node *run = scene_drawelements(ref); run; run = run->next)
 		render_drawelement(run->ref);
 }
+
+// graph scene: first level vbo, second level material
+
+struct by_material {
+    material_ref mat;
+    struct drawelement_node *drawelements;
+    struct by_material *next;
+};
+struct by_mesh {
+    mesh_ref mesh;
+    struct by_material *materials;
+    struct by_mesh *next;
+};
+
+struct graph_scene_aux {
+    struct by_mesh *meshes;
+};
+
+void graph_scene_drawelement_inserter(scene_ref ref, drawelement_ref de) {
+}
+
+void graph_scene_traverser(scene_ref ref) {
+}
+
+scene_ref make_graph_scene(const char *name) {
+    scene_ref ref = make_scene(name);
+    scene_set_drawelement_inserter(ref, graph_scene_drawelement_inserter);
+    scene_set_traverser(ref, graph_scene_traverser);
+    struct graph_scene_aux *aux = malloc(sizeof(struct graph_scene_aux));
+    scene_set_aux(ref, scene_type_graph, aux);
+}
+
 
 #ifdef WITH_GUILE
 #include <libguile.h>

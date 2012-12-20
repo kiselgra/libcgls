@@ -29,6 +29,8 @@ struct drawelement {
 	struct scheme_handler_node *scheme_handler_chain;
 #endif
 	matrix4x4f trafo;
+	bool use_index_range;
+	unsigned int index_buffer_start, indices;
 };
 
 #include <libcgl/mm.h>
@@ -110,6 +112,11 @@ material_ref drawelement_change_material(drawelement_ref ref, material_ref m) {
 	return old;
 }
 
+void set_drawelement_index_buffer_range(drawelement_ref ref, unsigned int start, unsigned int count) {
+	struct drawelement* de = drawelements+ref.id;
+	de->index_buffer_start = start;
+	de->indices = count;
+}
 
 // uniform handlers
 
@@ -142,17 +149,14 @@ void prepend_uniform_handler(drawelement_ref ref, uniform_setter_t handler) {
 
 // 
 
-void render_drawelement(drawelement_ref ref) {
-	struct drawelement *de = drawelements + ref.id;
-
-	bind_shader(de->shader);
-
+void bind_drawelement_uniforms(struct drawelement *de, drawelement_ref ref) {
 	for (int i = 0; i < shader_uniforms(de->shader); ++i) {
 		const char *name = shader_uniform_name_by_id(de->shader, i);
 		int loc = shader_uniform_location_by_id(de->shader, i);
 		struct handler_node *run = de->handler_chain;
 		while (run && !run->handler(ref, name, loc))
 			run = run->next;
+		// missing if(!run) around this?
 #ifdef WITH_GUILE
 		struct scheme_handler_node *s_run = de->scheme_handler_chain;
 		SCM s_name = scm_from_locale_string(name);
@@ -164,9 +168,26 @@ void render_drawelement(drawelement_ref ref) {
 			printf("WARNING: cannot find a handler for uniform %s of shader %s when attached to drawelement %s.\n", 
 					name, shader_name(de->shader), de->name);
 	}
+}
+
+void bind_uniforms_and_render_indices_of_drawelement(drawelement_ref ref) {
+	struct drawelement *de = drawelements + ref.id;
+	bind_drawelement_uniforms(de, ref);
+	glDrawElements(mesh_primitive_type(de->mesh), de->indices, GL_UNSIGNED_INT, (void*)(de->index_buffer_start*sizeof(GLint)));
+}
+
+void render_drawelement(drawelement_ref ref) {
+	struct drawelement *de = drawelements + ref.id;
+
+	bind_shader(de->shader);
+	bind_drawelement_uniforms(de, ref);
 
 	bind_mesh_to_gl(de->mesh);
-	draw_mesh(de->mesh);
+	if (!de->use_index_range)
+		draw_mesh(de->mesh);
+	else
+		glDrawElements(mesh_primitive_type(de->mesh), de->indices, GL_UNSIGNED_INT, (void*)(de->index_buffer_start*sizeof(GLint)));
+
 	unbind_mesh_from_gl(de->mesh);
 
 	unbind_shader(de->shader);
@@ -339,7 +360,13 @@ SCM_DEFINE(s_de_name, "drawelement-name", 1, 0, 0, (SCM de), "") {
     return scm_from_locale_string(drawelement_name(ref));
 }
 
-
+SCM_DEFINE(s_de_idxbuf_range, "drawelement-index-buffer-range!", 3, 0, 0, (SCM id, SCM p, SCM l), "") {
+    drawelement_ref ref = { scm_to_int(id) };
+	unsigned int pos = scm_to_uint(p),
+				 len = scm_to_uint(l);
+	set_drawelement_index_buffer_range(ref, pos, len);
+	return SCM_BOOL_T;
+}
 
 
 SCM_DEFINE(s_TMP_mem_barr, "memory-barrier!!", 0, 0, 0, (), "") {

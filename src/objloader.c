@@ -32,7 +32,7 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 	prepend_image_path(dirname(dirname_tmp));
 	free(dirname_tmp);
 
-	load_objfile(modelname, filename, &objdata, false);
+	load_objfile(modelname, filename, &objdata, false, false);
 
 	// convert the materials
 	// note: the material names are already prefixed with the model's base name.
@@ -122,7 +122,8 @@ void load_objfile_and_create_objects_with_single_vbo(const char *filename, const
 	prepend_image_path(dirname(dirname_tmp));
 	free(dirname_tmp);
 
-	load_objfile(modelname, filename, &objdata, true);
+	bool collapse_materials = true;
+	load_objfile(modelname, filename, &objdata, true, collapse_materials);
 	
 	// convert the materials
 	// note: the material names are already prefixed with the model's base name.

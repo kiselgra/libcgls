@@ -235,6 +235,41 @@ SCM_DEFINE(s_scene_drawelements, "drawelement-of-scene", 1, 0, 0, (SCM scene), "
 	return scm_reverse_x(list, SCM_EOL);
 }
 
+SCM_DEFINE(s_scene_stats, "scene-stats", 0, 0, 0, (), "") {
+    scene_ref ref = { 0 };
+	if (scene_aux_type(ref) == scene_type_default) {
+	    printf("the scene is a simple drawelement list.\n");
+	    int de = 0;
+        for (drawelement_node *run = scene_drawelements(ref); run; run = run->next)
+            ++de;
+	    printf("there are %d drawelements.\n", de);
+	}
+	if (scene_aux_type(ref) == scene_type_graph) {
+	    printf("the scene is a built-in graph scene.\n");
+        struct graph_scene_aux *gs = scene_aux(ref);
+        int n = 0, m = 0, de = 0;
+        int i = 0, j = 0;
+        for (struct by_mesh *by_mesh = gs->meshes; by_mesh; by_mesh = by_mesh->next)
+            ++n;
+        printf("scene contains %d meshes.\n", n);
+        for (struct by_mesh *by_mesh = gs->meshes; by_mesh; by_mesh = by_mesh->next) {
+            n = 0;
+            for (struct by_material *by_mat = by_mesh->materials; by_mat; by_mat = by_mat->next)
+                ++n;
+            printf("  mesh %d contains %d materials.\n", i++, n);
+            j = 0;
+            for (struct by_material *by_mat = by_mesh->materials; by_mat; by_mat = by_mat->next) {
+                m = 0;
+                for (struct drawelement_node *deno = by_mat->drawelements; deno; deno = deno->next)
+                    ++m, ++de;
+                printf("    material %d contains %d drawelements.\n", j++, m);
+            }
+        }
+        printf("all in all there are %d drawelements.\n", de);
+    }
+    return SCM_BOOL_T;
+}
+
 void register_scheme_functions_for_scene() {
 #include "scene.x"
 }

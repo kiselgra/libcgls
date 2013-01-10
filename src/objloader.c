@@ -13,6 +13,15 @@
 #include "basename.h"
 #include <libgen.h>
 
+void add_texture_if_found(material_ref mat, const char *texname, tex_params_t *p) {
+	char *fn = find_file(texname);
+	if (fn) {
+		material_add_texture(mat, make_texture(texname, fn, GL_TEXTURE_2D, p));
+	}
+	else
+		fprintf(stderr, "Cannot find texture named '%s' in any registered search directory.\n", texname);
+}
+
 // objectname may be 0, in which case the filename will be used to prefix the generated objects.
 void load_objfile_and_create_objects_with_separate_vbos(const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max, 
                                                         void (*make_drawelem)(const char*, mesh_ref, material_ref), material_ref fallback_material) {
@@ -31,9 +40,9 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 		obj_mtl *m = objdata.materials+i;
 		material_ref mat = make_material(m->name, &m->col_amb, &m->col_diff, &m->col_spec);
 		tex_params_t p = default_tex_params();
-		if (m->tex_a) material_add_texture(mat, make_texture(basename(m->tex_a), m->tex_a, GL_TEXTURE_2D, &p));
-		if (m->tex_d) material_add_texture(mat, make_texture(basename(m->tex_d), m->tex_d, GL_TEXTURE_2D, &p));
-		if (m->tex_s) material_add_texture(mat, make_texture(basename(m->tex_s), m->tex_s, GL_TEXTURE_2D, &p));
+		if (m->tex_a) add_texture_if_found(mat, m->tex_a, &p);
+		if (m->tex_d) add_texture_if_found(mat, m->tex_d, &p);
+		if (m->tex_s) add_texture_if_found(mat, m->tex_s, &p);
 	}
 
 	// todo: vertex-buffer sharing
@@ -121,9 +130,9 @@ void load_objfile_and_create_objects_with_single_vbo(const char *filename, const
 		obj_mtl *m = objdata.materials+i;
 		material_ref mat = make_material(m->name, &m->col_amb, &m->col_diff, &m->col_spec);
 		tex_params_t p = default_tex_params();
-		if (m->tex_a) material_add_texture(mat, make_texture(basename(m->tex_a), m->tex_a, GL_TEXTURE_2D, &p));
-		if (m->tex_d) material_add_texture(mat, make_texture(basename(m->tex_d), m->tex_d, GL_TEXTURE_2D, &p));
-		if (m->tex_s) material_add_texture(mat, make_texture(basename(m->tex_s), m->tex_s, GL_TEXTURE_2D, &p));
+		if (m->tex_a) add_texture_if_found(mat, m->tex_a, &p);
+		if (m->tex_d) add_texture_if_found(mat, m->tex_d, &p);
+		if (m->tex_s) add_texture_if_found(mat, m->tex_s, &p);
 	}
 
     int comps = 1;

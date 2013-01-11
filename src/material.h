@@ -35,6 +35,7 @@ vec4f* material_specular_color(material_ref ref);
 int material_number_of_textures(material_ref ref);
 struct texture_node* material_textures(material_ref ref);
 void material_add_texture(material_ref ref, texture_ref tex);
+void material_add_texture_as(material_ref ref, texture_ref tex, const char *name);
 
 void* material_aux(material_ref ref);
 void material_set_aux(material_ref ref, void *aux);

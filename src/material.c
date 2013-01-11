@@ -98,7 +98,7 @@ int material_number_of_textures(material_ref ref) {
 	return mat->textures;
 }
 
-void material_add_texture(material_ref ref, texture_ref tex) {
+void material_add_texture_as(material_ref ref, texture_ref tex, const char *name) {
 	struct material *mat = materials+ref.id;
 	struct texture_node *new_node = malloc(sizeof(struct texture_node));
 	int unit = 0;
@@ -111,9 +111,13 @@ void material_add_texture(material_ref ref, texture_ref tex) {
 	mat->back = new_node;
 	mat->back->ref = tex;
 	mat->back->unit = unit;
-	mat->back->name = strdup(texture_name(tex));
+	mat->back->name = strdup(name);
 	mat->back->next = 0;
     mat->textures++;
+}
+
+void material_add_texture(material_ref ref, texture_ref tex) {
+	material_add_texture_as(ref, tex, texture_name(tex));
 }
 
 void* material_aux(material_ref ref) {

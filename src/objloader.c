@@ -15,9 +15,8 @@
 
 void add_texture_if_found(material_ref mat, const char *texname, tex_params_t *p) {
 	char *fn = find_file(texname);
-	if (fn) {
+	if (fn)
 		material_add_texture(mat, make_texture(texname, fn, GL_TEXTURE_2D, p));
-	}
 	else
 		fprintf(stderr, "Cannot find texture named '%s' in any registered search directory.\n", texname);
 }
@@ -43,6 +42,7 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 		if (m->tex_a) add_texture_if_found(mat, m->tex_a, &p);
 		if (m->tex_d) add_texture_if_found(mat, m->tex_d, &p);
 		if (m->tex_s) add_texture_if_found(mat, m->tex_s, &p);
+		if (m->tex_alpha) add_texture_if_found(mat, m->tex_alpha, &p);
 	}
 
 	// todo: vertex-buffer sharing
@@ -134,6 +134,7 @@ void load_objfile_and_create_objects_with_single_vbo(const char *filename, const
 		if (m->tex_a) add_texture_if_found(mat, m->tex_a, &p);
 		if (m->tex_d) add_texture_if_found(mat, m->tex_d, &p);
 		if (m->tex_s) add_texture_if_found(mat, m->tex_s, &p);
+		if (m->tex_alpha) add_texture_if_found(mat, m->tex_alpha, &p);
 	}
 
     int comps = 1;

@@ -803,5 +803,3 @@
 #:inputs (list "in_pos")
 #:uniforms (list "mutex_buffer")>
 
-
-

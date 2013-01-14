@@ -21,9 +21,13 @@
 struct material {
 	char *name;
 	vec4f k_amb, k_diff, k_spec;
+	float shininess;
 	struct texture_node *textures_head, *back;
     int textures;
 	// blend stuff?
+	//! material's default shader.
+	shader_ref shader;
+	bool use_shader;
 	void *aux;
 };
 
@@ -46,6 +50,10 @@ material_ref make_material(const char *name, vec4f *amb, vec4f *diff, vec4f *spe
 
     mat->textures = 0;
 	mat->textures_head = mat->back = 0;
+
+	mat->shader.id -1;
+	mat->use_shader = false;
+
 	mat->aux = 0;
 	return ref;
 }
@@ -55,6 +63,16 @@ material_ref make_material3f(const char *name, vec3f *amb, vec3f *diff, vec3f *s
 	vec4f d = { diff->x, diff->y, diff->z };
 	vec4f s = { spec->x, spec->y, spec->z };
 	return make_material(name, &a, &d, &s);
+}
+
+void material_set_specular_exponent(material_ref ref, float s) {
+	struct material *mat = materials+ref.id;
+	mat->shininess = s;
+}
+
+float material_specular_exponent(material_ref ref) {
+	struct material *mat = materials+ref.id;
+	return mat->shininess;
 }
 
 material_ref find_material(const char *name) {
@@ -130,6 +148,71 @@ void material_set_aux(material_ref ref, void *aux) {
 	mat->aux = aux;
 }
 
+// shader "generation"
+#include "stock-shader.h"
+
+void material_use_stock_shader(material_ref ref) {
+	struct material *mat = materials+ref.id;
+	struct texture_node *textures = material_textures(ref);
+	bool has_texture_called(const char *name) {
+		for (struct texture_node *run = textures; run; run = run->next)
+			if (strcmp(run->name, name) == 0)
+				return true;
+		return false;
+	}
+	bool ambient_tex  = has_texture_called("ambient_tex");
+	bool diffuse_tex  = has_texture_called("diffuse_tex");
+	bool specular_tex = has_texture_called("specular_tex");
+	bool mask_tex     = has_texture_called("mask_tex");
+	mat->use_shader = true;
+
+	struct stockshader_fragments ssf;
+	init_stockshader_fragments(&ssf);
+	stock_shader(&ssf, ambient_tex, diffuse_tex, specular_tex, mask_tex);
+	mat->shader = make_shader("test", stockshader_inputs(&ssf), stockshader_uniforms(&ssf));
+	populate_shader_with_fragments(mat->shader, &ssf);
+	if (!compile_and_link_shader(mat->shader)) {
+		fprintf(stderr, "SHADER ERROR\n");
+		if (vertex_shader_info_log(mat->shader))
+			fprintf(stderr, "VERTEX-LOG:\n%s\n", vertex_shader_info_log(mat->shader));
+		if (fragment_shader_info_log(mat->shader))
+			fprintf(stderr, "FRAGMENT-LOG:\n%s\n", fragment_shader_info_log(mat->shader));
+		if (shader_info_log(mat->shader))
+			fprintf(stderr, "PROGRAM-LOG:\n%s\n", shader_info_log(mat->shader));
+	}
+}
+
+bool material_has_shader(material_ref ref) {
+	struct material *mat = materials+ref.id;
+	return valid_shader_ref(mat->shader);
+}
+
+void enable_material_shader(material_ref ref) {
+	if (material_has_shader(ref)) {
+		struct material *mat = materials+ref.id;
+		mat->use_shader = true;
+	}
+}
+
+void disable_material_shader(material_ref ref) {
+	if (material_has_shader(ref)) {
+		struct material *mat = materials+ref.id;
+		mat->use_shader = false;
+	}
+}
+
+bool material_shader_enabled(material_ref ref) {
+	if (!material_has_shader(ref))
+		return false;
+	struct material *mat = materials+ref.id;
+	return mat->use_shader;
+}
+
+shader_ref material_shader(material_ref ref) {
+	struct material *mat = materials+ref.id;
+	return mat->shader;
+}
+
 // uniform handlers
 
 #define str_eq(X, Y) (strcmp(X, Y) == 0)
@@ -142,6 +225,8 @@ bool default_material_uniform_handler(drawelement_ref ref, const char *uniform, 
 		glUniform4fv(location, 1, (float*)material_diffuse_color(mat));
 	else if (str_eq(uniform, "specular_color"))
 		glUniform4fv(location, 1, (float*)material_specular_color(mat));
+	else if (str_eq(uniform, "shininess"))
+		glUniform1f(location, material_specular_exponent(mat));
 	else {
 		for (struct texture_node *run = material_textures(mat); run; run = run->next)
 			if (str_eq(uniform, run->name)) {
@@ -264,6 +349,19 @@ SCM_DEFINE(s_material_specular_color_x, "set-material-specular-color!", 2, 0, 0,
     *material_specular_color(ref) = color;
     return SCM_BOOL_T;
 }
+
+SCM_DEFINE(s_material_use_stock_shader, "material-use-stock-shader!", 1, 0, 0, (SCM id), "") {
+	REF(id);
+	material_use_stock_shader(ref);
+	return SCM_BOOL_T;
+}
+
+SCM_DEFINE(s_mat_shader, "material-shader", 1, 0, 0, (SCM id), "") {
+	material_ref ref = { scm_to_int(id) };
+	shader_ref sref = material_shader(ref);
+	return scm_from_int(sref.id);
+}
+
 
 void register_scheme_functions_for_material() {
 #include "material.x"

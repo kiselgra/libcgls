@@ -13,12 +13,12 @@
 #include "basename.h"
 #include <libgen.h>
 
-void add_texture_if_found(material_ref mat, const char *texname, tex_params_t *p) {
-	char *fn = find_file(texname);
+void add_texture_if_found(material_ref mat, const char *filename, tex_params_t *p, const char *texname) {
+	char *fn = find_file(filename);
 	if (fn)
-		material_add_texture(mat, make_texture(texname, fn, GL_TEXTURE_2D, p));
+		material_add_texture_as(mat, make_texture(filename, fn, GL_TEXTURE_2D, p), texname);
 	else
-		fprintf(stderr, "Cannot find texture named '%s' in any registered search directory.\n", texname);
+		fprintf(stderr, "Cannot find texture named '%s' in any registered search directory.\n", filename);
 }
 
 // objectname may be 0, in which case the filename will be used to prefix the generated objects.
@@ -39,10 +39,11 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 		obj_mtl *m = objdata.materials+i;
 		material_ref mat = make_material(m->name, &m->col_amb, &m->col_diff, &m->col_spec);
 		tex_params_t p = default_tex_params();
-		if (m->tex_a) add_texture_if_found(mat, m->tex_a, &p);
-		if (m->tex_d) add_texture_if_found(mat, m->tex_d, &p);
-		if (m->tex_s) add_texture_if_found(mat, m->tex_s, &p);
-		if (m->tex_alpha) add_texture_if_found(mat, m->tex_alpha, &p);
+		if (m->tex_a) add_texture_if_found(mat, m->tex_a, &p, "ambient_tex");
+		if (m->tex_d) add_texture_if_found(mat, m->tex_d, &p, "diffuse_tex");
+		if (m->tex_s) add_texture_if_found(mat, m->tex_s, &p, "specular_tex");
+		if (m->tex_alpha) add_texture_if_found(mat, m->tex_alpha, &p, "mask_tex");
+		material_set_specular_exponent(mat, m->spec_exp);
 	}
 
 	// todo: vertex-buffer sharing
@@ -131,10 +132,11 @@ void load_objfile_and_create_objects_with_single_vbo(const char *filename, const
 		obj_mtl *m = objdata.materials+i;
 		material_ref mat = make_material(m->name, &m->col_amb, &m->col_diff, &m->col_spec);
 		tex_params_t p = default_tex_params();
-		if (m->tex_a) add_texture_if_found(mat, m->tex_a, &p);
-		if (m->tex_d) add_texture_if_found(mat, m->tex_d, &p);
-		if (m->tex_s) add_texture_if_found(mat, m->tex_s, &p);
-		if (m->tex_alpha) add_texture_if_found(mat, m->tex_alpha, &p);
+		if (m->tex_a) add_texture_if_found(mat, m->tex_a, &p, "ambient_tex");
+		if (m->tex_d) add_texture_if_found(mat, m->tex_d, &p, "diffuse_tex");
+		if (m->tex_s) add_texture_if_found(mat, m->tex_s, &p, "specular_tex");
+		if (m->tex_alpha) add_texture_if_found(mat, m->tex_alpha, &p, "mask_tex");
+		material_set_specular_exponent(mat, m->spec_exp);
 	}
 
     int comps = 1;

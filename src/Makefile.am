@@ -3,6 +3,7 @@ noinst_PROGRAMS = viewer-cgls #tsm
 
 BUILT_SOURCES = drawelement.xx scene.xx material.xx
 BUILT_SOURCES += objloader.x cmdline.x material.x drawelement.x scene.x
+BUILT_SOURCES += stock-shader.c
 
 # libconfigfiles_la_SOURCES = grammar.yy  lexer.ll  parser.h  token.h lexer.h config_creator.h configfile.h configfile.cpp
 libcgls_la_SOURCES = 	drawelement.c drawelement.h \
@@ -10,7 +11,8 @@ libcgls_la_SOURCES = 	drawelement.c drawelement.h \
 						scene.c scene.h \
 						slist.h \
 						basename.h \
-						material.c material.h
+						material.c material.h \
+						stock-shader.c
 
 viewer_cgls_SOURCES = $(libcgls_la_SOURCES) \
 					    main.c \
@@ -51,6 +53,9 @@ endif
 
 .c.xx: $<
 	m4 @cgldata@/mm.m4 $< > $@
+
+stock-shader.c: stock-shader.c.in
+	awk -f shaderhack.awk stock-shader.c.in > stock-shader.c
 
 # install link
 library_nonversioned_includedir = $(includedir)/$(PACKAGE)

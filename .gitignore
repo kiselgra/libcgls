@@ -11,3 +11,12 @@ ltmain.sh
 stamp-h1
 depcomp
 install-sh
+configure
+*.la
+*.lo
+*.xx
+autom4te.cache
+.deps
+.libs
+compile
+aclocal.m4

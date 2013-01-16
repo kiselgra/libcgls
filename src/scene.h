@@ -3,9 +3,26 @@
 
 #include "drawelement.h"
 
-/* a very simple scene definition.
+/*! a very simple scene definition.
  *
- * note: internally we provide means to create multiple scene objects (as usual),
+ * the basic mechanism is as follows:
+ * - a scene is constructed by using its `inserter'
+ * - a scene is rendered by using its `traverser'
+ *
+ * the basic scene just collects all the drawelements in a list and iterates it
+ * on traversal.
+ *
+ * a scene traverser can be changed dynamically and (as long as it is
+ * compatible to the customly built scene data structure, or uses the default
+ * structure) can be used to implement different types of rendering, e.g.
+ * rendering using per submesh materials for display as opposed to rendering
+ * the whole mesh in a single bulk for shadowmapping (as is possible with the
+ * graph_scene).
+ *
+ * \note when constructing a scene via a custom inserter, make sure to call the
+ * default inserter, too. this is to ensure a consistend base layout.
+ * 
+ * \note internally we provide means to create multiple scene objects (as usual),
  * but this is just for our convenience - we're not expecting to be using multiple
  * scenes in one run.
  */
@@ -48,6 +65,12 @@ void render_scene(scene_ref ref);
 
 	
 void default_scene_renderer(scene_ref ref);
+void graph_scene_traverser(scene_ref ref);
+/*! traverses the toplevel nodes (differend models/scenes) of the scene.
+ *  does not bind and shaders, this will have to be done before calling \ref render_scene.
+ */
+void graph_scene_bulk_traverser(scene_ref ref);
+
 
 
 scene_ref make_graph_scene(const char *name);

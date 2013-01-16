@@ -118,6 +118,7 @@ struct by_mesh {
     mesh_ref mesh;
     struct by_material *materials;
     struct by_mesh *next;
+	drawelement_ref bulk_de;
 };
 
 struct graph_scene_aux {
@@ -147,6 +148,17 @@ void graph_scene_drawelement_inserter(scene_ref ref, drawelement_ref de) {
 		new_entry->mesh = mesh;
 		new_entry->materials = 0;
 		mit = new_entry;
+		// build bulk-de
+		char *name = strappend("bulk_de_for_", mesh_name(new_entry->mesh));
+		char *mat_name = strappend("material_for_", name);
+		vec4f c = { .8, .8, .8, 1 };
+		material_ref mat = make_material(mat_name, &c, &c, &c);
+		material_use_stock_shader(mat);
+		new_entry->bulk_de = make_drawelement(name, mesh, material_shader(mat), mat);
+		for (struct uniform_handler_node *run = drawelement_uniform_handlers(de); run; run = run->next)
+			append_uniform_handler(de, run->handler);
+		free(name);
+		free(mat_name);
 	}
 	// now it's there, anyway; search for material
 	struct by_material *mat;
@@ -185,6 +197,19 @@ void graph_scene_traverser(scene_ref ref) {
 				bind_uniforms_and_render_indices_of_drawelement(deno->ref);
 			unbind_shader(drawelement_shader(by_mat->drawelements->ref));
 		}
+		unbind_mesh_from_gl(by_mesh->mesh);
+	}
+}
+
+void graph_scene_bulk_traverser(scene_ref ref) {
+	if (scene_aux_type(ref) != scene_type_graph) {
+		fprintf(stderr, "Called graph_scene_traverser on scene of type %d (expected %d).\n", scene_aux_type(ref), scene_type_graph);
+		return;
+	}
+	struct graph_scene_aux *gs = scene_aux(ref);
+	for (struct by_mesh *by_mesh = gs->meshes; by_mesh; by_mesh = by_mesh->next) {
+		bind_mesh_to_gl(by_mesh->mesh);
+		draw_mesh(by_mesh->mesh);
 		unbind_mesh_from_gl(by_mesh->mesh);
 	}
 }

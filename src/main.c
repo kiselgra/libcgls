@@ -20,6 +20,8 @@ float times[samples];
 int valid_pos = 0, curr_pos = 0;
 
 void display() {
+	scene_set_traverser(the_scene, graph_scene_bulk_traverser);
+
 	glClearColor(0,0,0.25,1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 

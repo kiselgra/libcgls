@@ -18,7 +18,9 @@ struct scene {
 define_mm(scene, scenes, scene_ref);
 #include "scene.xx"
 
-// standard, most primitive, scene type
+/*! \defgroup basic_scene
+ *  standard, most primitive, scene type
+ */
 
 scene_ref make_scene(const char *name) { // no pun intended.
 	scene_ref ref = allocate_scene_ref();
@@ -107,13 +109,17 @@ void default_scene_renderer(scene_ref ref) {
 		render_drawelement(run->ref);
 }
 
-// graph scene: first level vbo, second level material
+/*! \defgroup graph_scene
+ *  first level vbo, second level material.
+ */
 
+//! internal \ref graph_scene structure. \ingroup graph_scene
 struct by_material {
     material_ref mat;
     struct drawelement_node *drawelements;
     struct by_material *next;
 };
+
 struct by_mesh {
     mesh_ref mesh;
     struct by_material *materials;
@@ -125,6 +131,15 @@ struct graph_scene_aux {
     struct by_mesh *meshes;
 };
 
+/*! add a drawelement to the scene.
+ *
+ * 	\note for the bulk-rendering this procedure constructs a separate
+ * 	drawelement (when the first drawelement of a mesh is added).
+ * 	the uniform handlers of the newly created drawelement are taken from the
+ * 	first drawelement added for this mesh.
+ *
+ * 	\ingroup graph_scene
+ */
 void graph_scene_drawelement_inserter(scene_ref ref, drawelement_ref de) {
 	if (scene_aux_type(ref) != scene_type_graph) {
 		fprintf(stderr, "Called graph_scene_drawelement_inserter on scene of type %d (expected %d).\n", scene_aux_type(ref), scene_type_graph);

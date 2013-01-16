@@ -3,7 +3,7 @@
 
 #include <libcgl/shader.h>
 
-#include "slist.h"
+#include "c-utils.h"
 
 define_slist(stockshader_stringlist, char *data; bool malloced);
 

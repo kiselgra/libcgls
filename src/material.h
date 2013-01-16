@@ -2,7 +2,7 @@
 #define __MATERIAL_H__ 
 
 #include <libcgl/libcgl.h>
-#include "slist.h"
+#include "c-utils.h"
 
 /* a very simple material definition, suited to standard gl rendering. 
  * extensible the good ol' c way.
@@ -39,6 +39,7 @@ struct texture_node* material_textures(material_ref ref);
 void material_add_texture(material_ref ref, texture_ref tex);
 void material_add_texture_as(material_ref ref, texture_ref tex, const char *name);
 
+void material_use_stock_shader(material_ref ref);
 shader_ref material_shader(material_ref);
 
 void* material_aux(material_ref ref);

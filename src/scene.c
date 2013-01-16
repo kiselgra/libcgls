@@ -156,7 +156,7 @@ void graph_scene_drawelement_inserter(scene_ref ref, drawelement_ref de) {
 		material_use_stock_shader(mat);
 		new_entry->bulk_de = make_drawelement(name, mesh, material_shader(mat), mat);
 		for (struct uniform_handler_node *run = drawelement_uniform_handlers(de); run; run = run->next)
-			append_uniform_handler(de, run->handler);
+			append_uniform_handler(new_entry->bulk_de, run->handler);
 		free(name);
 		free(mat_name);
 	}
@@ -208,9 +208,7 @@ void graph_scene_bulk_traverser(scene_ref ref) {
 	}
 	struct graph_scene_aux *gs = scene_aux(ref);
 	for (struct by_mesh *by_mesh = gs->meshes; by_mesh; by_mesh = by_mesh->next) {
-		bind_mesh_to_gl(by_mesh->mesh);
-		draw_mesh(by_mesh->mesh);
-		unbind_mesh_from_gl(by_mesh->mesh);
+		render_drawelement(by_mesh->bulk_de);
 	}
 }
 

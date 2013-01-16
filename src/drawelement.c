@@ -5,11 +5,6 @@
 
 #include <stdio.h>
 
-struct handler_node {
-	struct handler_node *next;
-	uniform_setter_t handler;
-};
-
 #ifdef WITH_GUILE
 #include <libguile.h>
 struct scheme_handler_node {
@@ -24,7 +19,7 @@ struct drawelement {
 	mesh_ref mesh;
 	shader_ref shader;
 	material_ref material;
-	struct handler_node *handler_chain;
+	struct uniform_handler_node *handler_chain;
 #ifdef WITH_GUILE
 	struct scheme_handler_node *scheme_handler_chain;
 #endif
@@ -141,22 +136,35 @@ bool default_matrix_uniform_handler(drawelement_ref ref, const char *uniform, in
 
 #undef str_eq
 
-// may also be abused to get called just before the drawelement is rendered. ;)
+//! \note [hacky] may also be abused to get called just before the drawelement is rendered. ;) (resulting in [0..n] calls!)
 void prepend_uniform_handler(drawelement_ref ref, uniform_setter_t handler) {
 	struct drawelement *de = drawelements+ref.id;
-	struct handler_node *cdr = de->handler_chain;
-	de->handler_chain = malloc(sizeof(struct handler_node));
+	struct uniform_handler_node *cdr = de->handler_chain;
+	de->handler_chain = malloc(sizeof(struct uniform_handler_node));
 	de->handler_chain->handler = handler;
 	de->handler_chain->next = cdr;
 }
 
-// 
+//! a little slower than \ref prepend_uniform_handler
+void append_uniform_handler(drawelement_ref ref, uniform_setter_t handler) {
+	struct drawelement *de = drawelements+ref.id;
+	struct uniform_handler_node *node = malloc(sizeof(struct uniform_handler_node));
+	node->handler = handler;
+	node->next = 0;
+	if (de->handler_chain) {
+		struct uniform_handler_node *cdr = de->handler_chain;
+		while (cdr->next) cdr = cdr->next;
+		cdr->next = node;
+	}
+	else
+		de->handler_chain = node;
+}
 
 void bind_drawelement_uniforms(struct drawelement *de, drawelement_ref ref) {
 	for (int i = 0; i < shader_uniforms(de->shader); ++i) {
 		const char *name = shader_uniform_name_by_id(de->shader, i);
 		int loc = shader_uniform_location_by_id(de->shader, i);
-		struct handler_node *run = de->handler_chain;
+		struct uniform_handler_node *run = de->handler_chain;
 		while (run && !run->handler(ref, name, loc))
 			run = run->next;
 		// missing if(!run) around this?
@@ -214,6 +222,12 @@ void render_drawelement_with(drawelement_ref ref, shader_ref shader, material_re
     render_drawelement(ref);
     drawelement_change_material(ref, default_m);
     drawelement_change_shader(ref, default_s);
+}
+
+//! does only return the c handlers, atm!
+struct uniform_handler_node* drawelement_uniform_handlers(drawelement_ref ref) {
+	struct drawelement *de = drawelements + ref.id;
+	return de->handler_chain;
 }
 
 drawelement_ref find_drawelement(const char *name) {

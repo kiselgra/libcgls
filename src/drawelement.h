@@ -22,6 +22,10 @@ typedef bool (*uniform_setter_t)(drawelement_ref drawelement, const char *unifor
 bool default_matrix_uniform_handler(drawelement_ref ref, const char *uniform, int location);
 bool default_material_uniform_handler(drawelement_ref ref, const char *uniform, int location); // defined in material.c
 
+struct uniform_handler_node {
+	struct uniform_handler_node *next;
+	uniform_setter_t handler;
+};
 
 
 drawelement_ref make_drawelement(const char *modelname, mesh_ref mr, shader_ref sr, material_ref matr);
@@ -40,10 +44,12 @@ void render_drawelement_with(drawelement_ref ref, shader_ref shader, material_re
 void bind_uniforms_and_render_indices_of_drawelement(drawelement_ref ref);
 
 void prepend_uniform_handler(drawelement_ref ref, uniform_setter_t handler);
+void append_uniform_handler(drawelement_ref ref, uniform_setter_t handler);
 void render_drawelement(drawelement_ref ref);
 drawelement_ref find_drawelement(const char *name);
 struct drawelement_list* list_drawelements();
 
+struct uniform_handler_node* drawelement_uniform_handlers(drawelement_ref ref);
 
 #ifdef __cplusplus
 }

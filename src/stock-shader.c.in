@@ -349,6 +349,10 @@ const char* stock_show_gbuffer_debug_shader() {
 		}shader;
 }
 
+/*! \defgroup deferred
+ */
+
+//! a very basic spotlight (which requires no further uniforms). \ingroup deferred
 const char* stock_effect_headmounted_spot() {
 	return
 		shader{
@@ -472,7 +476,7 @@ void populate_shader_with_fragments(shader_ref shader, struct stockshader_fragme
 		add_shader_uniform(shader, run->data);
 }
 
-//! map texture "internal format" values to texture "type" values. \attention far from complete!
+//! map texture "internal format" values to texture "type" values. \attention far from complete!  \ingroup deferred
 static GLenum gl_type_of(GLenum x) {
 	switch (x) {
 	case GL_RGBA8:
@@ -490,7 +494,7 @@ static GLenum gl_type_of(GLenum x) {
 	}
 }
 
-/*! create a default gbuffer usable with the stock shaders.
+/*! \brief create a default gbuffer usable with the stock shaders.
  *
  *  this might seem oddly placed in \ref stock-shader.c but it is specifically
  *  set up to work with the stock shaders provided by this file and with them
@@ -501,6 +505,7 @@ static GLenum gl_type_of(GLenum x) {
  *  float if you do something unanticipated).
  *
  *  \note if you don't need a specular buffer just pass GL_NONE.
+ *  \ingroup deferred
  */
 framebuffer_ref make_stock_deferred_buffer(const char *name, unsigned int width, unsigned int height, 
                                            GLenum diffuse_format, GLenum specular_format, GLenum normal_format, 
@@ -549,12 +554,13 @@ framebuffer_ref make_stock_deferred_buffer(const char *name, unsigned int width,
 	return fbo;
 }
 
-/*! create a default gbuffer drawelement (screen aligned quad with texcoords) with appropriate material and shader setup.
+/*! \brief create a default gbuffer drawelement (screen aligned quad with texcoords) with appropriate material and shader setup.
  *
  *  \param effect_name will be used as name for the drawelement, the material and the shader. so take care.
  *  \param fragment_source if this is 0 we'll use the default debugging shader.
  *
  *  you can add further uniforms to the resulting drawelement's shader.
+ *  \ingroup deferred
  */
 drawelement_ref make_stock_gbuffer_default_drawelement(framebuffer_ref fbo, const char *effect_name, const char *fragment_source) {
 	mesh_ref mesh = make_quad_with_tc(effect_name, 0);

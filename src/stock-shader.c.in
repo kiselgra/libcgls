@@ -429,6 +429,7 @@ bool compile_and_link_shader_showing_log_on_error(shader_ref shader) {
 	}
 }
 
+//! generates the shader fragments for the stock shader as specified by the flags.
 void stock_shader(struct stockshader_fragments *ssf, bool ambient_tex, bool diffuse_tex, bool specular_tex, bool mask_tex) {
 	add_stock_fragment_shader_part(ssf, true, ambient_tex, diffuse_tex, specular_tex, mask_tex);
 
@@ -436,6 +437,7 @@ void stock_shader(struct stockshader_fragments *ssf, bool ambient_tex, bool diff
 	stockshader_add_fsource(ssf, stock_gbuffer_creation_fragment_shader());
 }
 
+//! adds the accumulated data regarding the shader fragments to the given shader (which must at least exist, see \ref make_shader).
 void populate_shader_with_fragments(shader_ref shader, struct stockshader_fragments *ssf) {
 	int i = 0;
 	for (struct stockshader_stringlist *run = ssf->inputs; run; run = run->next)

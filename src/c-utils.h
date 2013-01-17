@@ -4,6 +4,7 @@
 #define define_slist(NAME, DECLS) struct NAME { struct NAME *next; DECLS; };
 
 char* strappend(const char *pref, const char *suf);
+char* strappend3(const char *pref, const char *mid, const char *suf);
 
 #endif
 

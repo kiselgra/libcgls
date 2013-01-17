@@ -196,11 +196,24 @@ void graph_scene_drawelement_inserter(scene_ref ref, drawelement_ref de) {
 	deno->ref = de;
 }
 
-void graph_scene_traverser(scene_ref ref) {
-	if (scene_aux_type(ref) != scene_type_graph) {
+bool is_graph_scene(scene_ref ref) {
+	if (scene_aux_type(ref) != scene_type_graph)
+		return false;
+	return true;
+}
+
+bool must_be_graph_scene(scene_ref ref, const char *fun) {
+	bool igs = is_graph_scene(ref);
+	if (!igs)
 		fprintf(stderr, "Called graph_scene_traverser on scene of type %d (expected %d).\n", scene_aux_type(ref), scene_type_graph);
-		return;
-	}
+	return igs;
+}
+
+#define graph_scene_or_return(A) if (!must_be_graph_scene(A, __FUNCTION__)) return;
+#define graph_scene_or_return_X(A,X) if (!must_be_graph_scene(A, __FUNCTION__)) return (X);
+
+void graph_scene_traverser(scene_ref ref) {
+	graph_scene_or_return(ref);
 	struct graph_scene_aux *gs = scene_aux(ref);
 	for (struct by_mesh *by_mesh = gs->meshes; by_mesh; by_mesh = by_mesh->next) {
 		bind_mesh_to_gl(by_mesh->mesh);
@@ -209,7 +222,10 @@ void graph_scene_traverser(scene_ref ref) {
 			// binding], ...) and drawelement uniforms (object trafo)
 			bind_shader(drawelement_shader(by_mat->drawelements->ref));
 			for (struct drawelement_node *deno = by_mat->drawelements; deno; deno = deno->next)
-				bind_uniforms_and_render_indices_of_drawelement(deno->ref);
+				if (drawelement_using_index_range(deno->ref))
+					bind_uniforms_and_render_indices_of_drawelement(deno->ref);
+				else
+					bind_uniforms_and_render_drawelement_nonindexed(deno->ref);
 			unbind_shader(drawelement_shader(by_mat->drawelements->ref));
 		}
 		unbind_mesh_from_gl(by_mesh->mesh);
@@ -217,14 +233,33 @@ void graph_scene_traverser(scene_ref ref) {
 }
 
 void graph_scene_bulk_traverser(scene_ref ref) {
-	if (scene_aux_type(ref) != scene_type_graph) {
-		fprintf(stderr, "Called graph_scene_traverser on scene of type %d (expected %d).\n", scene_aux_type(ref), scene_type_graph);
-		return;
-	}
+	graph_scene_or_return(ref);
 	struct graph_scene_aux *gs = scene_aux(ref);
 	for (struct by_mesh *by_mesh = gs->meshes; by_mesh; by_mesh = by_mesh->next) {
 		render_drawelement(by_mesh->bulk_de);
 	}
+}
+
+void free_graph_scene_bulk_de_list(struct graph_scene_bulk_de_list *list) {
+	while (list) {
+		struct graph_scene_bulk_de_list *tmp = list;
+		list = list->next;
+		free(tmp);
+	}
+}
+
+struct graph_scene_bulk_de_list* graph_scene_bulk_drawelements(scene_ref ref) {
+	graph_scene_or_return_X(ref, 0);
+	struct graph_scene_bulk_de_list *list = 0;
+	struct graph_scene_aux *gs = scene_aux(ref);
+	for (struct by_mesh *by_mesh = gs->meshes; by_mesh; by_mesh = by_mesh->next) {
+		render_drawelement(by_mesh->bulk_de);
+		struct graph_scene_bulk_de_list *node = malloc(sizeof(struct graph_scene_bulk_de_list));
+		node->ref = by_mesh->bulk_de;
+		node->next = list;
+		list = node;
+	}
+	return list;
 }
 
 scene_ref make_graph_scene(const char *name) {
@@ -271,6 +306,21 @@ SCM_DEFINE(s_scene_drawelements, "drawelement-of-scene", 1, 0, 0, (SCM scene), "
 		list = scm_cons(scm_from_int(node->next->ref.id), list);
 	}
 	return scm_reverse_x(list, SCM_EOL);
+}
+
+SCM_DEFINE(s_is_graph_scene, "is-graph-scene", 1, 0, 0, (SCM scene), "") {
+	scene_ref s = { scm_to_int(scene) };
+	return scm_from_bool(is_graph_scene(s));
+}
+
+SCM_DEFINE(graph_scene_bulk_des, "graph-scene-bulk-drawelements", 1, 0, 0, (SCM scene), "") {
+	scene_ref s = { scm_to_int(scene) };
+	SCM list = SCM_EOL;
+	struct graph_scene_bulk_de_list *bulk_des = graph_scene_bulk_drawelements(s);
+	for (struct graph_scene_bulk_de_list *run = bulk_des; run; run = run->next)
+		list = scm_cons(scm_from_int(run->ref.id), list);
+	free_graph_scene_bulk_de_list(bulk_des);
+	return list;
 }
 
 SCM_DEFINE(s_scene_stats, "scene-stats", 0, 0, 0, (), "") {

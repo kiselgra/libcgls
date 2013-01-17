@@ -66,14 +66,17 @@ void render_scene(scene_ref ref);
 	
 void default_scene_renderer(scene_ref ref);
 void graph_scene_traverser(scene_ref ref);
+
 /*! traverses the toplevel nodes (differend models/scenes) of the scene.
  *  does not bind and shaders, this will have to be done before calling \ref render_scene.
  */
 void graph_scene_bulk_traverser(scene_ref ref);
 
-
-
 scene_ref make_graph_scene(const char *name);
+
+define_slist(graph_scene_bulk_de_list, drawelement_ref ref);
+void free_graph_scene_bulk_de_list(struct graph_scene_bulk_de_list *list);
+struct graph_scene_bulk_de_list* graph_scene_bulk_drawelements();
 
 #ifdef __cplusplus
 }

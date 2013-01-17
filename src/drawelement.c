@@ -187,6 +187,17 @@ void bind_uniforms_and_render_indices_of_drawelement(drawelement_ref ref) {
 	glDrawElements(mesh_primitive_type(de->mesh), de->indices, GL_UNSIGNED_INT, (void*)(de->index_buffer_start*sizeof(GLint)));
 }
 
+void bind_uniforms_and_render_drawelement_nonindexed(drawelement_ref ref) {
+	struct drawelement *de = drawelements + ref.id;
+	bind_drawelement_uniforms(de, ref);
+	draw_mesh(de->mesh);
+}
+
+bool drawelement_using_index_range(drawelement_ref ref) {
+	struct drawelement *de = drawelements + ref.id;
+	return de->use_index_range;
+}
+
 void render_drawelement(drawelement_ref ref) {
 	struct drawelement *de = drawelements + ref.id;
 
@@ -385,6 +396,12 @@ SCM_DEFINE(s_de_idxbuf_range, "drawelement-index-buffer-range!", 3, 0, 0, (SCM i
 	return SCM_BOOL_T;
 }
 
+SCM_DEFINE(s_de_change_shader, "change-drawelement-shader", 2, 0, 0, (SCM de_ref, SCM sh_ref), "") {
+    drawelement_ref de = { scm_to_int(de_ref) };
+    shader_ref sh = { scm_to_int(sh_ref) };
+	shader_ref old = drawelement_change_shader(de, sh);
+	return scm_from_int(old.id);
+}
 
 SCM_DEFINE(s_TMP_mem_barr, "memory-barrier!!", 0, 0, 0, (), "") {
     glMemoryBarrier(GL_ALL_BARRIER_BITS);

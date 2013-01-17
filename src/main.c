@@ -2,6 +2,7 @@
 #include "objloader.h"
 #include "scene.h"
 #include "basename.h"
+#include "stock-shader.h"
 
 #include "cmdline.h"
 
@@ -19,18 +20,29 @@ scene_ref the_scene;
 float times[samples];
 int valid_pos = 0, curr_pos = 0;
 
+framebuffer_ref gbuffer;
+drawelement_ref deferred_de;
+
 void display() {
 	scene_set_traverser(the_scene, graph_scene_bulk_traverser);
 
-	glClearColor(0,0,0.25,1);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
 	glEnable(GL_DEPTH_TEST);
-
-	glFinish();
+	
+    glFinish();
 	wall_time_t start = wall_time_in_ms();
 
+    bind_framebuffer(gbuffer);
+
+	glClearColor(0,0,0.25,1);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	render_scene(the_scene);
+
+    unbind_framebuffer(gbuffer);
+
+	glClearColor(1,0,0.25,1);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    render_drawelement(deferred_de);
+
 
 	glFinish();
 	wall_time_t end = wall_time_in_ms();
@@ -38,6 +50,8 @@ void display() {
 	times[curr_pos] = end-start;
 	curr_pos = (curr_pos+1) % samples;
 	valid_pos = (valid_pos == samples ? samples : valid_pos+1);
+
+    check_for_gl_errors("blarg");
 
 	swap_buffers();
 }
@@ -117,6 +131,10 @@ void actual_main()
 	register_keyboard_function(keyboard);
 
 	register_scheme_functions();
+
+    gbuffer = make_stock_deferred_buffer("gbuffer", cmdline.res.x, cmdline.res.y, GL_RGBA8, GL_RGBA8, GL_RGBA16F, GL_RGBA32F, GL_DEPTH_COMPONENT24);
+    deferred_de = make_stock_gbuffer_default_drawelement(gbuffer);
+
     char *config = 0;
     int n = asprintf(&config, "%s/%s", cmdline.include_path, cmdline.config);
 	load_configfile(config);

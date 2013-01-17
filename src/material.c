@@ -171,15 +171,7 @@ void material_use_stock_shader(material_ref ref) {
 	stock_shader(&ssf, ambient_tex, diffuse_tex, specular_tex, mask_tex);
 	mat->shader = make_shader("test", stockshader_inputs(&ssf), stockshader_uniforms(&ssf));
 	populate_shader_with_fragments(mat->shader, &ssf);
-	if (!compile_and_link_shader(mat->shader)) {
-		fprintf(stderr, "SHADER ERROR\n");
-		if (vertex_shader_info_log(mat->shader))
-			fprintf(stderr, "VERTEX-LOG:\n%s\n", vertex_shader_info_log(mat->shader));
-		if (fragment_shader_info_log(mat->shader))
-			fprintf(stderr, "FRAGMENT-LOG:\n%s\n", fragment_shader_info_log(mat->shader));
-		if (shader_info_log(mat->shader))
-			fprintf(stderr, "PROGRAM-LOG:\n%s\n", shader_info_log(mat->shader));
-	}
+	compile_and_link_shader_showing_log_on_error(mat->shader);
 }
 
 bool material_has_shader(material_ref ref) {

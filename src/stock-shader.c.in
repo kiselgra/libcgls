@@ -1,10 +1,15 @@
 #line 2 "stock-shader.c.in"
+
+#include "stock-shader.h"
+#include "material.h"
+
+#include <libcgl/framebuffer.h>
+#include <libcgl/prepared.h>
+
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-
-#include "stock-shader.h"
 
 void init_stockshader_fragments(struct stockshader_fragments *ssf) {
 	ssf->inputs = ssf->vertex_sources = ssf->fragment_sources = ssf->uniforms = 0;
@@ -270,6 +275,68 @@ const char* dummy_fragment_shader() {
 		}shader;
 }
 
+const char* stock_gbuffer_using_vertex_shader() {
+	return
+		shader{
+			#version 150 core
+			in vec2 in_pos;
+			in vec2 in_tc;
+			out vec2 tc;
+			void main() {
+				tc = in_tc;
+				gl_Position = vec4(vec2(2.0) * in_pos - vec2(1.0), -0.8, 1.0);
+			}
+		}shader;
+}
+
+shader_ref make_stock_show_gbuffer_shader() {
+	shader_ref shader = make_shader("show gbuffer debug", 1, 5);
+	struct stockshader_fragments ssf;
+	init_stockshader_fragments(&ssf);
+	stockshader_add_input(&ssf, "in_pos");
+	stockshader_add_input(&ssf, "in_tc");
+	stockshader_add_uniform(&ssf, "gbuffer_diffuse");
+	stockshader_add_uniform(&ssf, "gbuffer_specular");
+	stockshader_add_uniform(&ssf, "gbuffer_normal");
+	stockshader_add_uniform(&ssf, "gbuffer_position");
+	stockshader_add_uniform(&ssf, "gbuffer_depth");
+	stockshader_add_vsource(&ssf, stock_gbuffer_using_vertex_shader());
+	const char *f =
+		shader{
+			#version 150 core
+			uniform sampler2D gbuffer_diffuse;
+			uniform sampler2D gbuffer_normal;
+			uniform sampler2D gbuffer_depth;
+			out vec4 out_col;
+			in vec2 tc;
+			void main() {
+				vec2 tc2 = tc * 2.0;
+				if (tc.x < 0.5 && tc.y >= 0.5)
+					out_col = vec4(texture(gbuffer_diffuse, tc2 -vec2(0,1)).rgb, 1);
+				else if (tc.x >= 0.5 && tc.y >= 0.5)
+					out_col = vec4(texture(gbuffer_normal, tc2 - vec2(1,1)).rgb, 1);
+				else if (tc.x < 0.5 && tc.y < 0.5)
+					out_col = vec4(texture(gbuffer_depth, tc2).rgb, 1);
+				else
+				{
+					if (length(texture(gbuffer_normal, tc2 - vec2(1,1)).rgb) < 0.1)
+						out_col = vec4(1,0,0,1);
+					else out_col = vec4(0,0,0,1);
+				}
+			}
+		}shader;
+	stockshader_add_fsource(&ssf, f);
+
+	populate_shader_with_fragments(shader, &ssf);
+	compile_and_link_shader_showing_log_on_error(shader);
+	free_stockshader_fragments(&ssf);
+	return shader;
+}
+
+
+void apply_to_bound_gbuffer(shader_ref shader) {
+}
+
 // %%%
 
 void add_stock_vertex_shader(struct stockshader_fragments *ssf, bool use_normals, bool use_texcoords) {
@@ -312,6 +379,23 @@ void add_stock_fragment_shader_part(struct stockshader_fragments *ssf, bool use_
 	stockshader_add_fsource(ssf, src);
 }
 
+/*! very basic extension to \ref compile_and_link_shader.
+ * \attention does handle neither tesselation nor compute shaders, atm.
+ */
+bool compile_and_link_shader_showing_log_on_error(shader_ref shader) {
+	if (!compile_and_link_shader(shader)) {
+		fprintf(stderr, "SHADER ERROR\n");
+		if (vertex_shader_info_log(shader))
+			fprintf(stderr, "VERTEX-LOG:\n%s\n", vertex_shader_info_log(shader));
+		if (fragment_shader_info_log(shader))
+			fprintf(stderr, "FRAGMENT-LOG:\n%s\n", fragment_shader_info_log(shader));
+		if (geometry_shader_info_log(shader))
+			fprintf(stderr, "GEOMETRY-LOG:\n%s\n", geometry_shader_info_log(shader));
+		if (shader_info_log(shader))
+			fprintf(stderr, "PROGRAM-LOG:\n%s\n", shader_info_log(shader));
+	}
+}
+
 void stock_shader(struct stockshader_fragments *ssf, bool ambient_tex, bool diffuse_tex, bool specular_tex, bool mask_tex) {
 	add_stock_fragment_shader_part(ssf, true, ambient_tex, diffuse_tex, specular_tex, mask_tex);
 
@@ -330,3 +414,110 @@ void populate_shader_with_fragments(shader_ref shader, struct stockshader_fragme
 		add_shader_uniform(shader, run->data);
 }
 
+//! map texture "internal format" values to texture "type" values. \attention far from complete!
+static GLenum gl_type_of(GLenum x) {
+	switch (x) {
+	case GL_RGBA8:
+		return GL_UNSIGNED_BYTE;
+
+	case GL_DEPTH_COMPONENT16:
+		return GL_UNSIGNED_SHORT;
+
+	case GL_DEPTH_COMPONENT24:
+	case GL_DEPTH_COMPONENT32:
+		return GL_UNSIGNED_INT;
+
+	default:
+		return GL_FLOAT;
+	}
+}
+
+/*! create a default gbuffer usable with the stock shaders.
+ *
+ *  this might seem oddly placed in \ref stock-shader.c but it is specifically
+ *  set up to work with the stock shaders provided by this file and with them
+ *  constitutes some part of the ``default pipeline''.
+ *
+ *  the format parameters (except depth) *must* be some specific RGBA_ value.
+ *  the respective types are determined based on this format (defaulting to
+ *  float if you do something unanticipated).
+ *
+ *  \note if you don't need a specular buffer just pass GL_NONE.
+ */
+framebuffer_ref make_stock_deferred_buffer(const char *name, unsigned int width, unsigned int height, 
+                                           GLenum diffuse_format, GLenum specular_format, GLenum normal_format, 
+                                           GLenum position_format, GLenum depth_format) {
+	GLenum diffuse_type  = gl_type_of(diffuse_format),
+	       specular_type = gl_type_of(specular_format),
+	       normal_type   = gl_type_of(normal_format),
+	       position_type = gl_type_of(position_format),
+	       depth_type    = gl_type_of(depth_format);
+	
+	char *diffuse_name  = strappend3(name, "/", "diffuse"),
+	     *specular_name = strappend3(name, "/", "specular"),
+		 *normal_name   = strappend3(name, "/", "normal"),
+		 *position_name = strappend3(name, "/", "position"),
+		 *depth_name    = strappend3(name, "/", "depth");
+
+	framebuffer_ref fbo = make_framebuffer(name, width, height);
+	tex_params_t param = default_fbo_tex_params();
+	param.min = param.mag = GL_NEAREST;
+	texture_ref diffuse_tex  = make_empty_texture(diffuse_name,  width, height, GL_TEXTURE_2D, diffuse_format,  diffuse_type,  GL_RGBA, &param);
+	texture_ref specular_tex = make_empty_texture(specular_name, width, height, GL_TEXTURE_2D, specular_format, specular_type, GL_RGBA, &param);
+	texture_ref normal_tex   = make_empty_texture(normal_name,   width, height, GL_TEXTURE_2D, normal_format,   normal_type,   GL_RGBA, &param);
+	texture_ref position_tex = make_empty_texture(position_name, width, height, GL_TEXTURE_2D, position_format, position_type, GL_RGBA, &param);
+	texture_ref depth_tex    = make_empty_texture(depth_name,    width, height, GL_TEXTURE_2D, depth_format,    depth_type,    GL_DEPTH_COMPONENT, &param);
+
+	bind_framebuffer(fbo);
+	bind_texture(diffuse_tex,  0); attach_texture_as_colorbuffer(fbo, "diffuse",  diffuse_tex);
+	bind_texture(specular_tex, 1); attach_texture_as_colorbuffer(fbo, "specular", specular_tex);
+	bind_texture(normal_tex,   2); attach_texture_as_colorbuffer(fbo, "normal",   normal_tex);
+	bind_texture(position_tex, 3); attach_texture_as_colorbuffer(fbo, "position", position_tex);
+	bind_texture(depth_tex,    4); attach_texture_as_depthbuffer(fbo, "depth",    depth_tex);
+	check_framebuffer_setup(fbo);
+	unbind_framebuffer(fbo);
+	unbind_texture(diffuse_tex);
+	unbind_texture(specular_tex);
+	unbind_texture(normal_tex);
+	unbind_texture(position_tex);
+	unbind_texture(depth_tex);
+
+	free(diffuse_name);
+	free(specular_name);
+	free(normal_name);
+	free(position_name);
+	free(depth_name);
+
+	return fbo;
+}
+
+drawelement_ref make_stock_gbuffer_default_drawelement(framebuffer_ref fbo) {
+	mesh_ref mesh = make_quad_with_tc("gbuffer stock-quad", 0);
+	vec4f c = { .8, .8, .8, 1.0 };
+	material_ref mat = make_material("gbuffer stock-drawelement material", &c, &c, &c);
+	const char *name = framebuffer_name(fbo);
+	char *diffuse_name  = strappend3(name, "/", "diffuse"),
+	     *specular_name = strappend3(name, "/", "specular"),
+		 *normal_name   = strappend3(name, "/", "normal"),
+		 *position_name = strappend3(name, "/", "position"),
+		 *depth_name    = strappend3(name, "/", "depth");
+	material_add_texture_as(mat, find_texture(diffuse_name),  "gbuffer_diffuse");
+	material_add_texture_as(mat, find_texture(specular_name), "gbuffer_specular");
+	material_add_texture_as(mat, find_texture(normal_name),   "gbuffer_normal");
+	material_add_texture_as(mat, find_texture(position_name), "gbuffer_position");
+	material_add_texture_as(mat, find_texture(depth_name),    "gbuffer_depth");
+	
+	shader_ref shader = make_stock_show_gbuffer_shader();
+
+	drawelement_ref de = make_drawelement("gbuffer drawelement", mesh, shader, mat);
+	prepend_uniform_handler(de, default_material_uniform_handler);	// this is why we did a complete material setup.
+	
+	free(diffuse_name);
+	free(specular_name);
+	free(normal_name);
+	free(position_name);
+	free(depth_name);
+
+	return de;
+}
+	

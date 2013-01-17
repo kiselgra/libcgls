@@ -12,7 +12,8 @@ libcgls_la_SOURCES = 	drawelement.c drawelement.h \
 						c-utils.c c-utils.h \
 						basename.h \
 						material.c material.h \
-						stock-shader.c
+						stock-shader.c \
+						uniforms.c uniforms.h
 
 viewer_cgls_SOURCES = $(libcgls_la_SOURCES) \
 					    main.c \

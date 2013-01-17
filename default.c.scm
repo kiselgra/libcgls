@@ -47,7 +47,7 @@
 		 (de (make-drawelement name mesh shader material)))
 	(prepend-uniform-handler de 'default-matrix-uniform-handler)
 	(prepend-uniform-handler de 'default-material-uniform-handler)
-	(prepend-uniform-handler de custom-uniform-handler)
+	;(prepend-uniform-handler de custom-uniform-handler)
     (add-drawelement-to-scene the-scene de)
     de))
 

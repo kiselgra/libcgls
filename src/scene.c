@@ -171,7 +171,7 @@ void graph_scene_drawelement_inserter(scene_ref ref, drawelement_ref de) {
 		material_use_stock_shader(mat);
 		new_entry->bulk_de = make_drawelement(name, mesh, material_shader(mat), mat);
 		for (struct uniform_handler_node *run = drawelement_uniform_handlers(de); run; run = run->next)
-			append_uniform_handler(new_entry->bulk_de, run->handler);
+			append_drawelement_uniform_handler(new_entry->bulk_de, run->handler);
 		free(name);
 		free(mat_name);
 	}

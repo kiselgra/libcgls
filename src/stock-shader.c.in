@@ -546,7 +546,7 @@ drawelement_ref make_stock_gbuffer_default_drawelement(framebuffer_ref fbo) {
 	shader_ref shader = make_stock_show_gbuffer_shader();
 
 	drawelement_ref de = make_drawelement("gbuffer drawelement", mesh, shader, mat);
-	prepend_uniform_handler(de, default_material_uniform_handler);	// this is why we did a complete material setup.
+	prepend_drawelement_uniform_handler(de, default_material_uniform_handler);	// this is why we did a complete material setup.
 	
 	free(diffuse_name);
 	free(specular_name);

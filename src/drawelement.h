@@ -2,6 +2,7 @@
 #define __CGLS_DRAWELEMENT_H__ 
 
 #include "material.h"
+#include "uniforms.h"
 
 #include <libcgl/libcgl.h>
 
@@ -18,15 +19,8 @@ struct drawelement_list {
     drawelement_ref ref;
 };
 
-typedef bool (*uniform_setter_t)(drawelement_ref drawelement, const char *uniform, int location);
-bool default_matrix_uniform_handler(drawelement_ref ref, const char *uniform, int location);
-bool default_material_uniform_handler(drawelement_ref ref, const char *uniform, int location); // defined in material.c
-
-struct uniform_handler_node {
-	struct uniform_handler_node *next;
-	uniform_setter_t handler;
-};
-
+bool default_matrix_uniform_handler(drawelement_ref *ref, const char *uniform, int location);
+bool default_material_uniform_handler(drawelement_ref *ref, const char *uniform, int location); // defined in material.c
 
 drawelement_ref make_drawelement(const char *modelname, mesh_ref mr, shader_ref sr, material_ref matr);
 
@@ -45,8 +39,8 @@ void bind_uniforms_and_render_indices_of_drawelement(drawelement_ref ref);
 void bind_uniforms_and_render_drawelement_nonindexed(drawelement_ref ref);
 bool drawelement_using_index_range(drawelement_ref ref);
 
-void prepend_uniform_handler(drawelement_ref ref, uniform_setter_t handler);
-void append_uniform_handler(drawelement_ref ref, uniform_setter_t handler);
+void prepend_drawelement_uniform_handler(drawelement_ref ref, uniform_setter_t handler);
+void append_drawelement_uniform_handler(drawelement_ref ref, uniform_setter_t handler);
 void render_drawelement(drawelement_ref ref);
 drawelement_ref find_drawelement(const char *name);
 struct drawelement_list* list_drawelements();

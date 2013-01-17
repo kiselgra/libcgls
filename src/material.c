@@ -207,10 +207,10 @@ shader_ref material_shader(material_ref ref) {
 
 // uniform handlers
 
-#define str_eq(X, Y) (strcmp(X, Y) == 0)
-#define mat drawelement_material(ref)
 
-bool default_material_uniform_handler(drawelement_ref ref, const char *uniform, int location) {
+bool default_material_uniform_handler(drawelement_ref *ref, const char *uniform, int location) {
+#define str_eq(X, Y) (strcmp(X, Y) == 0)
+	material_ref mat = drawelement_material(*ref);
 	if (str_eq(uniform, "ambient_color"))
 		glUniform4fv(location, 1, (float*)material_ambient_color(mat));
 	else if (str_eq(uniform, "diffuse_color"))
@@ -241,10 +241,9 @@ bool default_material_uniform_handler(drawelement_ref ref, const char *uniform, 
 		return false;
 	}
 	return true;
+#undef str_eq
 }
 
-#undef mat
-#undef str_eq
 
 #ifdef WITH_GUILE
 

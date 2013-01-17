@@ -134,7 +134,7 @@ void actual_main()
 	register_scheme_functions();
 
     gbuffer = make_stock_deferred_buffer("gbuffer", cmdline.res.x, cmdline.res.y, GL_RGBA8, GL_RGBA8, GL_RGBA16F, GL_RGBA32F, GL_DEPTH_COMPONENT24);
-    deferred_de = make_stock_gbuffer_default_drawelement(gbuffer);
+    deferred_de = make_stock_gbuffer_default_drawelement(gbuffer, "gbuffer debug", stock_effect_headmounted_spot());
 
     char *config = 0;
     int n = asprintf(&config, "%s/%s", cmdline.include_path, cmdline.config);

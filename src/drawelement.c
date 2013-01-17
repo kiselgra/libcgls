@@ -254,9 +254,9 @@ SCM_DEFINE(s_prepend_uniform_handler, "prepend-uniform-handler", 2, 0, 0, (SCM i
 		char *symbol = scm_to_locale_string(scm_symbol_to_string(handler));
 		drawelement_ref ref = { scm_to_int(id) };
 		if (strcmp(symbol, "default-material-uniform-handler") == 0)
-			prepend_drawelement_uniform_handler(ref, default_material_uniform_handler);
+			prepend_drawelement_uniform_handler(ref, (uniform_setter_t)default_material_uniform_handler);
 		else if (strcmp(symbol, "default-matrix-uniform-handler") == 0)
-			prepend_drawelement_uniform_handler(ref, default_matrix_uniform_handler);
+			prepend_drawelement_uniform_handler(ref, (uniform_setter_t)default_matrix_uniform_handler);
 		else
 			scm_throw(scm_from_locale_symbol("prepend-uniform-handler-error"), scm_list_2(scm_from_locale_string("invalid key"), handler));
 	}

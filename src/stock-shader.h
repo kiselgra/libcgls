@@ -1,6 +1,10 @@
 #ifndef __STOCK_SHADER_H__ 
 #define __STOCK_SHADER_H__ 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "drawelement.h"
 
 #include <libcgl/shader.h>
@@ -42,7 +46,17 @@ enum {
 framebuffer_ref make_stock_deferred_buffer(const char *name, unsigned int width, unsigned int height, 
                                            GLenum diffuse_format, GLenum specular_format, GLenum normal_format, 
                                            GLenum position_format, GLenum depth_format);
-drawelement_ref make_stock_gbuffer_default_drawelement(framebuffer_ref fbo);
+drawelement_ref make_stock_gbuffer_default_drawelement(framebuffer_ref fbo, const char *effect_name, const char *fragment_source);
+
+
+
+const char* stock_effect_headmounted_spot();
+
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 

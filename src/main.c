@@ -24,7 +24,8 @@ framebuffer_ref gbuffer;
 drawelement_ref deferred_de;
 
 void display() {
-	scene_set_traverser(the_scene, graph_scene_bulk_traverser);
+// 	scene_set_traverser(the_scene, graph_scene_bulk_traverser);
+	glDisable(GL_DEBUG_OUTPUT);
 
 	glEnable(GL_DEPTH_TEST);
 	

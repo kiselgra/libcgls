@@ -392,6 +392,37 @@ const char* stock_effect_headmounted_spot() {
 		}shader;
 }
 
+/*! apply hemispherical lighting. 
+ *  you'll have to supply the uniforms 
+ *  \param hemi_dir hemisphere direction to pole -- in eye space!
+ *  \param hemi_col color of the light.
+ *  by your own uniform handler.
+ *
+ *  \note you also have to add then to the resulting shader.
+ *  \ingroup deferred
+ */
+const char* stock_effect_hemisphere_lighting() {
+	return
+		shader{
+			#version 150 core
+			uniform sampler2D gbuffer_diffuse;
+			uniform sampler2D gbuffer_normal;
+            uniform vec3 hemi_dir;
+            uniform vec3 hemi_col;
+			out vec4 out_col;
+			in vec2 tc;
+
+			void main() {
+				vec3 n = normalize(texture(gbuffer_normal, tc).xyz);
+				vec4 diffuse = texture(gbuffer_diffuse, tc);
+
+                float factor = max(0, 0.5*(1+dot(n, normalize(vec3(0,1,0)))));
+//                 float factor = max(0, 0.5*(1+dot(n, normalize(hemi_dir))));
+                out_col = vec4(diffuse.rgb * factor, 0.);
+			}
+		}shader;
+}
+
 
 void apply_to_bound_gbuffer(shader_ref shader) {
 }
@@ -578,7 +609,7 @@ drawelement_ref make_stock_gbuffer_default_drawelement(framebuffer_ref fbo, cons
 	material_add_texture_as(mat, find_texture(position_name), "gbuffer_position");
 	material_add_texture_as(mat, find_texture(depth_name),    "gbuffer_depth");
 	
-	shader_ref shader = make_shader(effect_name, 1, 5);
+	shader_ref shader = make_shader(effect_name, 2, 5);
 	struct stockshader_fragments ssf;
 	init_stockshader_fragments(&ssf);
 	stockshader_add_input(&ssf, "in_pos");

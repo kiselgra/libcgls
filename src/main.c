@@ -21,7 +21,23 @@ float times[samples];
 int valid_pos = 0, curr_pos = 0;
 
 framebuffer_ref gbuffer;
-drawelement_ref deferred_de;
+drawelement_ref deferred_spot, deferred_hemi;
+
+bool hemi_uniform_handler(drawelement_ref *dummy, const char *uniform, int location) {
+	if (strcmp(uniform, "hemi_dir") == 0) {
+		matrix4x4f *view = gl_view_matrix_of_cam(current_camera());
+		vec4f in = { 0, 1, 0, 0 }, out;
+		multiply_matrix4x4f_vec4f(&out, view, &in);
+		glUniform3fv(location, 1, (float*)&out);
+		printf("hemi_dir is %3.6f %3.6f %3.6f\n", out.x, out.y, out.z);
+	}
+	else if (strcmp(uniform, "hemi_col") == 0) {
+		glUniform3f(location, .7, .6, .9);
+	}
+	else
+		return false;
+	return true;
+}
 
 void display() {
 // 	scene_set_traverser(the_scene, graph_scene_bulk_traverser);
@@ -40,9 +56,15 @@ void display() {
 
     unbind_framebuffer(gbuffer);
 
-	glClearColor(1,0,0.25,1);
+	glClearColor(0,0,0,0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    render_drawelement(deferred_de);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_ONE, GL_ONE);
+	glDisable(GL_DEPTH_TEST);
+    render_drawelement(deferred_spot);
+    render_drawelement(deferred_hemi);
+	glDisable(GL_BLEND);
+	glEnable(GL_DEPTH_TEST);
 
 
 	glFinish();
@@ -80,16 +102,6 @@ void keyboard(unsigned char key, int x, int y) {
 		printf("average render time: %.3f ms, %.1f fps \t(sum %f, n %d)\n", avg, 1000.0f/avg, (float)sum, valid_pos);
 	}
 	else standard_keyboard(key, x, y);
-}
-
-// try to implement this in scheme! done! :)
-// then this could be part of a scene description
-bool custom_light_handler(drawelement_ref ref, const char *uniform, int location) {
-	if (strcmp(uniform, "light_dir") == 0)         glUniform3f(location, 0, -1, -0.2);
-	else if (strcmp(uniform, "light_col") == 0)    glUniform3f(location, 1, 0.9, 0.9);
-	else if (strcmp(uniform, "hemi_dir") == 0)     glUniform3f(location, cmdline.hemi_dir.x, cmdline.hemi_dir.y, cmdline.hemi_dir.z);
-	else return false;
-	return true;
 }
 
 void adjust_view(const vec3f *bb_min, const vec3f *bb_max, vec3f *cam_pos, float *distance) {
@@ -134,7 +146,11 @@ void actual_main()
 	register_scheme_functions();
 
     gbuffer = make_stock_deferred_buffer("gbuffer", cmdline.res.x, cmdline.res.y, GL_RGBA8, GL_RGBA8, GL_RGBA16F, GL_RGBA32F, GL_DEPTH_COMPONENT24);
-    deferred_de = make_stock_gbuffer_default_drawelement(gbuffer, "gbuffer debug", stock_effect_headmounted_spot());
+    deferred_spot = make_stock_gbuffer_default_drawelement(gbuffer, "gbuffer spot", stock_effect_headmounted_spot());
+    deferred_hemi = make_stock_gbuffer_default_drawelement(gbuffer, "gbuffer hemi", stock_effect_hemisphere_lighting());
+	add_shader_uniform(drawelement_shader(deferred_hemi), "hemi_dir");
+	add_shader_uniform(drawelement_shader(deferred_hemi), "hemi_col");
+	prepend_drawelement_uniform_handler(deferred_hemi, (uniform_setter_t)hemi_uniform_handler);
 
     char *config = 0;
     int n = asprintf(&config, "%s/%s", cmdline.include_path, cmdline.config);

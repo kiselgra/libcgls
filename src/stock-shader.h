@@ -51,6 +51,7 @@ drawelement_ref make_stock_gbuffer_default_drawelement(framebuffer_ref fbo, cons
 
 
 const char* stock_effect_headmounted_spot();
+const char* stock_effect_hemisphere_lighting();
 
 
 

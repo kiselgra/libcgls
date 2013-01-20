@@ -258,7 +258,6 @@ struct graph_scene_bulk_de_list* graph_scene_bulk_drawelements(scene_ref ref) {
 	struct graph_scene_bulk_de_list *list = 0;
 	struct graph_scene_aux *gs = scene_aux(ref);
 	for (struct by_mesh *by_mesh = gs->meshes; by_mesh; by_mesh = by_mesh->next) {
-		render_drawelement(by_mesh->bulk_de);
 		struct graph_scene_bulk_de_list *node = malloc(sizeof(struct graph_scene_bulk_de_list));
 		node->ref = by_mesh->bulk_de;
 		node->next = list;

@@ -317,7 +317,7 @@ SCM_DEFINE(s_is_graph_scene, "is-graph-scene", 1, 0, 0, (SCM scene), "") {
 	return scm_from_bool(is_graph_scene(s));
 }
 
-SCM_DEFINE(graph_scene_bulk_des, "graph-scene-bulk-drawelements", 1, 0, 0, (SCM scene), "") {
+SCM_DEFINE(s_graph_scene_bulk_des, "graph-scene-bulk-drawelements", 1, 0, 0, (SCM scene), "") {
 	scene_ref s = { scm_to_int(scene) };
 	SCM list = SCM_EOL;
 	struct graph_scene_bulk_de_list *bulk_des = graph_scene_bulk_drawelements(s);

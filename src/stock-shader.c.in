@@ -609,7 +609,7 @@ drawelement_ref make_stock_gbuffer_default_drawelement(framebuffer_ref fbo, cons
 	material_add_texture_as(mat, find_texture(position_name), "gbuffer_position");
 	material_add_texture_as(mat, find_texture(depth_name),    "gbuffer_depth");
 	
-	shader_ref shader = make_shader(effect_name, 2, 5);
+	shader_ref shader = make_shader(effect_name, 2);
 	struct stockshader_fragments ssf;
 	init_stockshader_fragments(&ssf);
 	stockshader_add_input(&ssf, "in_pos");

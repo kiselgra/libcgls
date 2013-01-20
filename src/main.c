@@ -29,7 +29,7 @@ bool hemi_uniform_handler(drawelement_ref *dummy, const char *uniform, int locat
 		vec4f in = { 0, 1, 0, 0 }, out;
 		multiply_matrix4x4f_vec4f(&out, view, &in);
 		glUniform3fv(location, 1, (float*)&out);
-		printf("hemi_dir is %3.6f %3.6f %3.6f\n", out.x, out.y, out.z);
+// 		printf("hemi_dir is %3.6f %3.6f %3.6f\n", out.x, out.y, out.z);
 	}
 	else if (strcmp(uniform, "hemi_col") == 0) {
 		glUniform3f(location, .7, .6, .9);

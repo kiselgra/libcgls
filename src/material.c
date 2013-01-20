@@ -169,7 +169,7 @@ void material_use_stock_shader(material_ref ref) {
 	struct stockshader_fragments ssf;
 	init_stockshader_fragments(&ssf);
 	stock_shader(&ssf, ambient_tex, diffuse_tex, specular_tex, mask_tex);
-	mat->shader = make_shader("test", stockshader_inputs(&ssf), stockshader_uniforms(&ssf));
+	mat->shader = make_shader("test", stockshader_inputs(&ssf));
 	populate_shader_with_fragments(mat->shader, &ssf);
 	compile_and_link_shader_showing_log_on_error(mat->shader);
 }

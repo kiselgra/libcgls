@@ -136,6 +136,13 @@ void append_drawelement_uniform_handler(drawelement_ref ref, uniform_setter_t ha
 	append_uniform_handler(&de->handler_chain, handler);
 }
 
+#ifdef WITH_GUILE
+void append_drawelement_scheme_uniform_handler(drawelement_ref ref, SCM handler) {
+	struct drawelement *de = drawelements+ref.id;
+	append_scheme_uniform_handler(&de->handler_chain, handler);
+}
+#endif
+
 void bind_drawelement_uniforms(struct drawelement *de, drawelement_ref ref) {
 	bind_handled_uniforms(de->handler_chain, de->shader, &ref, "drawelement", de->name);
 }

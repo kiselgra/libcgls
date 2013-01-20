@@ -41,6 +41,9 @@ bool drawelement_using_index_range(drawelement_ref ref);
 
 void prepend_drawelement_uniform_handler(drawelement_ref ref, uniform_setter_t handler);
 void append_drawelement_uniform_handler(drawelement_ref ref, uniform_setter_t handler);
+#ifdef WITH_GUILE
+void append_drawelement_scheme_uniform_handler(drawelement_ref ref, SCM handler);
+#endif
 void render_drawelement(drawelement_ref ref);
 drawelement_ref find_drawelement(const char *name);
 struct drawelement_list* list_drawelements();

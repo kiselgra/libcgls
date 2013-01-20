@@ -4,6 +4,22 @@
 
 #include <stdlib.h>
 
+//! debugging only.
+static void print_chain(struct uniform_handler_node *chain) {
+	int i = 0;
+	bool flag = false;
+	for (struct uniform_handler_node *run = chain; run; run = run->next) {
+		printf("node %d:    c: %d   scm: %d\n", i++, run->handler==0 ? 0 : 1, scm_is_false(run->scheme_handler) ? 0 : 1);
+		if (run->handler == 0 && scm_is_false(run->scheme_handler))
+			flag = true;
+	}
+	if (flag) {
+		printf("bad!\n");
+		((int*)0)[0] = 9;
+		exit(-1);
+	}
+}
+
 //
 void prepend_uniform_handler(struct uniform_handler_node **chain, uniform_setter_t handler) {
 	struct uniform_handler_node *cdr = *chain;
@@ -42,6 +58,23 @@ void append_uniform_handler(struct uniform_handler_node **chain, uniform_setter_
 		*chain = node;
 }
 
+#ifdef WITH_GUILE
+//! a little slower than \ref prepend_uniform_handler
+void append_scheme_uniform_handler(struct uniform_handler_node **chain, SCM handler) {
+	struct uniform_handler_node *node = malloc(sizeof(struct uniform_handler_node));
+	node->handler = 0;
+	node->scheme_handler = handler;
+	node->next = 0;
+	if (*chain) {
+		struct uniform_handler_node *cdr = *chain;
+		while (cdr->next) cdr = cdr->next;
+		cdr->next = node;
+	}
+	else
+		*chain = node;
+}
+#endif
+
 void bind_handled_uniforms(struct uniform_handler_node *chain, shader_ref shader, void *thing, const char *entity_type, const char *entity_name) {
 	for (int i = 0; i < shader_uniforms(shader); ++i) {
 		const char *name = shader_uniform_name_by_id(shader, i);
@@ -68,5 +101,4 @@ void bind_handled_uniforms(struct uniform_handler_node *chain, shader_ref shader
 			printf("WARNING: cannot find a handler for uniform %s of shader %s when attached to %s %s.\n", 
 					name, shader_name(shader), entity_type, entity_name);
 	}
-
 }

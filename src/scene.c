@@ -170,6 +170,8 @@ void graph_scene_drawelement_inserter(scene_ref ref, drawelement_ref de) {
 		material_ref mat = make_material(mat_name, &c, &c, &c);
 		material_use_stock_shader(mat);
 		new_entry->bulk_de = make_drawelement(name, mesh, material_shader(mat), mat);
+		//! \attention when different model transformations are applied to different submeshes, our scheme (copying the first we get a hold of) will break.
+		copy_matrix4x4f(drawelement_trafo(new_entry->bulk_de), drawelement_trafo(de));
 		for (struct uniform_handler_node *run = drawelement_uniform_handlers(de); run; run = run->next)
 			if (run->handler)
 				append_drawelement_uniform_handler(new_entry->bulk_de, run->handler);

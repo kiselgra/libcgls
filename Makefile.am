@@ -18,8 +18,8 @@ revision:
 revisiondir = $(pkgdatadir)
 revision_DATA = revision
 
-#pkgconfigdir = $(libdir)/pkgconfig
-#pkgconfig_DATA = libcgl.pc
+pkgconfigdir = $(libdir)/pkgconfig
+pkgconfig_DATA = libcgls.pc
 
 #EXTRA_DIST += libcgl.pc revision
 

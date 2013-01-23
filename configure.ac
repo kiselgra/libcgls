@@ -4,12 +4,12 @@ AC_PREREQ(2.61)
 AC_INIT([libcgls], [0.0.1])
 AM_INIT_AUTOMAKE
 
-AM_SILENT_RULES([yes])
+#AM_SILENT_RULES([yes])
 
 # name one of your source files here
 AC_CONFIG_SRCDIR([src/main.c])
 AC_CONFIG_HEADER([config.h])
-AC_CONFIG_FILES(Makefile src/Makefile doc/Makefile doc/doxyfile doc/doxygen_mainpage.h)
+AC_CONFIG_FILES(Makefile src/Makefile doc/Makefile doc/doxyfile doc/doxygen_mainpage.h libcgls.pc)
 
 # Checks for programs.
 AC_PROG_CXX

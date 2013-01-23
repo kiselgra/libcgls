@@ -1,0 +1,14 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+datadir=@datadir@/@PACKAGE@
+
+Name: libcgls
+Description: cgls
+Version: @VERSION@
+Libs: -L${libdir} -lcgls
+Cflags: -I${includedir}/libcgls-@VERSION@
+
+#Libs: -L${libdir} -lcgl @GUILE_LDFLAGS@ -lcgls
+#Cflags: -I${includedir}/libcgl-@VERSION@ -D CGL_GL_VERSION=@GL_VERSION@ @GUILE_CFLAGS@

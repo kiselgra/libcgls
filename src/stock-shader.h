@@ -49,6 +49,7 @@ framebuffer_ref make_stock_deferred_buffer(const char *name, unsigned int width,
 drawelement_ref make_stock_gbuffer_default_drawelement(framebuffer_ref fbo, const char *effect_name, const char *fragment_source);
 
 
+const char* stock_gbuffer_using_vertex_shader();
 
 const char* stock_effect_headmounted_spot();
 const char* stock_effect_hemisphere_lighting();

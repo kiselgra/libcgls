@@ -1,0 +1,2 @@
+#!/bin/sh
+./src/viewer-cgls -I. -c default.c.scm ~/render-data/models/sponza.obj

@@ -1,9 +1,11 @@
 lib_LTLIBRARIES = libcgls.la
 noinst_PROGRAMS = viewer-cgls #tsm
 
-BUILT_SOURCES = drawelement.xx scene.xx material.xx
+BUILT_SOURCES = drawelement.xx scene.xx material.xx picking.xx
 BUILT_SOURCES += objloader.x cmdline.x material.x drawelement.x scene.x
-BUILT_SOURCES += stock-shader.c
+BUILT_SOURCES += stock-shader.c picking.c
+
+EXTRA_DIST = stock-shader.c.in picking.c.in
 
 # libconfigfiles_la_SOURCES = grammar.yy  lexer.ll  parser.h  token.h lexer.h config_creator.h configfile.h configfile.cpp
 libcgls_la_SOURCES = 	drawelement.c drawelement.h \
@@ -12,6 +14,7 @@ libcgls_la_SOURCES = 	drawelement.c drawelement.h \
 						c-utils.c c-utils.h \
 						basename.h \
 						material.c material.h \
+						picking.c picking.h \
 						stock-shader.c \
 						uniforms.c uniforms.h
 
@@ -27,7 +30,7 @@ viewer_cgls_SOURCES = $(libcgls_la_SOURCES) \
 # AM_LFLAGS = -P__lex_prefix__ -o lex.yy.c
 
 library_includedir = $(includedir)/$(PACKAGE)-$(VERSION)
-library_include_HEADERS = drawelement.h objloader.h scene.h c-utils.h basename.h material.h uniforms.h stock-shader.h cgls.h
+library_include_HEADERS = drawelement.h objloader.h scene.h c-utils.h basename.h material.h picking.h stock-shader.h uniforms.h cgls.h
 
 # setting c++ flags:
 # AM_CXXFLAGS = -Wall -ansi -pedantic -ggdb -pg
@@ -57,6 +60,9 @@ endif
 
 stock-shader.c: stock-shader.c.in
 	awk -f shaderhack.awk stock-shader.c.in > stock-shader.c
+
+picking.c: picking.c.in
+	awk -f shaderhack.awk picking.c.in > picking.c
 
 # install link
 library_nonversioned_includedir = $(includedir)/$(PACKAGE)

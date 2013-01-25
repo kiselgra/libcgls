@@ -19,13 +19,15 @@ struct uniform_handler_node {
 #endif
 };
 
-void prepend_uniform_handler(struct uniform_handler_node **chain, uniform_setter_t handler);
+void prepend_uniform_handler(struct uniform_handler_node **chain, uniform_setter_t handler); //!< prepend == push
 void append_uniform_handler(struct uniform_handler_node **chain, uniform_setter_t handler);
 
 #ifdef WITH_GUILE
 void prepend_scheme_uniform_handler(struct uniform_handler_node **chain, SCM handler);
 void append_scheme_uniform_handler(struct uniform_handler_node **chain, SCM handler);
 #endif
+
+void pop_uniform_handler(struct uniform_handler_node **chain);
 
 void bind_handled_uniforms(struct uniform_handler_node *chain, shader_ref shader, void *thing, const char *entity_type, const char *entity_name);
 

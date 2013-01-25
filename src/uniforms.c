@@ -41,6 +41,12 @@ void prepend_scheme_uniform_handler(struct uniform_handler_node **chain, SCM han
 }
 #endif
 
+void pop_uniform_handler(struct uniform_handler_node **chain) {
+	struct uniform_handler_node *head = *chain;
+	*chain = head->next;
+	free(head);
+}
+
 //! a little slower than \ref prepend_uniform_handler
 void append_uniform_handler(struct uniform_handler_node **chain, uniform_setter_t handler) {
 	struct uniform_handler_node *node = malloc(sizeof(struct uniform_handler_node));

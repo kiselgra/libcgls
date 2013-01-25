@@ -11,6 +11,9 @@ struct scene {
 	drawelement_node *drawelements;
 	drawelement_node *back;
     unsigned int aux_type;
+	shader_ref with_shader;  //!< this is the temporary shader for special purpose passes.
+	shader_ref *shader;      //!< makes for faster checking.
+	uniform_setter_t extra_uniform_handler; //!< valid only when rendering in single-shader mode.
 	void *aux;
 };
 
@@ -36,6 +39,10 @@ scene_ref make_scene(const char *name) { // no pun intended.
 	scene->aux = 0;
     scene->inserter = default_scene_drawelement_inserter;
 	scene->trav = default_scene_renderer;
+
+	scene->with_shader = make_invalid_shader();
+	scene->shader = 0;
+	scene->extra_uniform_handler = 0;
 
 	return ref;
 }
@@ -76,6 +83,21 @@ scene_traverser_t scene_traverser(scene_ref ref) {
 	return scene->trav;
 }
 
+bool use_single_shader_for_scene(scene_ref ref) {
+	struct scene *scene = scenes+ref.id;
+	return scene->shader != 0;
+}
+
+shader_ref single_shader_for_scene(scene_ref ref) {
+	struct scene *scene = scenes+ref.id;
+	return scene->with_shader;
+}
+
+uniform_setter_t single_shader_extra_uniform_handler(scene_ref ref) {
+	struct scene *scene = scenes+ref.id;
+	return scene->extra_uniform_handler;
+}
+
 void default_scene_drawelement_inserter(scene_ref ref, drawelement_ref de) {
 	struct scene *scene = scenes+ref.id;
 	drawelement_node *new_node = malloc(sizeof(drawelement_node));
@@ -104,9 +126,29 @@ void render_scene(scene_ref ref) {
 	scene->trav(ref);
 }
 
+void render_scene_with_shader(scene_ref ref, shader_ref shader, uniform_setter_t extra_handler) {
+	struct scene *scene = scenes+ref.id;
+	scene->with_shader = shader;
+	scene->shader = &scene->with_shader;
+	scene->extra_uniform_handler = extra_handler;
+	scene->trav(ref);
+	scene->shader = 0;
+	scene->with_shader = make_invalid_shader();
+	scene->extra_uniform_handler = 0;
+}
+
 void default_scene_renderer(scene_ref ref) {
-	for (drawelement_node *run = scene_drawelements(ref); run; run = run->next)
-		render_drawelement(run->ref);
+	if (use_single_shader_for_scene(ref)) {
+		shader_ref shader = single_shader_for_scene(ref);
+		for (drawelement_node *run = scene_drawelements(ref); run; run = run->next) {
+			prepend_drawelement_uniform_handler(run->ref, single_shader_extra_uniform_handler(ref));
+			render_drawelement_with_shader(run->ref, shader);
+			pop_drawelement_uniform_handler(run->ref);
+		}
+	}
+	else
+		for (drawelement_node *run = scene_drawelements(ref); run; run = run->next)
+			render_drawelement(run->ref);
 }
 
 /*! \defgroup graph_scene
@@ -222,18 +264,29 @@ bool must_be_graph_scene(scene_ref ref, const char *fun) {
 void graph_scene_traverser(scene_ref ref) {
 	graph_scene_or_return(ref);
 	struct graph_scene_aux *gs = scene_aux(ref);
+	bool use_single_shader = use_single_shader_for_scene(ref);
+	shader_ref shader = single_shader_for_scene(ref);
+	uniform_setter_t uniform_setter = single_shader_extra_uniform_handler(ref);
+
 	for (struct by_mesh *by_mesh = gs->meshes; by_mesh; by_mesh = by_mesh->next) {
 		bind_mesh_to_gl(by_mesh->mesh);
 		for (struct by_material *by_mat = by_mesh->materials; by_mat; by_mat = by_mat->next) {
 			// we'd have to separate material uniforms (textures [incl.
 			// binding], ...) and drawelement uniforms (object trafo)
-			bind_shader(drawelement_shader(by_mat->drawelements->ref));
-			for (struct drawelement_node *deno = by_mat->drawelements; deno; deno = deno->next)
+			if (!use_single_shader)
+				shader = drawelement_shader(by_mat->drawelements->ref);
+			bind_shader(shader);
+			for (struct drawelement_node *deno = by_mat->drawelements; deno; deno = deno->next) {
+				if (use_single_shader)
+					prepend_drawelement_uniform_handler(deno->ref, uniform_setter);
 				if (drawelement_using_index_range(deno->ref))
 					bind_uniforms_and_render_indices_of_drawelement(deno->ref);
 				else
 					bind_uniforms_and_render_drawelement_nonindexed(deno->ref);
-			unbind_shader(drawelement_shader(by_mat->drawelements->ref));
+				if (use_single_shader)
+					pop_drawelement_uniform_handler(deno->ref);
+			}
+			unbind_shader(shader);
 		}
 		unbind_mesh_from_gl(by_mesh->mesh);
 	}
@@ -242,9 +295,18 @@ void graph_scene_traverser(scene_ref ref) {
 void graph_scene_bulk_traverser(scene_ref ref) {
 	graph_scene_or_return(ref);
 	struct graph_scene_aux *gs = scene_aux(ref);
-	for (struct by_mesh *by_mesh = gs->meshes; by_mesh; by_mesh = by_mesh->next) {
-		render_drawelement(by_mesh->bulk_de);
+
+	if (use_single_shader_for_scene(ref)) {
+		shader_ref shader = single_shader_for_scene(ref);
+		for (struct by_mesh *by_mesh = gs->meshes; by_mesh; by_mesh = by_mesh->next) {
+			prepend_drawelement_uniform_handler(by_mesh->bulk_de, single_shader_extra_uniform_handler(ref));
+			render_drawelement_with_shader(by_mesh->bulk_de, shader);
+			pop_drawelement_uniform_handler(by_mesh->bulk_de);
+		}
 	}
+	else
+		for (struct by_mesh *by_mesh = gs->meshes; by_mesh; by_mesh = by_mesh->next)
+			render_drawelement(by_mesh->bulk_de);
 }
 
 void free_graph_scene_bulk_de_list(struct graph_scene_bulk_de_list *list) {

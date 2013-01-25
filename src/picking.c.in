@@ -1,0 +1,162 @@
+#line 2 "picking.c.in"
+#include "picking.h"
+
+#include "drawelement.h"
+#include "scene.h"
+#include "stock-shader.h"
+
+#include <libcgl/framebuffer.h>
+
+#include <string.h>
+#include <stdlib.h>
+
+#include <stdio.h>
+
+struct picking_buffer {
+	char *name;
+	framebuffer_ref fbo;
+	texture_ref id_tex;
+	drawelement_ref selected_de;
+	shader_ref shader;
+	drawelement_ref clear_de;
+};
+
+#include <libcgl/mm.h>
+define_mm(picking_buffer, picking_buffers, picking_buffer_ref);
+#include "picking.xx"
+
+static void build_shader(struct picking_buffer *buf);
+static void build_clear_de(struct picking_buffer *buf);
+static bool picking_buffer_uniform_handler(drawelement_ref *ref, const char *uniform, int location);
+
+picking_buffer_ref make_picking_buffer(const char *name, unsigned int width, unsigned int height) {
+	picking_buffer_ref ref = allocate_picking_buffer_ref();
+	struct picking_buffer *buf = picking_buffers+ref.id;
+
+	buf->fbo = make_framebuffer(name, width, height);
+	tex_params_t param = default_fbo_tex_params();
+	param.min = param.mag = GL_NEAREST;
+// 	buf->id_tex = make_empty_texture(name, width, height, GL_TEXTURE_2D, GL_R32F, GL_FLOAT, GL_RED, &param);
+	buf->id_tex = make_empty_texture(name, width, height, GL_TEXTURE_2D, GL_R32I, GL_INT, GL_RED_INTEGER, &param);
+// 	buf->id_tex = make_empty_texture(name, width, height, GL_TEXTURE_2D, 
+// 			GL_R8UI, 
+// 			GL_UNSIGNED_SHORT, 
+// 			GL_RED, &param);
+
+	bind_framebuffer(buf->fbo);
+	bind_texture(buf->id_tex, 0);
+	attach_texture_as_colorbuffer(buf->fbo, "id_buffer", buf->id_tex);
+	attach_depth_buffer(buf->fbo);
+	check_framebuffer_setup(buf->fbo);
+	unbind_framebuffer(buf->fbo);
+	unbind_texture(buf->id_tex);
+
+	build_shader(buf);
+	build_clear_de(buf);
+
+	return ref;
+}
+
+void update_picking_buffer(picking_buffer_ref ref, scene_ref scene) {
+	struct picking_buffer *buf = picking_buffers+ref.id;
+	bind_framebuffer(buf->fbo);
+	render_drawelement(buf->clear_de);
+// 	render_scene_with_shader(scene, buf->shader, (uniform_setter_t)picking_buffer_uniform_handler);
+	unbind_framebuffer(buf->fbo);
+
+	bind_texture(buf->id_tex, 0);
+	int *data = download_texture1i(buf->id_tex);
+	for (int y = 0; y < 10; ++y) {
+		for (int x = 0; x < 10; ++x)
+			printf("%d\t", data[y*1024+x]);
+		printf("\n");
+	}
+	free(data);
+	unbind_texture(buf->id_tex);
+}
+
+static const char* picking_vertex_shader() {
+	return
+		shader{
+			#version 420 core
+			in vec3 in_pos;
+	
+			uniform mat4 proj;
+			uniform mat4 view;
+			uniform mat4 model;
+			
+			out vec4 pos_wc;
+
+			void main() {
+				pos_wc = model * vec4(in_pos, 1.0);
+				gl_Position = proj * view * pos_wc;
+			}
+		}shader;
+}
+
+static const char* picking_fragment_shader() {
+	return
+		shader{
+			#version 420 core
+			uniform int id;
+			layout(location=0) out int out_data;
+			void main() {
+				out_data = 97;
+			}
+		}shader;
+}
+
+static void build_shader(struct picking_buffer *buf) {
+	// why do i use stock-shader stuff here?
+	struct stockshader_fragments ssf;
+	init_stockshader_fragments(&ssf);
+	stockshader_add_vsource(&ssf, picking_vertex_shader());
+	stockshader_add_fsource(&ssf, picking_fragment_shader());
+	stockshader_add_input(&ssf, "in_pos");
+	stockshader_add_uniform(&ssf, "proj");
+	stockshader_add_uniform(&ssf, "view");
+	stockshader_add_uniform(&ssf, "model");
+	stockshader_add_uniform(&ssf, "id");
+	buf->shader = make_shader("picking shader", 1);
+	populate_shader_with_fragments(buf->shader, &ssf);
+	compile_and_link_shader_showing_log_on_error(buf->shader);
+	free_stockshader_fragments(&ssf);
+}
+
+static bool clear_picking_buffer_uniform_handler(void *ref, const char *uniform, int location) {
+	printf("----------------------------------> im looking for %s in here...\n", uniform);
+	if (strcmp(uniform, "id") == 0) {
+		glUniform1i(location, -1);
+		return true;
+	}
+	return false;
+}
+
+static bool picking_buffer_uniform_handler(drawelement_ref *ref, const char *uniform, int location) {
+	if (strcmp(uniform, "id") == 0) {
+		glUniform1i(location, ref->id);
+		return true;
+	}
+	return false;
+}
+
+static void build_clear_de(struct picking_buffer *buf) {
+	mesh_ref mesh = make_quad_with_tc("picking/clear-quad", 0);
+	vec4f c = { .8, .8, .8, 1.0 };
+	material_ref mat = make_material("picking/clear-mat", &c, &c, &c);
+	
+	struct stockshader_fragments ssf;
+	init_stockshader_fragments(&ssf);
+	stockshader_add_vsource(&ssf, stock_gbuffer_using_vertex_shader());
+	stockshader_add_fsource(&ssf, picking_fragment_shader());
+	stockshader_add_input(&ssf, "in_pos");
+	stockshader_add_uniform(&ssf, "id");
+	shader_ref shader = make_shader("picking clear shader", 1);
+	populate_shader_with_fragments(shader, &ssf);
+	compile_and_link_shader_showing_log_on_error(shader);
+	free_stockshader_fragments(&ssf);
+
+	buf->clear_de = make_drawelement("picking/clear-de", mesh, shader, mat);
+	prepend_drawelement_uniform_handler(buf->clear_de, clear_picking_buffer_uniform_handler);
+}
+

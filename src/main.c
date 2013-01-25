@@ -3,6 +3,7 @@
 #include "scene.h"
 #include "basename.h"
 #include "stock-shader.h"
+#include "picking.h"
 
 #include "cmdline.h"
 
@@ -22,6 +23,7 @@ int valid_pos = 0, curr_pos = 0;
 
 framebuffer_ref gbuffer;
 drawelement_ref deferred_spot, deferred_hemi;
+picking_buffer_ref picking;
 
 bool hemi_uniform_handler(drawelement_ref *dummy, const char *uniform, int location) {
 	if (strcmp(uniform, "hemi_dir") == 0) {
@@ -41,7 +43,7 @@ bool hemi_uniform_handler(drawelement_ref *dummy, const char *uniform, int locat
 
 void display() {
 // 	scene_set_traverser(the_scene, graph_scene_bulk_traverser);
-	glDisable(GL_DEBUG_OUTPUT);
+// 	glDisable(GL_DEBUG_OUTPUT);
 
 	glEnable(GL_DEPTH_TEST);
 	
@@ -69,6 +71,8 @@ void display() {
 
 	glFinish();
 	wall_time_t end = wall_time_in_ms();
+
+	update_picking_buffer(picking);
 
 	times[curr_pos] = end-start;
 	curr_pos = (curr_pos+1) % samples;
@@ -151,6 +155,8 @@ void actual_main()
 	add_shader_uniform(drawelement_shader(deferred_hemi), "hemi_dir");
 	add_shader_uniform(drawelement_shader(deferred_hemi), "hemi_col");
 	prepend_drawelement_uniform_handler(deferred_hemi, (uniform_setter_t)hemi_uniform_handler);
+
+	picking = make_picking_buffer("pick", cmdline.res.x, cmdline.res.y);
 
     char *config = 0;
     int n = asprintf(&config, "%s/%s", cmdline.include_path, cmdline.config);

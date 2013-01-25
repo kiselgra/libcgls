@@ -122,10 +122,16 @@ bool default_matrix_uniform_handler(drawelement_ref *ref, const char *uniform, i
 
 #undef str_eq
 
-//! \ingroup uniform_handling
+//! prepend (== push) \ingroup uniform_handling
 void prepend_drawelement_uniform_handler(drawelement_ref ref, uniform_setter_t handler) {
 	struct drawelement *de = drawelements+ref.id;
 	prepend_uniform_handler(&de->handler_chain, handler);
+}
+
+//! remove handler which was prepended last \ingroup uniform_handling
+void pop_drawelement_uniform_handler(drawelement_ref ref) {
+	struct drawelement *de = drawelements+ref.id;
+	pop_uniform_handler(&de->handler_chain);
 }
 
 /*! a little slower than \ref prepend_uniform_handler. 

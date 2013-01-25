@@ -62,7 +62,7 @@ scene_traverser_t scene_traverser(scene_ref ref);
 void scene_add_drawelement(scene_ref ref, drawelement_ref de);
 drawelement_node* scene_drawelements(scene_ref ref);
 void render_scene(scene_ref ref);
-
+void render_scene_with_shader(scene_ref ref, shader_ref shader, uniform_setter_t extra_handler);
 	
 void default_scene_renderer(scene_ref ref);
 void graph_scene_traverser(scene_ref ref);

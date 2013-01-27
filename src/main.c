@@ -22,7 +22,7 @@ float times[samples];
 int valid_pos = 0, curr_pos = 0;
 
 framebuffer_ref gbuffer;
-drawelement_ref deferred_spot, deferred_hemi;
+drawelement_ref deferred_spot, deferred_hemi, deferred_copydepth;
 picking_buffer_ref picking;
 drawelement_ref selected_de;
 
@@ -44,7 +44,7 @@ bool hemi_uniform_handler(drawelement_ref *dummy, const char *uniform, int locat
 
 void display() {
 // 	scene_set_traverser(the_scene, graph_scene_bulk_traverser);
-	glDisable(GL_DEBUG_OUTPUT);
+// 	glDisable(GL_DEBUG_OUTPUT);
 
 	glEnable(GL_DEPTH_TEST);
 	
@@ -63,12 +63,16 @@ void display() {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE);
+	render_drawelement(deferred_copydepth);
 	glDisable(GL_DEPTH_TEST);
     render_drawelement(deferred_spot);
     render_drawelement(deferred_hemi);
 	glDisable(GL_BLEND);
 	glEnable(GL_DEPTH_TEST);
 
+
+	if (valid_drawelement_ref(selected_de))
+		highlight_object(picking, selected_de);
 
 	glFinish();
 	wall_time_t end = wall_time_in_ms();
@@ -167,6 +171,7 @@ void actual_main()
 	register_scheme_functions();
 
     gbuffer = make_stock_deferred_buffer("gbuffer", cmdline.res.x, cmdline.res.y, GL_RGBA8, GL_RGBA8, GL_RGBA16F, GL_RGBA32F, GL_DEPTH_COMPONENT24);
+    deferred_copydepth = make_stock_gbuffer_default_drawelement(gbuffer, "copy depth", stock_effect_copy_depthbuffer());
     deferred_spot = make_stock_gbuffer_default_drawelement(gbuffer, "gbuffer spot", stock_effect_headmounted_spot());
     deferred_hemi = make_stock_gbuffer_default_drawelement(gbuffer, "gbuffer hemi", stock_effect_hemisphere_lighting());
 	add_shader_uniform(drawelement_shader(deferred_hemi), "hemi_dir");

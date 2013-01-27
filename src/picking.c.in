@@ -19,6 +19,7 @@ struct picking_buffer {
 	drawelement_ref selected_de;
 	shader_ref shader;
 	drawelement_ref clear_de;
+	material_ref hightlight_material;
 };
 
 #include <libcgl/mm.h>
@@ -36,12 +37,7 @@ picking_buffer_ref make_picking_buffer(const char *name, unsigned int width, uns
 	buf->fbo = make_framebuffer(name, width, height);
 	tex_params_t param = default_fbo_tex_params();
 	param.min = param.mag = GL_NEAREST;
-// 	buf->id_tex = make_empty_texture(name, width, height, GL_TEXTURE_2D, GL_R32F, GL_FLOAT, GL_RED, &param);
 	buf->id_tex = make_empty_texture(name, width, height, GL_TEXTURE_2D, GL_R32I, GL_INT, GL_RED_INTEGER, &param);
-// 	buf->id_tex = make_empty_texture(name, width, height, GL_TEXTURE_2D, 
-// 			GL_R8UI, 
-// 			GL_UNSIGNED_SHORT, 
-// 			GL_RED, &param);
 
 	bind_framebuffer(buf->fbo);
 	bind_texture(buf->id_tex, 0);
@@ -53,6 +49,10 @@ picking_buffer_ref make_picking_buffer(const char *name, unsigned int width, uns
 
 	build_shader(buf);
 	build_clear_de(buf);
+
+	vec4f hc = { 1, 0.5, 0, 1 }, no = { 0, 0, 0, 1 };
+	buf->hightlight_material = make_material("pickingbuffer/highliting-material", &hc, &hc, &no);
+	material_use_stock_shader(buf->hightlight_material);
 
 	return ref;
 }
@@ -75,16 +75,6 @@ void update_picking_buffer(picking_buffer_ref ref, scene_ref scene, int x, int y
 		if (scissor)
 			glDisable(GL_SCISSOR_TEST);
 	unbind_framebuffer(buf->fbo);
-
-// 	bind_texture(buf->id_tex, 0);
-// 	int *data = download_texture1i(buf->id_tex);
-// 	for (int y = 0; y < 10; ++y) {
-// 		for (int x = 0; x < 10; ++x)
-// 			printf("%d\t", data[y*1024+x]);
-// 		printf("\n");
-// 	}
-// 	free(data);
-// 	unbind_texture(buf->id_tex);
 }
 
 drawelement_ref read_picking_buffer(picking_buffer_ref ref, unsigned int x, unsigned int y) {
@@ -96,6 +86,22 @@ drawelement_ref read_picking_buffer(picking_buffer_ref ref, unsigned int x, unsi
 	unbind_texture(buf->id_tex);
 	drawelement_ref de = { id };
 	return de;
+}
+
+void highlight_object(picking_buffer_ref ref, drawelement_ref de) {
+	struct picking_buffer *buf = picking_buffers+ref.id;
+	
+	glDepthMask(GL_FALSE);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	glEnable(GL_POLYGON_OFFSET_LINE);
+	glPolygonOffset(0, -10);
+	
+	render_drawelement_with(de, material_shader(buf->hightlight_material), buf->hightlight_material);
+
+	glPolygonOffset(0, 0);
+	glDisable(GL_POLYGON_OFFSET_LINE);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	glDepthMask(GL_TRUE);
 }
 
 static const char* picking_vertex_shader() {

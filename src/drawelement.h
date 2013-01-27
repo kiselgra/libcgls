@@ -22,7 +22,8 @@ struct drawelement_list {
 bool default_matrix_uniform_handler(drawelement_ref *ref, const char *uniform, int location);
 bool default_material_uniform_handler(drawelement_ref *ref, const char *uniform, int location); // defined in material.c
 
-drawelement_ref make_drawelement(const char *modelname, mesh_ref mr, shader_ref sr, material_ref matr);
+drawelement_ref make_drawelement(const char *name, mesh_ref mr, shader_ref sr, material_ref matr);
+bool valid_drawelement_ref(drawelement_ref ref); // mm.m4
 
 const char* drawelement_name(drawelement_ref ref);
 matrix4x4f* drawelement_trafo(drawelement_ref ref);
@@ -44,6 +45,8 @@ void append_drawelement_uniform_handler(drawelement_ref ref, uniform_setter_t ha
 #ifdef WITH_GUILE
 void append_drawelement_scheme_uniform_handler(drawelement_ref ref, SCM handler);
 #endif
+void pop_drawelement_uniform_handler(drawelement_ref ref);
+
 void render_drawelement(drawelement_ref ref);
 drawelement_ref find_drawelement(const char *name);
 struct drawelement_list* list_drawelements();

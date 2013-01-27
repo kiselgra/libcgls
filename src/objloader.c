@@ -87,7 +87,7 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 		material_ref mat;
 		if (group->mtl) mat = find_material(group->mtl->name);
 		else            mat = fallback_material;
-		make_drawelem(modelname, m, mat);
+		make_drawelem(group->name, m, mat);
 	
 		free(v);
 		free(n);
@@ -177,7 +177,7 @@ void load_objfile_and_create_objects_with_single_vbo(const char *filename, const
 		material_ref mat;
 		if (g->mtl) mat = find_material(g->mtl->name);
 		else        mat = fallback_material;
-		make_drawelem(modelname, m, mat, pos, g->triangles*3);
+		make_drawelem(g->name, m, mat, pos, g->triangles*3);
 		pos += g->triangles*3;
 	}
 	

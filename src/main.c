@@ -24,6 +24,7 @@ int valid_pos = 0, curr_pos = 0;
 framebuffer_ref gbuffer;
 drawelement_ref deferred_spot, deferred_hemi;
 picking_buffer_ref picking;
+drawelement_ref selected_de;
 
 bool hemi_uniform_handler(drawelement_ref *dummy, const char *uniform, int location) {
 	if (strcmp(uniform, "hemi_dir") == 0) {
@@ -43,7 +44,7 @@ bool hemi_uniform_handler(drawelement_ref *dummy, const char *uniform, int locat
 
 void display() {
 // 	scene_set_traverser(the_scene, graph_scene_bulk_traverser);
-// 	glDisable(GL_DEBUG_OUTPUT);
+	glDisable(GL_DEBUG_OUTPUT);
 
 	glEnable(GL_DEPTH_TEST);
 	
@@ -72,7 +73,7 @@ void display() {
 	glFinish();
 	wall_time_t end = wall_time_in_ms();
 
-	update_picking_buffer(picking);
+	update_picking_buffer(picking, the_scene, -1, -1);
 
 	times[curr_pos] = end-start;
 	curr_pos = (curr_pos+1) % samples;
@@ -137,6 +138,21 @@ static void register_scheme_functions() {
 }
 #endif
 
+void mouse_func(int button, int state, int x, int y)
+{
+	if (state == GLUT_DOWN && button == GLUT_RIGHT_BUTTON) {
+		int yy = cmdline.res.y - y;
+		update_picking_buffer(picking, the_scene, x, yy);
+		selected_de = read_picking_buffer(picking, x, yy);
+		if (valid_drawelement_ref(selected_de))
+			printf("selected drawelement %s.\n", drawelement_name(selected_de));
+		else
+			printf("selected nothing.\n");
+	}
+	else
+		standard_mouse_func(button, state, x, y);
+}
+
 void actual_main() 
 {
 	dump_gl_info();
@@ -146,6 +162,7 @@ void actual_main()
 	register_display_function(display);
 	register_idle_function(idle);
 	register_keyboard_function(keyboard);
+	register_mouse_function(mouse_func);
 
 	register_scheme_functions();
 

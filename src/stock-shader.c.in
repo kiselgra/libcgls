@@ -352,6 +352,23 @@ const char* stock_show_gbuffer_debug_shader() {
 /*! \defgroup deferred
  */
 
+//! copy depth buffer (sorry, extra pass for this one). \ingroup deferred
+const char* stock_effect_copy_depthbuffer() {
+	return
+		shader{
+			#version 150 core
+			uniform sampler2D gbuffer_depth;
+			out vec4 out_col;
+			in vec2 tc;
+			
+			void main() {
+				float d = texture(gbuffer_depth, tc).r;
+				gl_FragDepth = d;
+				out_col = vec4(0,0,0,0);
+			}
+		}shader;
+}
+
 //! a very basic spotlight (which requires no further uniforms). \ingroup deferred
 const char* stock_effect_headmounted_spot() {
 	return

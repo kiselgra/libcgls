@@ -77,7 +77,7 @@ void display() {
 	glFinish();
 	wall_time_t end = wall_time_in_ms();
 
-	update_picking_buffer(picking, the_scene, -1, -1);
+// 	update_picking_buffer(picking, the_scene, -1, -1);
 
 	times[curr_pos] = end-start;
 	curr_pos = (curr_pos+1) % samples;

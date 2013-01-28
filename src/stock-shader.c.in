@@ -645,7 +645,7 @@ drawelement_ref make_stock_gbuffer_default_drawelement(framebuffer_ref fbo, cons
 	compile_and_link_shader_showing_log_on_error(shader);
 	free_stockshader_fragments(&ssf);
 
-	drawelement_ref de = make_drawelement("gbuffer drawelement", mesh, shader, mat);
+	drawelement_ref de = make_drawelement(effect_name, mesh, shader, mat);
 	prepend_drawelement_uniform_handler(de, (uniform_setter_t)default_material_uniform_handler);	// this is why we did a complete material setup.
 	
 	free(diffuse_name);

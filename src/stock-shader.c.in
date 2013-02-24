@@ -433,9 +433,9 @@ const char* stock_effect_hemisphere_lighting() {
 				vec3 n = normalize(texture(gbuffer_normal, tc).xyz);
 				vec4 diffuse = texture(gbuffer_diffuse, tc);
 
-                float factor = max(0, 0.5*(1+dot(n, normalize(vec3(0,1,0)))));
-//                 float factor = max(0, 0.5*(1+dot(n, normalize(hemi_dir))));
-                out_col = vec4(diffuse.rgb * factor, 0.);
+//                 float factor = max(0, 0.5*(1+dot(n, normalize(vec3(0,1,0)))));
+                float factor = max(0, 0.5*(1+dot(n, normalize(hemi_dir))));
+                out_col = vec4(hemi_col * diffuse.rgb * factor, 0.);
 			}
 		}shader;
 }

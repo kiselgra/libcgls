@@ -9,6 +9,10 @@
 
 #include <stdbool.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef bool (*uniform_setter_t)(void *ref, const char *uniform, int location);
 
 struct uniform_handler_node {
@@ -30,6 +34,11 @@ void append_scheme_uniform_handler(struct uniform_handler_node **chain, SCM hand
 void pop_uniform_handler(struct uniform_handler_node **chain);
 
 void bind_handled_uniforms(struct uniform_handler_node *chain, shader_ref shader, void *thing, const char *entity_type, const char *entity_name);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 

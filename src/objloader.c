@@ -13,6 +13,20 @@
 #include "basename.h"
 #include <libgen.h>
 
+/*! \defgroup objloading
+ *
+ *	\see objloader.h
+ *
+ *	Loading of obj files is actually starting a cascade of obj loader steps,
+ *  	the first one being defined in libobjloader,
+ *		the second one executed by libcgl,
+ *		finally leading to us.
+ * 
+ * 	The method of choice is \ref load_objfile_and_create_objects_with_single_vbo.
+ *	There is still \ref load_objfile_and_create_objects_with_separate_vbos but it is rendered far slower (naturally) and no longer actively maintained.
+ */
+
+
 void add_texture_if_found(material_ref mat, const char *filename, tex_params_t *p, const char *texname) {
 	char *fn = find_file(filename);
 	if (fn)
@@ -22,6 +36,11 @@ void add_texture_if_found(material_ref mat, const char *filename, tex_params_t *
 }
 
 // objectname may be 0, in which case the filename will be used to prefix the generated objects.
+/*!	\brief Load an obj file and create a separate vbo for each submesh.
+ *
+ *	See \ref load_objfile_and_create_objects_with_single_vbo for a more 'detailled' description.
+ *	\deprecated use \ref load_objfile_and_create_objects_with_single_vbo.
+ */
 void load_objfile_and_create_objects_with_separate_vbos(const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max, 
                                                         void (*make_drawelem)(const char*, mesh_ref, material_ref), material_ref fallback_material) {
 	obj_data objdata;
@@ -114,6 +133,24 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 	pop_image_path_front();
 }
 
+/*! \brief Callback you have to provide to actually create drawelements while loading an obj file.
+ *	\note This function is listed for documentation purposes, only. It does not exist.
+ */
+static void example_make_drawelem(const char *name, mesh_ref mesh, material_ref mat, unsigned int start, unsigned int len) {}
+
+/*! \brief Load and obj file and store all data in a single vbo, creating indexed drawelements.
+ *
+ *	\note Loading an obj file usually entails the loading of textures as well. 
+ *			So be sure to register your image paths.
+ *			The path the obj file is found in is automatically added to the image search path, while loading textures for that model.
+ *
+ *	\param filename The file to load.
+ *	\param object_name The name of the model (prepended to all submeshes), defaults to filename if 0.
+ *	\param bb_min Returns the min-part of the bb.
+ *	\param bb_max Returns the max-part of the bb.
+ *	\param make_drawelem This function is called for each sub mesh of the model. Its job is to actually create the drawelement. See \ref example_make_drawelem.
+ *	\param fallback_material The material to be used should there be a sub mesh for which we can't find a material.
+ */
 void load_objfile_and_create_objects_with_single_vbo(const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max, 
                                                      void (*make_drawelem)(const char*, mesh_ref, material_ref, unsigned int start, unsigned int len), material_ref fallback_material) {
 	obj_data objdata;

@@ -37,6 +37,7 @@ void add_texture_if_found(material_ref mat, const char *filename, tex_params_t *
 
 // objectname may be 0, in which case the filename will be used to prefix the generated objects.
 /*!	\brief Load an obj file and create a separate vbo for each submesh.
+ *	\ingroup objloading
  *
  *	See \ref load_objfile_and_create_objects_with_single_vbo for a more 'detailled' description.
  *	\deprecated use \ref load_objfile_and_create_objects_with_single_vbo.
@@ -135,10 +136,31 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 
 /*! \brief Callback you have to provide to actually create drawelements while loading an obj file.
  *	\note This function is listed for documentation purposes, only. It does not exist.
+ *	\ingroup objloading
+ *
+ *	The called function will have to decide if and how to create a drawelement for a given submesh, and wether or not to add it to the scene.
+ *	Here is a small Scheme snipped (taken from default.c.scm) showing the default implementation (which uses a stock-shader):
+ *	\code
+ *  (define (make-de name mesh material)
+ *    (material-use-stock-shader! material)
+ *    (let* ((shader (material-shader material))
+ *           (de (make-drawelement name mesh shader material)))
+ *      (prepend-uniform-handler de 'default-matrix-uniform-handler)
+ *      (prepend-uniform-handler de 'default-material-uniform-handler)
+ *      (add-drawelement-to-scene the-scene de)
+ *      de))
+ *  
+ *  (define (make-de-idx name mesh material pos len)
+ *    (let ((de (make-de name mesh material)))
+ *      (drawelement-index-buffer-range! de pos len)))
+ *	\endcode
+ *	Note that these are two versions, implementing the same logic for both <tt>load_objfile_*</tt> calls.
+ *
  */
 static void example_make_drawelem(const char *name, mesh_ref mesh, material_ref mat, unsigned int start, unsigned int len) {}
 
 /*! \brief Load and obj file and store all data in a single vbo, creating indexed drawelements.
+ *	\ingroup objloading
  *
  *	\note Loading an obj file usually entails the loading of textures as well. 
  *			So be sure to register your image paths.

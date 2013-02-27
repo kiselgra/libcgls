@@ -4,6 +4,20 @@
 
 #include <stdlib.h>
 
+/*! \defgroup uniforms Uniform Handling
+ *
+ * 	Uniforms are handled via `handler chains'; linked lists containing functions (C or Scheme) 
+ * 		which check if they can provide a given uniform, and set its value accordingly.
+ * 	Priority can be established by prepending or appending to a chain.
+ *
+ * 	Currently, only \ref drawelements do have handler chains.
+ * 	But this might change in a later redesign for more general uniform handling.
+ */
+
+/*! \file uniforms.h
+ *  \ingroup uniforms
+ */
+
 //! debugging only.
 static void print_chain(struct uniform_handler_node *chain) {
 	int i = 0;
@@ -19,6 +33,10 @@ static void print_chain(struct uniform_handler_node *chain) {
 		exit(-1);
 	}
 }
+
+/*! \addtogroup uniforms
+ * 	@{
+ */
 
 //
 void prepend_uniform_handler(struct uniform_handler_node **chain, uniform_setter_t handler) {
@@ -108,3 +126,6 @@ void bind_handled_uniforms(struct uniform_handler_node *chain, shader_ref shader
 					name, shader_name(shader), entity_type, entity_name);
 	}
 }
+
+//! @}
+

@@ -21,8 +21,14 @@ struct scene {
 define_mm(scene, scenes, scene_ref);
 #include "scene.xx"
 
-/*! \defgroup basic_scene
- *  standard, most primitive, scene type
+/*! \defgroup basic_scene Basic Scene
+ *  Standard, most primitive, scene type
+ *
+ *  For an extension (requiring indexed drawelements) 
+ */
+
+/*! \addtogroup basic_scene
+ * 	@{
  */
 
 scene_ref make_scene(const char *name) { // no pun intended.
@@ -151,8 +157,17 @@ void default_scene_renderer(scene_ref ref) {
 			render_drawelement(run->ref);
 }
 
-/*! \defgroup graph_scene
- *  first level vbo, second level material.
+//! @}
+
+/*! \defgroup graph_scene Graph Scene
+ *  First level vbo, second level material.
+ *
+ *  \note The public interface of \ref basic_scene still applies and is not repeated here.
+ *  		The graph scene is implemented via \ref scene_aux.
+ */
+
+/*! \addtogroup graph_scene
+ * 	@{
  */
 
 //! internal \ref graph_scene structure. \ingroup graph_scene
@@ -258,8 +273,14 @@ bool must_be_graph_scene(scene_ref ref, const char *fun) {
 	return igs;
 }
 
+//! @}
+
 #define graph_scene_or_return(A) if (!must_be_graph_scene(A, __FUNCTION__)) return;
 #define graph_scene_or_return_X(A,X) if (!must_be_graph_scene(A, __FUNCTION__)) return (X);
+
+/*! \addtogroup graph_scene
+ * 	@{
+ */
 
 void graph_scene_traverser(scene_ref ref) {
 	graph_scene_or_return(ref);
@@ -357,6 +378,7 @@ scene_ref make_graph_scene(const char *name) {
 	return ref;
 }
 
+//! @}
 
 #ifdef WITH_GUILE
 #include <libguile.h>

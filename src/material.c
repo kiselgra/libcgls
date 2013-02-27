@@ -8,16 +8,25 @@
 
 #include <stdio.h>
 
-/* material. 
+/*! \defgroup materials Materials
  *
- * a material collects all its textures into one list.
+ * A material collects information about surface properties, such as colors, textures (regardless of use).
+ * It furthermore can generate and hold a shader applicaple to render objects of a given material via the stock shader pipeline, see \ref deferred.
+ *
+ * \section mattex Handling of textures
+ * A material collects all its textures into one list.
  * this is to emphasize that the material itself has no way to enforce a
  * specific use a any texture: this is controlled by the shader requesting it.
  * 
- * the texture list caches the names of the stored textures for faster
- * searching time. note that these may beome stale as you replace textures.
+ * The texture list caches the names of the stored textures for faster
+ * searching time. Note that these may beome stale as you replace textures.
  *
  */
+
+/*! \file material.h
+ *  \ingroup materials
+ */
+
 struct material {
 	char *name;
 	vec4f k_amb, k_diff, k_spec;
@@ -31,12 +40,16 @@ struct material {
 	void *aux;
 };
 
-// see http://gustedt.wordpress.com/2010/11/29/myth-and-reality-about-inline-in-c99/
-extern inline bool equal_material_refs(material_ref a, material_ref b);
-
 #include <libcgl/mm.h>
 define_mm(material, materials, material_ref);
 #include "material.xx"
+
+/*! \addtogroup materials
+ * 	@{
+ */
+
+// see http://gustedt.wordpress.com/2010/11/29/myth-and-reality-about-inline-in-c99/
+extern inline bool equal_material_refs(material_ref a, material_ref b);
 
 material_ref make_material(const char *name, vec4f *amb, vec4f *diff, vec4f *spec) {
 	material_ref ref = allocate_material_ref();
@@ -151,6 +164,9 @@ void material_set_aux(material_ref ref, void *aux) {
 // shader "generation"
 #include "stock-shader.h"
 
+/*! \brief Generate a shader applicable to rendering using the stock shader pipeline, see \ref deferred.
+ *  \note Generating shaders for a non-deferred pipeline would be a rather more global undertaking.
+ */
 void material_use_stock_shader(material_ref ref) {
 	struct material *mat = materials+ref.id;
 	struct texture_node *textures = material_textures(ref);
@@ -205,9 +221,11 @@ shader_ref material_shader(material_ref ref) {
 	return mat->shader;
 }
 
+//! @}
+
 // uniform handlers
 
-
+//! \ingroup uniforms
 bool default_material_uniform_handler(drawelement_ref *ref, const char *uniform, int location) {
 #define str_eq(X, Y) (strcmp(X, Y) == 0)
 	material_ref mat = drawelement_material(*ref);

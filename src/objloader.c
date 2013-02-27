@@ -13,7 +13,7 @@
 #include "basename.h"
 #include <libgen.h>
 
-/*! \defgroup objloading
+/*! \defgroup objloading Obj File Loading
  *
  *	\see objloader.h
  *

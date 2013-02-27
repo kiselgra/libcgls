@@ -4,6 +4,8 @@
  * 	\version @VERSION@
  *
  *
+ * 	\section main About
+ *
  * 	The cgls library is an extension to the more basic cgl library.
  *  The name is cgl plus s, for scheme (in both senses).
  *  
@@ -16,10 +18,24 @@
  *  	\li of a scene (see \ref scene.h) and accordingly some limited support for scene graphs, and
  *  	\li the stock shading methods (see \ref stock-shader.h).
  *
+ *  Regarding "Refs", see the cgl documentation.
+ *   
  *	All structures and methods are provided for use from C and Scheme.
  *  
  *	The framework is supposed to be easily adaptable to special rendering needs. Let's see how this plays out :)
  *
+ *  \section license License & Terms of use.
+ *
+ *  (c) Kai.
+ *
+ *  May be used under the Terms of the GNU GPL v3 or later.
+ *
+ *  It would be nice if you would stall any redistribution until this project has established a fixed website :)
+ *
+ *  \section deps Dependencies and build instructions
+ *
+ *  See the documentation of cgl.
+ *  The only further dependency is cgl itself.
  *
  */
 

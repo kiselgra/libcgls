@@ -11,6 +11,28 @@
 #include <string.h>
 #include <stdio.h>
 
+/*! \defgroup deferred Deferred Shading
+ */
+
+
+/*! \defgroup stockshader Stock Shaders
+ *
+ * 	The stock shaders are a set of shaders used to implement the default pipeline, see \ref deferred.
+ *
+ *
+ */
+
+/*! \defgroup stockshader_handling Stock Shader Handling
+ * 	\ingroup stockshader
+ *
+ * 	These are a few wrapper functions around cgl's shader construction to facilitate accumulation before creation.
+ */
+
+
+/*! \addtogroup stockshader_handling
+ * 	@{
+ */
+
 void init_stockshader_fragments(struct stockshader_fragments *ssf) {
 	ssf->inputs = ssf->vertex_sources = ssf->fragment_sources = ssf->uniforms = 0;
 }
@@ -61,6 +83,9 @@ int stockshader_vsources(struct stockshader_fragments *ssf) { return stringlist_
 int stockshader_fsources(struct stockshader_fragments *ssf) { return stringlist_length(ssf->fragment_sources); }
 int stockshader_uniforms(struct stockshader_fragments *ssf) { return stringlist_length(ssf->uniforms); }
 
+//! @}
+
+// is this really used?
 enum settings {
 	modulate_texture_by_color = 01,
 	ignore_ambient = 02,
@@ -73,6 +98,10 @@ bool ign_amb() {
 }
 
 // %%%
+
+/*! \addtogroup stockshader
+ * 	@{
+ */
 
 const char* vertex_pos_norm_notex() {
 	return
@@ -349,10 +378,7 @@ const char* stock_show_gbuffer_debug_shader() {
 		}shader;
 }
 
-/*! \defgroup deferred
- */
-
-//! copy depth buffer (sorry, extra pass for this one). \ingroup deferred
+//! copy depth buffer (sorry, extra pass for this one).
 const char* stock_effect_copy_depthbuffer() {
 	return
 		shader{
@@ -369,7 +395,7 @@ const char* stock_effect_copy_depthbuffer() {
 		}shader;
 }
 
-//! a very basic spotlight (which requires no further uniforms). \ingroup deferred
+//! a very basic spotlight (which requires no further uniforms).
 const char* stock_effect_headmounted_spot() {
 	return
 		shader{
@@ -409,6 +435,7 @@ const char* stock_effect_headmounted_spot() {
 		}shader;
 }
 
+
 /*! apply hemispherical lighting. 
  *  you'll have to supply the uniforms 
  *  \param hemi_dir hemisphere direction to pole -- in eye space!
@@ -416,7 +443,6 @@ const char* stock_effect_headmounted_spot() {
  *  by your own uniform handler.
  *
  *  \note you also have to add then to the resulting shader.
- *  \ingroup deferred
  */
 const char* stock_effect_hemisphere_lighting() {
 	return
@@ -440,11 +466,17 @@ const char* stock_effect_hemisphere_lighting() {
 		}shader;
 }
 
+//! @}
 
+//! \attention TODO
 void apply_to_bound_gbuffer(shader_ref shader) {
 }
 
 // %%%
+
+/*! \addtogroup stockshader_handling
+ * 	@{
+ */
 
 void add_stock_vertex_shader(struct stockshader_fragments *ssf, bool use_normals, bool use_texcoords) {
 	const char *src = 0;
@@ -541,6 +573,8 @@ static GLenum gl_type_of(GLenum x) {
 		return GL_FLOAT;
 	}
 }
+
+//! @}
 
 /*! \brief create a default gbuffer usable with the stock shaders.
  *

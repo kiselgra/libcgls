@@ -29,8 +29,12 @@
 
 void add_texture_if_found(material_ref mat, const char *filename, tex_params_t *p, const char *texname) {
 	char *fn = find_file(filename);
-	if (fn)
-		material_add_texture_as(mat, make_texture(filename, fn, GL_TEXTURE_2D, p), texname);
+	if (fn) {
+		texture_ref tex = find_texture_by_filename(fn);
+		if (!valid_texture_ref(tex))
+			tex = make_texture(filename, fn, GL_TEXTURE_2D, p);
+		material_add_texture_as(mat, tex, texname);
+	}
 	else
 		fprintf(stderr, "Cannot find texture named '%s' in any registered search directory.\n", filename);
 }

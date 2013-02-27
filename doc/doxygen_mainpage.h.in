@@ -24,6 +24,11 @@
  *  
  *	The framework is supposed to be easily adaptable to special rendering needs. Let's see how this plays out :)
  *
+ *
+ *	To start digging around we suggest using the `Modules' tab.
+ *	The example viewer program (see \ref main.c) as well as the default Scheme startup file (see \ref defaultscm) might also be interesting.
+ *
+ *
  *  \section license License & Terms of use.
  *
  *  (c) Kai.
@@ -39,3 +44,9 @@
  *
  */
 
+/*! \page defaultscm The Default Scheme Startup File
+ * 
+ * \include default.c.scm
+ * 
+ * Sorry for the bad syntax highlighting. Doxygen is leaving us alone here...
+ */

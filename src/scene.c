@@ -10,10 +10,15 @@ struct scene {
 	scene_traverser_t trav;
 	drawelement_node *drawelements;
 	drawelement_node *back;
-    unsigned int aux_type;
+
 	shader_ref with_shader;  //!< this is the temporary shader for special purpose passes.
 	shader_ref *shader;      //!< makes for faster checking.
 	uniform_setter_t extra_uniform_handler; //!< valid only when rendering in single-shader mode.
+
+	scene_light_application_t apply_lights;
+	struct light_list *lights;
+
+    unsigned int aux_type;
 	void *aux;
 };
 
@@ -49,6 +54,7 @@ scene_ref make_scene(const char *name) { // no pun intended.
 	scene->with_shader = make_invalid_shader();
 	scene->shader = 0;
 	scene->extra_uniform_handler = 0;
+	scene->apply_lights = 0;
 
 	return ref;
 }
@@ -127,9 +133,29 @@ drawelement_node* scene_drawelements(scene_ref ref) {
 	return scene->drawelements;
 }
 
+void scene_set_lighting(scene_ref ref, scene_light_application_t app) {
+	struct scene *scene = scenes+ref.id;
+	scene->apply_lights = app;
+}
+
+/*! \brief Render the scene.
+ *
+ * 	Traversal.
+ * 	Calls the scene traverser to render the drawelements. Potentially to a Gbuffer.
+ * 	
+ * 	Lighting.
+ * 	Currently we only support lighting by a scheme in accordance to our stock
+ * 	lighting, see \ref light.h, and our deferred pipeline.
+ * 	Extending this function to handle lighting under forward rendering should
+ * 	be straight forward, given appropriate shaders are bound to the
+ * 	drawelements being rendered.
+ */
 void render_scene(scene_ref ref) {
 	struct scene *scene = scenes+ref.id;
 	scene->trav(ref);
+
+	if (scene->apply_lights && scene->lights)
+		scene->apply_lights(scene->lights);
 }
 
 void render_scene_with_shader(scene_ref ref, shader_ref shader, uniform_setter_t extra_handler) {

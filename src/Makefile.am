@@ -1,7 +1,7 @@
 lib_LTLIBRARIES = libcgls.la
 noinst_PROGRAMS = viewer-cgls #tsm
 
-BUILT_SOURCES = drawelement.xx scene.xx material.xx picking.xx
+BUILT_SOURCES = drawelement.xx scene.xx material.xx picking.xx light.xx
 BUILT_SOURCES += objloader.x cmdline.x material.x drawelement.x scene.x
 BUILT_SOURCES += stock-shader.c picking.c
 
@@ -13,6 +13,7 @@ libcgls_la_SOURCES = 	drawelement.c drawelement.h \
 						scene.c scene.h \
 						c-utils.c c-utils.h \
 						basename.h \
+						light.c light.h \
 						material.c material.h \
 						picking.c picking.h \
 						stock-shader.c \

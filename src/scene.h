@@ -2,6 +2,7 @@
 #define __CGLS_SCENE_H__ 
 
 #include "drawelement.h"
+#include "light.h"
 
 /*! a very simple scene definition.
  *
@@ -40,6 +41,9 @@ void default_scene_renderer(scene_ref ref);
 
 typedef void (*scene_drawelement_inserter_t)(scene_ref, drawelement_ref);
 void default_scene_drawelement_inserter(scene_ref s, drawelement_ref d);
+
+typedef void (*scene_light_application_t)(struct light_list *);
+//!< a default is supplied in light.c
 
 enum { scene_type_default = 0, scene_type_graph = 1 };
 

@@ -95,6 +95,7 @@ void add_light_uniform_handler(light_ref ref, bool (*handler)(light_ref *, const
 
 
 void apply_deferred_lights(struct light_list *lights) {
+	glClearColor(0,0,0,0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE);
@@ -102,6 +103,7 @@ void apply_deferred_lights(struct light_list *lights) {
 	glDisable(GL_DEPTH_TEST);
 	while (lights) {
 		drawelement_ref de = light_deferred_drawelement(lights->ref);
+		render_drawelement(de);
 		lights = lights->next;
 	}
 	glEnable(GL_DEPTH_TEST);
@@ -144,6 +146,7 @@ light_ref make_headmounted_spotlight(const char *name, framebuffer_ref gbuffer, 
 	add_light_uniform_handler(ref, stock_spotlight_uniform_handler);
 	
 	drawelement_ref deferred = make_stock_gbuffer_default_drawelement(gbuffer, name, stock_effect_headmounted_spot());
+	light_use_deferred_drawelement(ref, deferred);
 
 	return ref;
 }

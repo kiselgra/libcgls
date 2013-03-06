@@ -4,6 +4,7 @@
 #include "basename.h"
 #include "stock-shader.h"
 #include "picking.h"
+#include "light.h"
 
 #include "cmdline.h"
 
@@ -51,9 +52,13 @@ void display() {
     glFinish();
 	wall_time_t start = wall_time_in_ms();
 
+	glClearColor(0,0,0.25,1);
+    bind_framebuffer(gbuffer);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    unbind_framebuffer(gbuffer);
+	/*
     bind_framebuffer(gbuffer);
 
-	glClearColor(0,0,0.25,1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	render_scene(the_scene);
 
@@ -69,7 +74,8 @@ void display() {
     render_drawelement(deferred_hemi);
 	glDisable(GL_BLEND);
 	glEnable(GL_DEPTH_TEST);
-
+	*/
+	render_scene_deferred(the_scene, gbuffer);
 
 	if (valid_drawelement_ref(selected_de))
 		highlight_object(picking, selected_de);
@@ -186,6 +192,12 @@ void actual_main()
     free(config);
 	scene_ref scene = { 0 };
 	the_scene = scene;
+	
+	
+	light_ref hms = make_headmounted_spotlight("bla", gbuffer, 30);
+	add_light_to_scene(the_scene, hms);
+	scene_set_lighting(the_scene, apply_deferred_lights);
+
 
 	enter_glut_main_loop();
 }

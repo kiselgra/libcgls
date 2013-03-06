@@ -54,6 +54,7 @@ scene_ref make_scene(const char *name) { // no pun intended.
 	scene->with_shader = make_invalid_shader();
 	scene->shader = 0;
 	scene->extra_uniform_handler = 0;
+	scene->lights = 0;
 	scene->apply_lights = 0;
 
 	return ref;
@@ -133,6 +134,14 @@ drawelement_node* scene_drawelements(scene_ref ref) {
 	return scene->drawelements;
 }
 
+void add_light_to_scene(scene_ref ref, light_ref light) {
+	struct scene *scene = scenes+ref.id;
+	struct light_list *node = malloc(sizeof(struct light_list));
+	node->next = scene->lights;
+	node->ref = light;
+	scene->lights = node;
+}
+
 void scene_set_lighting(scene_ref ref, scene_light_application_t app) {
 	struct scene *scene = scenes+ref.id;
 	scene->apply_lights = app;
@@ -153,9 +162,38 @@ void scene_set_lighting(scene_ref ref, scene_light_application_t app) {
 void render_scene(scene_ref ref) {
 	struct scene *scene = scenes+ref.id;
 	scene->trav(ref);
+}
+
+//!	\copydoc render_scene
+void render_scene_to_buffer(scene_ref ref, framebuffer_ref target) {
+	bind_framebuffer(target);
+	struct scene *scene = scenes+ref.id;
+	scene->trav(ref);
+	unbind_framebuffer(target);
+}
+
+//!	\copydoc render_scene
+void render_scene_deferred(scene_ref ref, framebuffer_ref gbuffer) {
+	bind_framebuffer(gbuffer);
+	struct scene *scene = scenes+ref.id;
+	scene->trav(ref);
+	unbind_framebuffer(gbuffer);
 
 	if (scene->apply_lights && scene->lights)
 		scene->apply_lights(scene->lights);
+}
+
+//!	\copydoc render_scene
+void render_scene_deferred_to_buffer(scene_ref ref, framebuffer_ref gbuffer, framebuffer_ref target) {
+	bind_framebuffer(gbuffer);
+	struct scene *scene = scenes+ref.id;
+	scene->trav(ref);
+	unbind_framebuffer(gbuffer);
+
+	bind_framebuffer(target);
+	if (scene->apply_lights && scene->lights)
+		scene->apply_lights(scene->lights);
+	unbind_framebuffer(target);
 }
 
 void render_scene_with_shader(scene_ref ref, shader_ref shader, uniform_setter_t extra_handler) {

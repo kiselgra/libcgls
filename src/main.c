@@ -221,6 +221,15 @@ void actual_main()
 	change_light_color3f(spot, 1, .5, .5);
 	add_light_to_scene(the_scene, spot);
 
+	{
+	vec3f pos = { 0,10,0 },
+		  dir = { 1,0,0 },
+		  up = { 0,1,0 };
+	camera_ref c = make_perspective_cam("testcam", &pos, &dir, &up, 20, 1, 1, 1000);
+	light_ref camspot = make_spotlight_from_camera("camspot", gbuffer, c);
+	add_light_to_scene(the_scene, camspot);
+	}
+
 	scene_set_lighting(the_scene, apply_deferred_lights);
 
 

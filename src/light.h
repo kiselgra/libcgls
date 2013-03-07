@@ -35,6 +35,7 @@ void apply_deferred_lights(struct light_list *lights);
 light_ref make_headmounted_spotlight(const char *name, framebuffer_ref gbuffer, float cutoff);
 light_ref make_hemispherical_light(const char *name, framebuffer_ref gbuffer, vec3f *up);
 light_ref make_spotlight(const char *name, framebuffer_ref gbuffer, vec3f *pos, vec3f *dir, vec3f *up, float cutoff);
+light_ref make_spotlight_from_camera(const char *name, framebuffer_ref gbuffer, camera_ref cam);
 
 
 #ifdef __cplusplus

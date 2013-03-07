@@ -222,6 +222,33 @@ light_ref make_headmounted_spotlight(const char *name, framebuffer_ref gbuffer, 
 	return ref;
 }
 
+drawelement_ref build_light_representation_drawelement(const char *lightname, light_ref ref, float size_scale, float cutoff) {
+	char *n = strappend("material for repr of spotlight ", lightname);
+	vec3f null = { 0,0,0 };
+	material_ref mat = make_material3f(n, light_color(ref), &null, &null);
+	matrix4x4f scale; vec3f v = { size_scale, size_scale, (1 + fabs(cos(cutoff))) * size_scale };
+	make_scale_matrix4x4f(&scale, &v);
+	mesh_ref mesh = make_cylinder(lightname, 31, &scale);
+	// get stock shader
+	struct stockshader_fragments ssf;
+	init_stockshader_fragments(&ssf);
+	stock_shader(&ssf, false, false, false, false);
+	// remove fragment code and add new fragment code
+	stockshader_clear_fsource(&ssf);
+	stockshader_add_fsource(&ssf, stock_light_representation_shader());
+	// go on
+	char *n2 = strappend("shader for lightrep of ", lightname);
+	shader_ref shader = make_shader(n2, stockshader_inputs(&ssf));
+	populate_shader_with_fragments(shader, &ssf);
+	compile_and_link_shader_showing_log_on_error(shader);
+	drawelement_ref rep = make_drawelement(lightname, mesh, shader, mat);
+	prepend_drawelement_uniform_handler(rep, (uniform_setter_t)default_matrix_uniform_handler);
+	prepend_drawelement_uniform_handler(rep, (uniform_setter_t)default_material_uniform_handler);
+	free(n);
+	free(n2);
+	return rep;
+}
+
 light_ref make_spotlight(const char *name, framebuffer_ref gbuffer, 
                          vec3f *pos, vec3f *dir, vec3f *up, float cutoff) {
 	light_ref ref = make_light(name);
@@ -237,30 +264,34 @@ light_ref make_spotlight(const char *name, framebuffer_ref gbuffer,
 	add_shader_uniform(drawelement_shader(deferred), "light_col");
 	add_shader_uniform(drawelement_shader(deferred), "spot_cos_cutoff");
 
-	char *n = strappend("material for repr of spotlight ", name);
-	vec3f null = { 0,0,0 };
-	material_ref mat = make_material3f(n, light_color(ref), &null, &null);
-	matrix4x4f scale; vec3f v = { 10, 10, 20 };
-	make_scale_matrix4x4f(&scale, &v);
-	mesh_ref mesh = make_cylinder(name, 31, &scale);
-	// get stock shader
-	struct stockshader_fragments ssf;
-	init_stockshader_fragments(&ssf);
-	stock_shader(&ssf, false, false, false, false);
-	// remove fragment code and add new fragment code
-	stockshader_clear_fsource(&ssf);
-	stockshader_add_fsource(&ssf, stock_light_representation_shader());
-	// go on
-	char *n2 = strappend("shader for lightrep of ", name);
-	shader_ref shader = make_shader(n2, stockshader_inputs(&ssf));
-	populate_shader_with_fragments(shader, &ssf);
-	compile_and_link_shader_showing_log_on_error(shader);
-	drawelement_ref rep = make_drawelement(name, mesh, shader, mat);
-	prepend_drawelement_uniform_handler(rep, (uniform_setter_t)default_matrix_uniform_handler);
-	prepend_drawelement_uniform_handler(rep, (uniform_setter_t)default_material_uniform_handler);
-	
+	drawelement_ref rep = build_light_representation_drawelement(name, ref, 10, cutoff);
+
 	make_lookat_matrixf(light_trafo(ref), pos, dir, up);
 	replace_drawelement_trafo(rep, light_trafo(ref));
+	light_use_as_representation(ref, rep);
+
+	return ref;
+}
+
+light_ref make_spotlight_from_camera(const char *name, framebuffer_ref gbuffer, camera_ref cam) {
+	light_ref ref = make_light(name);
+	float cutoff = camera_fovy(cam);
+	float *aux = malloc(sizeof(float));
+	*aux = cutoff*M_PI/180.0f;
+	set_light_aux(ref, spot_light_t, aux);
+	add_light_uniform_handler(ref, stock_spotlight_uniform_handler);
+	
+	drawelement_ref deferred = make_stock_gbuffer_default_drawelement(gbuffer, name, stock_effect_spot());
+	light_use_deferred_drawelement(ref, deferred);
+	add_shader_uniform(drawelement_shader(deferred), "light_pos");
+	add_shader_uniform(drawelement_shader(deferred), "light_dir");
+	add_shader_uniform(drawelement_shader(deferred), "light_col");
+	add_shader_uniform(drawelement_shader(deferred), "spot_cos_cutoff");
+
+	drawelement_ref rep = build_light_representation_drawelement(name, ref, 10, cutoff);
+
+	replace_light_trafo(ref, lookat_matrix_of_cam(cam));
+	replace_drawelement_trafo(rep, lookat_matrix_of_cam(cam));
 	light_use_as_representation(ref, rep);
 
 	return ref;

@@ -83,6 +83,16 @@ int stockshader_vsources(struct stockshader_fragments *ssf) { return stringlist_
 int stockshader_fsources(struct stockshader_fragments *ssf) { return stringlist_length(ssf->fragment_sources); }
 int stockshader_uniforms(struct stockshader_fragments *ssf) { return stringlist_length(ssf->uniforms); }
 
+void stockshader_clear_fsource(struct stockshader_fragments *ssf) {
+	while (ssf->fragment_sources) {
+		if (ssf->fragment_sources->malloced)
+			free(ssf->fragment_sources->data);
+		struct stockshader_stringlist *next = ssf->fragment_sources->next;
+		free(ssf->fragment_sources);
+		ssf->fragment_sources = next;
+	}
+}
+
 //! @}
 
 // is this really used?
@@ -437,10 +447,10 @@ const char* stock_effect_headmounted_spot() {
 
 /*! \brief a more usual spotlight. 
  * 	you'll have to supply the uniforms:
- * 	\param spot_dir vec3
- * 	\param spot_pos vec3
+ * 	\param light_dir vec3
+ * 	\param light_pos vec3
  * 	\param spot_cos_cutoff float, cosine of spot cutoff angle
- * 	\param spot_col vec3
+ * 	\param light_col vec3
  *  \note the spot parameters are understood to be in eye space.
  */
 const char* stock_effect_spot() {
@@ -452,7 +462,7 @@ const char* stock_effect_spot() {
 			uniform sampler2D gbuffer_normal;
 			uniform sampler2D gbuffer_position;
 			uniform sampler2D gbuffer_depth;
-			uniform vec3 spot_dir, spot_pos, spot_col;
+			uniform vec3 light_dir, light_pos, light_col;
 			uniform float spot_cos_cutoff;
 			out vec4 out_col;
 			in vec2 tc;
@@ -461,17 +471,18 @@ const char* stock_effect_spot() {
 				out_col = vec4(0,0,0,0);
 				vec3 pos_ec = texture(gbuffer_position, tc).xyz;
 				vec3 n = normalize(texture(gbuffer_normal, tc).xyz);
-				vec3 l = spot_pos - pos_ec;
+				vec3 l = light_pos - pos_ec;
 				float distance = length(l);
 				l = normalize(l);
 				float ndotl = max(dot(n,l), 0.0);
 
 				if (ndotl > 0.0) {
-					float cos_theta = dot(normalize(spot_dir), -l);
+					float cos_theta = dot(normalize(light_dir), -l);
 					if (cos_theta > spot_cos_cutoff) {
 						float spot_factor = cos_theta;	// atten...
 						vec3 diffuse = texture(gbuffer_diffuse, tc).rgb;
-						out_col.rgb += spot_factor * ndotl * diffuse;
+						out_col.rgb += spot_factor * ndotl * diffuse * light_col;
+						out_col.rgb = vec3(1,0,0);
 					}
 				}
 			}
@@ -481,8 +492,8 @@ const char* stock_effect_spot() {
 
 /*! \brief apply hemispherical lighting. 
  *  you'll have to supply the uniforms 
- *  \param hemi_dir hemisphere direction to pole -- in eye space!
- *  \param hemi_col color of the light.
+ *  \param light_up hemisphere direction to pole -- in eye space!
+ *  \param light_col color of the light.
  *  by your own uniform handler.
  *
  *  \note you also have to add then to the resulting shader.
@@ -493,8 +504,8 @@ const char* stock_effect_hemisphere_lighting() {
 			#version 150 core
 			uniform sampler2D gbuffer_diffuse;
 			uniform sampler2D gbuffer_normal;
-            uniform vec3 hemi_dir;
-            uniform vec3 hemi_col;
+            uniform vec3 light_up;
+            uniform vec3 light_col;
 			out vec4 out_col;
 			in vec2 tc;
 
@@ -503,13 +514,29 @@ const char* stock_effect_hemisphere_lighting() {
 				vec4 diffuse = texture(gbuffer_diffuse, tc);
 
 //                 float factor = max(0, 0.5*(1+dot(n, normalize(vec3(0,1,0)))));
-                float factor = max(0, 0.5*(1+dot(n, normalize(hemi_dir))));
-                out_col = vec4(hemi_col * diffuse.rgb * factor, 0.);
+                float factor = max(0, 0.5*(1+dot(n, normalize(light_up))));
+                out_col = vec4(light_col * diffuse.rgb * factor, 0.);
 			}
 		}shader;
 }
 
 //! @}
+
+/*! \brief render light to a (non deferred) color buffer, potentially after applying a gbuffer to the target.
+ *	\ingroup lighting
+ *	\param ambient_color color of the light (directly written to framebuffer).
+ */
+const char* stock_light_representation_shader() {
+	return
+		shader{
+			#version 150 core
+			uniform vec4 ambient_color;
+			out vec4 out_col;
+			void main() {
+				out_col = vec4(ambient_color.rgb, 1);
+			}
+		}shader;
+}
 
 //! \attention TODO
 void apply_to_bound_gbuffer(shader_ref shader) {
@@ -619,6 +646,8 @@ static GLenum gl_type_of(GLenum x) {
 
 //! @}
 
+drawelement_ref stock_deferred_copydepth = { -1 };
+
 /*! \brief create a default gbuffer usable with the stock shaders.
  *
  *  this might seem oddly placed in \ref stock-shader.c but it is specifically
@@ -676,6 +705,8 @@ framebuffer_ref make_stock_deferred_buffer(const char *name, unsigned int width,
 	free(normal_name);
 	free(position_name);
 	free(depth_name);
+
+	stock_deferred_copydepth = make_stock_gbuffer_default_drawelement(fbo, "stock copy depth", stock_effect_copy_depthbuffer());
 
 	return fbo;
 }

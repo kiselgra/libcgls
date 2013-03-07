@@ -116,6 +116,12 @@ void keyboard(unsigned char key, int x, int y) {
 		float avg = sum / (double)valid_pos;
 		printf("average render time: %.3f ms, %.1f fps \t(sum %f, n %d)\n", avg, 1000.0f/avg, (float)sum, valid_pos);
 	}
+	else if (key == '+') {
+		cgl_cam_move_factor *= 2;
+	}
+	else if (key == '-') {
+		cgl_cam_move_factor /= 2;
+	}
 	else standard_keyboard(key, x, y);
 }
 
@@ -187,12 +193,34 @@ void actual_main()
 	scene_ref scene = { 0 };
 	the_scene = scene;
 	
+	{
+		mesh_ref mesh = make_cylinder("cyl", 10, 0);
+		vec4f white = { 1,1,1,1 };
+		material_ref mat = make_material("cyl-mat", &white, &white, &white);
+		material_use_stock_shader(mat);
+		drawelement_ref cyl = make_drawelement("cyl", mesh, material_shader(mat), mat);
+		prepend_drawelement_uniform_handler(cyl, (uniform_setter_t)default_matrix_uniform_handler);
+		prepend_drawelement_uniform_handler(cyl, (uniform_setter_t)default_material_uniform_handler);
+		scene_add_drawelement(the_scene, cyl);
+	}
+
 	
 	light_ref hms = make_headmounted_spotlight("helmet", gbuffer, 30);
-	add_light_to_scene(the_scene, hms);
+	change_light_color3f(hms, .6, .6, .6);
+// 	add_light_to_scene(the_scene, hms);
+	
 	vec3f up = { 0, 1, 0 };
 	light_ref hemi = make_hemispherical_light("hemi", gbuffer, &up);
+	change_light_color3f(hemi, .9, .9, .9);
 	add_light_to_scene(the_scene, hemi);
+
+	vec3f p = { 311.678131,204.546875,-91.080360 };
+	vec3f d = { 0.443330,-0.523770,-0.727411 };
+	vec3f u = { 0.172540,0.846205,-0.504150};
+	light_ref spot = make_spotlight("spot", gbuffer, &p, &d, &u, 10);
+	change_light_color3f(spot, 1, .5, .5);
+// 	add_light_to_scene(the_scene, spot);
+
 	scene_set_lighting(the_scene, apply_deferred_lights);
 
 

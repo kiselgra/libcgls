@@ -66,6 +66,7 @@ scene_traverser_t scene_traverser(scene_ref ref);
 void scene_add_drawelement(scene_ref ref, drawelement_ref de);
 drawelement_node* scene_drawelements(scene_ref ref);
 
+void scene_set_lighting(scene_ref ref, scene_light_application_t app);
 void add_light_to_scene(scene_ref ref, light_ref light);
 
 void render_scene(scene_ref ref);

@@ -23,9 +23,9 @@ float times[samples];
 int valid_pos = 0, curr_pos = 0;
 
 framebuffer_ref gbuffer;
-drawelement_ref deferred_spot, deferred_hemi, deferred_copydepth;
+// drawelement_ref deferred_spot, deferred_hemi;//, deferred_copydepth;
 picking_buffer_ref picking;
-drawelement_ref selected_de;
+drawelement_ref selected_de = { -1 };
 
 bool hemi_uniform_handler(drawelement_ref *dummy, const char *uniform, int location) {
 	if (strcmp(uniform, "hemi_dir") == 0) {
@@ -177,12 +177,6 @@ void actual_main()
 	register_scheme_functions();
 
     gbuffer = make_stock_deferred_buffer("gbuffer", cmdline.res.x, cmdline.res.y, GL_RGBA8, GL_RGBA8, GL_RGBA16F, GL_RGBA32F, GL_DEPTH_COMPONENT24);
-    deferred_copydepth = make_stock_gbuffer_default_drawelement(gbuffer, "copy depth", stock_effect_copy_depthbuffer());
-    deferred_spot = make_stock_gbuffer_default_drawelement(gbuffer, "gbuffer spot", stock_effect_headmounted_spot());
-    deferred_hemi = make_stock_gbuffer_default_drawelement(gbuffer, "gbuffer hemi", stock_effect_hemisphere_lighting());
-	add_shader_uniform(drawelement_shader(deferred_hemi), "hemi_dir");
-	add_shader_uniform(drawelement_shader(deferred_hemi), "hemi_col");
-	prepend_drawelement_uniform_handler(deferred_hemi, (uniform_setter_t)hemi_uniform_handler);
 
 	picking = make_picking_buffer("pick", cmdline.res.x, cmdline.res.y);
 
@@ -194,8 +188,11 @@ void actual_main()
 	the_scene = scene;
 	
 	
-	light_ref hms = make_headmounted_spotlight("bla", gbuffer, 30);
+	light_ref hms = make_headmounted_spotlight("helmet", gbuffer, 30);
 	add_light_to_scene(the_scene, hms);
+	vec3f up = { 0, 1, 0 };
+	light_ref hemi = make_hemispherical_light("hemi", gbuffer, &up);
+	add_light_to_scene(the_scene, hemi);
 	scene_set_lighting(the_scene, apply_deferred_lights);
 
 

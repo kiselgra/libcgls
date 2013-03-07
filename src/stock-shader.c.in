@@ -650,6 +650,7 @@ framebuffer_ref make_stock_deferred_buffer(const char *name, unsigned int width,
 	framebuffer_ref fbo = make_framebuffer(name, width, height);
 	tex_params_t param = default_fbo_tex_params();
 	param.min = param.mag = GL_NEAREST;
+	param.mipmapping = false;
 	texture_ref diffuse_tex  = make_empty_texture(diffuse_name,  width, height, GL_TEXTURE_2D, diffuse_format,  diffuse_type,  GL_RGBA, &param);
 	texture_ref specular_tex = make_empty_texture(specular_name, width, height, GL_TEXTURE_2D, specular_format, specular_type, GL_RGBA, &param);
 	texture_ref normal_tex   = make_empty_texture(normal_name,   width, height, GL_TEXTURE_2D, normal_format,   normal_type,   GL_RGBA, &param);

@@ -82,7 +82,7 @@ void replace_light_trafo(light_ref ref, matrix4x4f *mat) {
 	light->trafo = mat;
 }
 
-struct light_uniform_handler_node* light_uniform_handler(light_ref ref) {
+struct light_uniform_handler_node* light_uniform_handlers(light_ref ref) {
 	return referred_light->uniform_handlers;
 }
 
@@ -102,8 +102,12 @@ void apply_deferred_lights(struct light_list *lights) {
 	// copy depth?
 	glDisable(GL_DEPTH_TEST);
 	while (lights) {
+		for (struct light_uniform_handler_node *node = light_uniform_handlers(lights->ref); node; node = node->next)
+			push_global_uniform_handler(&lights->ref, node->handler);
 		drawelement_ref de = light_deferred_drawelement(lights->ref);
 		render_drawelement(de);
+		for (struct light_uniform_handler_node *node = light_uniform_handlers(lights->ref); node; node = node->next)
+			pop_global_uniform_handler();
 		lights = lights->next;
 	}
 	glEnable(GL_DEPTH_TEST);
@@ -136,6 +140,22 @@ bool stock_spotlight_uniform_handler(light_ref *ref, const char *uniform, int lo
 	return true;
 
 }
+
+bool stock_hemilight_uniform_handler(light_ref *ref, const char *uniform, int location) {
+	if (looking_for("hemi_dir")) {
+		matrix4x4f *view = gl_view_matrix_of_cam(current_camera());
+		vec3f *dir = (vec3f*)light_aux(*ref);
+		vec4f in = { dir->x, dir->y, dir->z, 0 }, res;
+		multiply_matrix4x4f_vec4f(&res, view, &in);
+		glUniform3fv(location, 1, (float*)&res);
+	}
+	else if (looking_for("hemi_col")) {
+		glUniform3f(location, 1,1,1);
+	}
+	else
+		return false;
+	return true;
+}
 #undef looking_for
 
 light_ref make_headmounted_spotlight(const char *name, framebuffer_ref gbuffer, float cutoff) {
@@ -150,6 +170,7 @@ light_ref make_headmounted_spotlight(const char *name, framebuffer_ref gbuffer, 
 
 	return ref;
 }
+
 light_ref make_spotlight(const char *name, framebuffer_ref gbuffer, 
                          vec3f *pos, vec3f *dir, vec3f *up, float cutoff) {
 	light_ref ref = make_light(name);
@@ -158,9 +179,25 @@ light_ref make_spotlight(const char *name, framebuffer_ref gbuffer,
 	set_light_aux(ref, spot_light_t, aux);
 	add_light_uniform_handler(ref, stock_spotlight_uniform_handler);
 	
-	drawelement_ref deferred = make_stock_gbuffer_default_drawelement(gbuffer, name, stock_effect_spot());
-	matrix4x4f *matrix = malloc(sizeof(matrix4x4f));
-	make_lookat_matrixf(matrix, pos, dir, up);
+// 	drawelement_ref deferred = make_stock_gbuffer_default_drawelement(gbuffer, name, stock_effect_spot());
+// 	matrix4x4f *matrix = malloc(sizeof(matrix4x4f));
+// 	make_lookat_matrixf(matrix, pos, dir, up);
+
+	return ref;
+}
+
+light_ref make_hemispherical_light(const char *name, framebuffer_ref gbuffer, vec3f *up) {
+	light_ref ref = make_light(name);
+	vec3f *aux = malloc(sizeof(vec3f));
+	*aux = *up;
+	set_light_aux(ref, hemi_light_t, aux);
+	add_light_uniform_handler(ref, stock_hemilight_uniform_handler);
+
+	drawelement_ref deferred = make_stock_gbuffer_default_drawelement(gbuffer, name, stock_effect_hemisphere_lighting());
+	add_shader_uniform(drawelement_shader(deferred), "hemi_dir");
+	add_shader_uniform(drawelement_shader(deferred), "hemi_col");
+	
+	light_use_deferred_drawelement(ref, deferred);
 
 	return ref;
 }

@@ -128,7 +128,7 @@ void bind_handled_uniforms(struct uniform_handler_node *chain, shader_ref shader
 		if (!run) {
 			struct global_uniform_handler_node *node = global_handlers; 
 			while (node) {
-				if (node->handler(node->ref, name, loc))
+				if ((node->handler)(node->ref, name, loc))
 					break;
 				node = node->next;
 			}

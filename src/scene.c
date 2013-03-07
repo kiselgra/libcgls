@@ -17,6 +17,7 @@ struct scene {
 
 	scene_light_application_t apply_lights;
 	struct light_list *lights;
+	bool show_light_representations;
 
     unsigned int aux_type;
 	void *aux;
@@ -56,6 +57,7 @@ scene_ref make_scene(const char *name) { // no pun intended.
 	scene->extra_uniform_handler = 0;
 	scene->lights = 0;
 	scene->apply_lights = 0;
+	scene->show_light_representations = true;
 
 	return ref;
 }
@@ -181,6 +183,12 @@ void render_scene_deferred(scene_ref ref, framebuffer_ref gbuffer) {
 
 	if (scene->apply_lights && scene->lights)
 		scene->apply_lights(scene->lights);
+	if (scene->show_light_representations)
+		for (struct light_list *run = scene->lights; run; run = run->next) {
+			drawelement_ref repr = light_representation(run->ref);
+			if (valid_drawelement_ref(repr))
+				render_drawelement(repr);
+		}
 }
 
 //!	\copydoc render_scene

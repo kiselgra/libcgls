@@ -33,7 +33,8 @@ struct drawelement {
 	shader_ref shader;
 	material_ref material;
 	struct uniform_handler_node *handler_chain;
-	matrix4x4f trafo;
+	matrix4x4f *trafo;
+	bool malloced_trafo;
 	bool use_index_range;
 	unsigned int index_buffer_start, indices;
 };
@@ -56,7 +57,9 @@ drawelement_ref make_drawelement(const char *name, mesh_ref mr, shader_ref sr, m
 	de->material = matr;
 
 	de->handler_chain = 0;
-	make_unit_matrix4x4f(&de->trafo);
+	de->trafo = malloc(sizeof(matrix4x4f));
+	de->malloced_trafo = true;
+	make_unit_matrix4x4f(de->trafo);
 
 	de->use_index_range = false;
 
@@ -71,7 +74,20 @@ const char* drawelement_name(drawelement_ref ref) {
 
 matrix4x4f* drawelement_trafo(drawelement_ref ref) {
 	struct drawelement *de = drawelements + ref.id;
-	return &de->trafo;
+	return de->trafo;
+}
+
+/*! \brief Make the drawelement point to the given transformation matrix.
+ *
+ * 	You can use this to attach a drawelement to some other scene element, e.g. a camera or a light.
+ *  \attention This changes the underlying pointer, so be sure to keep your matrix around!
+ */
+void replace_drawelement_trafo(drawelement_ref ref, matrix4x4f *new_trafo) {
+	struct drawelement *de = drawelements + ref.id;
+	if (de->malloced_trafo)
+		free(de->trafo);
+	de->malloced_trafo = false;
+	de->trafo = new_trafo;
 }
 
 mesh_ref drawelement_mesh(drawelement_ref ref) {

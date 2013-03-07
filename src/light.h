@@ -3,6 +3,7 @@
 
 #include "c-utils.h"
 #include "uniforms.h"
+#include "drawelement.h"
 #include <libcgl/framebuffer.h>
 
 #ifdef __cplusplus
@@ -20,10 +21,12 @@ define_slist(light_list, light_ref ref);
 
 
 
+bool valid_light_ref(light_ref ref);
 vec3f* light_color(light_ref ref);
 void change_light_color3f(light_ref ref, float r, float g, float b);
 void change_light_color(light_ref ref, vec3f *c);
 void add_light_uniform_handler(light_ref ref, bool (*handler)(light_ref *, const char *, int));
+drawelement_ref light_representation(light_ref ref);
 
 
 

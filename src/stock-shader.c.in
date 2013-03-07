@@ -480,9 +480,11 @@ const char* stock_effect_spot() {
 					float cos_theta = dot(normalize(light_dir), -l);
 					if (cos_theta > spot_cos_cutoff) {
 						float spot_factor = cos_theta;	// atten...
+						float cutoff = acos(spot_cos_cutoff);
+						float angle = acos(cos_theta);
+						spot_factor *= 1.0 - smoothstep(cutoff * .7, cutoff, angle);
 						vec3 diffuse = texture(gbuffer_diffuse, tc).rgb;
 						out_col.rgb += spot_factor * ndotl * diffuse * light_col;
-						out_col.rgb = vec3(1,0,0);
 					}
 				}
 			}

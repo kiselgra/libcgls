@@ -194,14 +194,14 @@ void actual_main()
 	the_scene = scene;
 	
 	{
-		mesh_ref mesh = make_cylinder("cyl", 10, 0);
-		vec4f white = { 1,1,1,1 };
-		material_ref mat = make_material("cyl-mat", &white, &white, &white);
-		material_use_stock_shader(mat);
-		drawelement_ref cyl = make_drawelement("cyl", mesh, material_shader(mat), mat);
-		prepend_drawelement_uniform_handler(cyl, (uniform_setter_t)default_matrix_uniform_handler);
-		prepend_drawelement_uniform_handler(cyl, (uniform_setter_t)default_material_uniform_handler);
-		scene_add_drawelement(the_scene, cyl);
+// 		mesh_ref mesh = make_cylinder("cyl", 10, 0);
+// 		vec4f white = { 1,1,1,1 };
+// 		material_ref mat = make_material("cyl-mat", &white, &white, &white);
+// 		material_use_stock_shader(mat);
+// 		drawelement_ref cyl = make_drawelement("cyl", mesh, material_shader(mat), mat);
+// 		prepend_drawelement_uniform_handler(cyl, (uniform_setter_t)default_matrix_uniform_handler);
+// 		prepend_drawelement_uniform_handler(cyl, (uniform_setter_t)default_material_uniform_handler);
+// // 		scene_add_drawelement(the_scene, cyl);
 	}
 
 	
@@ -219,7 +219,7 @@ void actual_main()
 	vec3f u = { 0.172540,0.846205,-0.504150};
 	light_ref spot = make_spotlight("spot", gbuffer, &p, &d, &u, 10);
 	change_light_color3f(spot, 1, .5, .5);
-// 	add_light_to_scene(the_scene, spot);
+	add_light_to_scene(the_scene, spot);
 
 	scene_set_lighting(the_scene, apply_deferred_lights);
 

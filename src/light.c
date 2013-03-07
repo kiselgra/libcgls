@@ -64,7 +64,7 @@ void light_use_as_representation(light_ref ref, drawelement_ref de) {
 	referred_light->representation = de;
 }
 
-drawelement_ref light_as_representation(light_ref ref) {
+drawelement_ref light_representation(light_ref ref) {
 	return referred_light->representation;
 }
 
@@ -143,9 +143,14 @@ void apply_deferred_lights(struct light_list *lights) {
 
 
 #define looking_for(Y) (strcmp(uniform, Y) == 0)
-#define transform_to_eyespace(V, w) \
+#define transform_pos_to_eyespace(V) \
 	matrix4x4f *view = gl_view_matrix_of_cam(current_camera()); \
-	vec4f in = { (V).x, (V).y, (V).z, w }, res; \
+	vec4f in = { (V).x, (V).y, (V).z, 1 }, res; \
+	multiply_matrix4x4f_vec4f(&res, view, &in); \
+	(V).x = res.x; (V).y = res.y; (V).z = res.z;
+#define transform_dir_to_eyespace(V) \
+	matrix4x4f *view = gl_normal_matrix_for_view_of(current_camera()); \
+	vec4f in = { (V).x, (V).y, (V).z, 0 }, res; \
 	multiply_matrix4x4f_vec4f(&res, view, &in); \
 	(V).x = res.x; (V).y = res.y; (V).z = res.z;
 	
@@ -157,19 +162,19 @@ bool basic_light_uniform_handler(light_ref *ref, const char *uniform, int locati
 	else if (looking_for("light_pos")) {
 		vec3f v;
 		extract_pos_vec3f_of_matrix(&v, light_trafo(*ref));
-		transform_to_eyespace(v, 1);
+		transform_pos_to_eyespace(v);
 		glUniform3fv(location, 1, (float*)&v);
 	}
 	else if (looking_for("light_dir")) {
 		vec3f v;
 		extract_dir_vec3f_of_matrix(&v, light_trafo(*ref));
-		transform_to_eyespace(v, 0);
+		transform_dir_to_eyespace(v);
 		glUniform3fv(location, 1, (float*)&v);
 	}
 	else if (looking_for("light_up")) {
 		vec3f v;
 		extract_up_vec3f_of_matrix(&v, light_trafo(*ref));
-		transform_to_eyespace(v, 0);
+		transform_dir_to_eyespace(v);
 		glUniform3fv(location, 1, (float*)&v);
 	}
 	else 
@@ -178,22 +183,7 @@ bool basic_light_uniform_handler(light_ref *ref, const char *uniform, int locati
 }
 
 bool stock_spotlight_uniform_handler(light_ref *ref, const char *uniform, int location) {
-	/* if (looking_for("spot_pos")) {
-		vec3f pos;
-		matrix4x4f *mat = light_trafo(*ref);
-		extract_pos_vec3f_of_matrix(&pos, mat);
-		glUniform3fv(location, 1, (float*)&pos);
-	}
-	else if (looking_for("spot_dir")) {
-		vec3f dir;
-		matrix4x4f *mat = light_trafo(*ref);
-		extract_dir_vec3f_of_matrix(&dir, mat);
-		glUniform3fv(location, 1, (float*)&dir);
-	}
-	else if (looking_for("spot_col")) {
-		glUniform3f(location, 1,1,1);
-	}
-	else */if (looking_for("spot_cos_cutoff")) {
+	if (looking_for("spot_cos_cutoff")) {
 		glUniform1f(location, cosf(*(float*)light_aux(*ref)));
 	}
 	else
@@ -236,7 +226,7 @@ light_ref make_spotlight(const char *name, framebuffer_ref gbuffer,
                          vec3f *pos, vec3f *dir, vec3f *up, float cutoff) {
 	light_ref ref = make_light(name);
 	float *aux = malloc(sizeof(float));
-	*aux = cutoff;
+	*aux = cutoff*M_PI/180.0f;
 	set_light_aux(ref, spot_light_t, aux);
 	add_light_uniform_handler(ref, stock_spotlight_uniform_handler);
 	
@@ -250,7 +240,9 @@ light_ref make_spotlight(const char *name, framebuffer_ref gbuffer,
 	char *n = strappend("material for repr of spotlight ", name);
 	vec3f null = { 0,0,0 };
 	material_ref mat = make_material3f(n, light_color(ref), &null, &null);
-	mesh_ref mesh = make_cylinder(name, 31, 0);
+	matrix4x4f scale; vec3f v = { 10, 10, 20 };
+	make_scale_matrix4x4f(&scale, &v);
+	mesh_ref mesh = make_cylinder(name, 31, &scale);
 	// get stock shader
 	struct stockshader_fragments ssf;
 	init_stockshader_fragments(&ssf);
@@ -264,8 +256,12 @@ light_ref make_spotlight(const char *name, framebuffer_ref gbuffer,
 	populate_shader_with_fragments(shader, &ssf);
 	compile_and_link_shader_showing_log_on_error(shader);
 	drawelement_ref rep = make_drawelement(name, mesh, shader, mat);
+	prepend_drawelement_uniform_handler(rep, (uniform_setter_t)default_matrix_uniform_handler);
+	prepend_drawelement_uniform_handler(rep, (uniform_setter_t)default_material_uniform_handler);
 	
 	make_lookat_matrixf(light_trafo(ref), pos, dir, up);
+	replace_drawelement_trafo(rep, light_trafo(ref));
+	light_use_as_representation(ref, rep);
 
 	return ref;
 }

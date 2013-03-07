@@ -210,6 +210,15 @@ void render_scene_with_shader(scene_ref ref, shader_ref shader, uniform_setter_t
 	scene->shader = &scene->with_shader;
 	scene->extra_uniform_handler = extra_handler;
 	scene->trav(ref);
+	if (scene->show_light_representations)
+		for (struct light_list *run = scene->lights; run; run = run->next) {
+			drawelement_ref repr = light_representation(run->ref);
+			if (valid_drawelement_ref(repr)) {
+				prepend_drawelement_uniform_handler(repr, single_shader_extra_uniform_handler(ref));
+				render_drawelement_with_shader(repr, shader);
+				pop_drawelement_uniform_handler(repr);
+			}
+		}
 	scene->shader = 0;
 	scene->with_shader = make_invalid_shader();
 	scene->extra_uniform_handler = 0;

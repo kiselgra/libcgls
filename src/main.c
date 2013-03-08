@@ -98,6 +98,13 @@ void idle() {
 	glutPostRedisplay(); 
 }
 
+enum ui_state_t { std, grab };
+enum axis { X, Y, Z, none };
+int ui_state = std;
+int axis = none;
+void grab_mouse_motion(int, int);
+int last_mouse_grab_x, last_mouse_grab_y;
+
 void keyboard(unsigned char key, int x, int y) {
 	if (key == 'c') {
 		vec3f cam_pos, cam_dir, cam_up;
@@ -121,6 +128,36 @@ void keyboard(unsigned char key, int x, int y) {
 	}
 	else if (key == '-') {
 		cgl_cam_move_factor /= 2;
+	}
+	else if (key == 'g' && valid_drawelement_ref(selected_de)) {
+		printf("GRAB\n");
+		ui_state = grab;
+		axis = none;
+		register_mouse_motion_function(grab_mouse_motion);
+	}
+	else if (ui_state == grab && key == 27) {
+		register_mouse_motion_function(standard_mouse_motion);
+		ui_state = std;
+		axis = none;
+		printf("UNGRAB\n");
+	}
+	else if (ui_state == grab && key == 'x') {
+		axis = X;
+		last_mouse_grab_x = x;
+		last_mouse_grab_y = y;
+		printf("  grab X\n");
+	}
+	else if (ui_state == grab && key == 'y') {
+		axis = Y;
+		last_mouse_grab_x = x;
+		last_mouse_grab_y = y;
+		printf("  grab Y\n");
+	}
+	else if (ui_state == grab && key == 'z') {
+		axis = Z;
+		last_mouse_grab_x = x;
+		last_mouse_grab_y = y;
+		printf("  grab Z\n");
 	}
 	else standard_keyboard(key, x, y);
 }
@@ -165,8 +202,51 @@ void mouse_func(int button, int state, int x, int y)
 		else
 			printf("selected nothing.\n");
 	}
+	else if (state == GLUT_DOWN && ui_state == grab) {
+		last_mouse_grab_x = x;
+		last_mouse_grab_y = y;
+	}
 	else
 		standard_mouse_func(button, state, x, y);
+}
+
+void grab_mouse_motion(int x, int y) {
+	if (!valid_drawelement_ref(selected_de)) {
+		keyboard(x, y, 27);
+		return;
+	}
+
+	if (axis != none) {
+		float delta_x = x - last_mouse_grab_x;	last_mouse_grab_x = x;
+		float delta_y = last_mouse_grab_y - y;	last_mouse_grab_y = y;
+		printf("delta %f \t%f\n", delta_x, delta_y);
+		// transform the eyespace x/y axes to world space
+		static vec4f xax = { 1, 0, 0, 0 };
+		static vec4f yax = { 0, 1, 0, 0 };
+		static vec4f zax = { 0, 0, 1, 0 };
+		vec4f x_eye, y_eye;
+		matrix4x4f *view = gl_normal_matrix_for_view_of(current_camera());
+		matrix4x4f eye_to_world;
+		invert_matrix4x4f(&eye_to_world, view);
+		vec4f x_direction, y_direction;
+		multiply_matrix4x4f_vec4f(&x_direction, &eye_to_world, &xax);
+		multiply_matrix4x4f_vec4f(&y_direction, &eye_to_world, &yax);
+		// the thusly obtained directions give the direction the given movement corresponds to in the world.
+		// this is not very intuitive, however. therefore we limit the translation to one axis
+		vec4f mask = { (axis == X?1:0), (axis==Y?1:0), (axis==Z?1:0), 0 };
+		mul_components_vec4f(&x_direction, &x_direction, &mask);
+		mul_components_vec4f(&y_direction, &y_direction, &mask);
+
+		// apply
+		mul_vec4f_by_scalar(&x_direction, &x_direction, delta_x);
+		mul_vec4f_by_scalar(&y_direction, &y_direction, delta_y);
+		matrix4x4f *de_trafo = drawelement_trafo(selected_de);
+		vec4f whole;
+		add_components_vec4f(&whole, &x_direction, &y_direction);
+		de_trafo->col_major[12] += whole.x;
+		de_trafo->col_major[13] += whole.y;
+		de_trafo->col_major[14] += whole.z;
+	}
 }
 
 void actual_main() 

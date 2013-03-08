@@ -803,3 +803,50 @@
 #:inputs (list "in_pos")
 #:uniforms (list "mutex_buffer")>
 
+
+#<make-shader "highlight object"
+#:vertex-shader #{
+#version 420 core
+	in vec3 in_pos;
+	uniform mat4 proj;
+	uniform mat4 view;
+	uniform mat4 model;
+	out vec4 pos_wc;
+	void main() {
+		pos_wc = model * vec4(in_pos, 1.0);
+		gl_Position = proj * view * pos_wc;
+	}
+}
+#:geometry-shader #{
+#version 420 core
+	layout(triangles) in;
+	layout(triangle_strip, max_vertices=12) out;
+	uniform vec2 screenres;
+	void make_line(vec4 a, vec4 b) {
+		vec2 d = 3 * (1.0/screenres);
+		vec2 p = a.xy, q = b.xy;
+		vec2 p_to_q = q - p;
+		vec2 left = vec2(-p_to_q.y, p_to_q.x) * d;
+		vec2 right = vec2(p_to_q.y, -p_to_q.x) * d;
+		gl_Position = a + vec4(left, 0, 0); EmitVertex();
+		gl_Position = b + vec4(left, 0, 0); EmitVertex();
+		gl_Position = a + vec4(right, 0, 0); EmitVertex();
+		gl_Position = b + vec4(right, 0, 0); EmitVertex();
+		EndPrimitive();
+	}
+	void main() {
+		make_line(gl_in[0].gl_Position, gl_in[1].gl_Position);
+		make_line(gl_in[1].gl_Position, gl_in[2].gl_Position);
+		make_line(gl_in[2].gl_Position, gl_in[0].gl_Position);
+	}
+}
+#:fragment-shader #{
+#version 420 core
+	out vec4 out_col;
+	void main() {
+		out_col = vec4(1,0,0,1);
+	}
+}
+#:inputs (list "in_pos")
+#:uniforms (list "proj" "view" "model" "screenres")>
+

@@ -181,14 +181,11 @@ void render_scene_deferred(scene_ref ref, framebuffer_ref gbuffer) {
 	scene->trav(ref);
 	unbind_framebuffer(gbuffer);
 
-	if (scene->apply_lights && scene->lights)
+	if (scene->apply_lights)
 		scene->apply_lights(scene->lights);
 	if (scene->show_light_representations)
-		for (struct light_list *run = scene->lights; run; run = run->next) {
-			drawelement_ref repr = light_representation(run->ref);
-			if (valid_drawelement_ref(repr))
-				render_drawelement(repr);
-		}
+		for (struct light_list *run = scene->lights; run; run = run->next)
+			render_light_representation(run->ref);
 }
 
 //!	\copydoc render_scene
@@ -199,8 +196,11 @@ void render_scene_deferred_to_buffer(scene_ref ref, framebuffer_ref gbuffer, fra
 	unbind_framebuffer(gbuffer);
 
 	bind_framebuffer(target);
-	if (scene->apply_lights && scene->lights)
+	if (scene->apply_lights)
 		scene->apply_lights(scene->lights);
+	if (scene->show_light_representations)
+		for (struct light_list *run = scene->lights; run; run = run->next)
+			render_light_representation(run->ref);
 	unbind_framebuffer(target);
 }
 
@@ -211,14 +211,8 @@ void render_scene_with_shader(scene_ref ref, shader_ref shader, uniform_setter_t
 	scene->extra_uniform_handler = extra_handler;
 	scene->trav(ref);
 	if (scene->show_light_representations)
-		for (struct light_list *run = scene->lights; run; run = run->next) {
-			drawelement_ref repr = light_representation(run->ref);
-			if (valid_drawelement_ref(repr)) {
-				prepend_drawelement_uniform_handler(repr, single_shader_extra_uniform_handler(ref));
-				render_drawelement_with_shader(repr, shader);
-				pop_drawelement_uniform_handler(repr);
-			}
-		}
+		for (struct light_list *run = scene->lights; run; run = run->next)
+			render_light_representation_with_shader(run->ref, shader, single_shader_extra_uniform_handler(ref));
 	scene->shader = 0;
 	scene->with_shader = make_invalid_shader();
 	scene->extra_uniform_handler = 0;

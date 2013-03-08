@@ -22,7 +22,7 @@ inline bool equal_material_refs(material_ref a, material_ref b) {
 
 define_slist(texture_node, const char *name; texture_ref ref; int unit);
 
-
+bool valid_material_ref(material_ref ref);
 material_ref make_material(const char *name, vec4f *amb, vec4f *diff, vec4f *spec);
 material_ref make_material3f(const char *name, vec3f *amb, vec3f *diff, vec3f *spec);
 material_ref find_material(const char *name);

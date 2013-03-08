@@ -1,6 +1,7 @@
 #include "light.h"
 
 #include "scene.h"
+#include "material.h"
 #include "drawelement.h"
 #include "stock-shader.h"
 
@@ -19,6 +20,9 @@ struct light {
 	matrix4x4f *trafo;
 	bool allocated_trafo;
 	struct light_uniform_handler_node *uniform_handlers;
+	bool on;
+	bool render_representaion_if_off;
+	bool change_representation_color_if_off;
 	unsigned int type;	//!< not all light types have to use \c aux.
 	void *aux;
 };
@@ -44,6 +48,9 @@ light_ref make_light(const char *name) {
 	light->type = wrong_light_t;
 	light->aux = 0;
 	light->color.x = light->color.y = light->color.z = 1;
+	light->on = true;
+	light->render_representaion_if_off = true;
+	light->change_representation_color_if_off = true;
 
 	add_light_uniform_handler(ref, basic_light_uniform_handler);
 
@@ -51,6 +58,20 @@ light_ref make_light(const char *name) {
 }
 
 #define referred_light (lights+ref.id)
+
+const char* light_name(light_ref ref) {
+	return referred_light->name;
+}
+
+bool light_is_on(light_ref ref) { return referred_light->on; }
+void light_on(light_ref ref)    { referred_light->on = true; }
+void light_off(light_ref ref)   { referred_light->on = false; }
+
+bool show_light_representation_if_off(light_ref ref)              { return referred_light->render_representaion_if_off; }
+void light_representation_mode_if_off(light_ref ref, bool render) { referred_light->render_representaion_if_off = render; }
+
+bool dim_light_representation_if_off(light_ref ref)                   { return referred_light->change_representation_color_if_off; }
+void light_representation_dim_mode_if_off(light_ref ref, bool render) { referred_light->change_representation_color_if_off = render; }
 
 void light_use_deferred_drawelement(light_ref ref, drawelement_ref de) {
 	referred_light->deferred_drawelement = de;
@@ -76,6 +97,15 @@ void change_light_color3f(light_ref ref, float r, float g, float b) {
 	referred_light->color.x = r;
 	referred_light->color.y = g;
 	referred_light->color.z = b;
+
+	if (valid_drawelement_ref(referred_light->representation)) {
+		material_ref mat = drawelement_material(referred_light->representation);
+		if (valid_material_ref(mat)) {
+			material_ambient_color(mat)->x = r;
+			material_ambient_color(mat)->y = g;
+			material_ambient_color(mat)->z = b;
+		}
+	}
 }
 
 void change_light_color(light_ref ref, vec3f *c) {
@@ -120,6 +150,29 @@ void add_light_uniform_handler(light_ref ref, bool (*handler)(light_ref *, const
 	referred_light->uniform_handlers = new;
 }
 
+light_ref find_light_by_representation(drawelement_ref rep) {
+	light_ref ref = { -1 };
+	if (valid_drawelement_ref(rep))
+		for (int i = 0; i < next_light_index; ++i)
+			if (lights[i].representation.id == rep.id) {
+				ref.id = i;
+				break;
+			}
+	return ref;
+}
+
+/*! \brief You can call this to add another light after the fact. 
+ *  \note You'll have to prepare the gl state.
+ *	\note Deliberately ignores \ref on, so you can add a light as `off' to the scene, do your own processing, and still render the final step using this function.
+ */
+void apply_single_deferred_light(light_ref ref) {
+		for (struct light_uniform_handler_node *node = light_uniform_handlers(ref); node; node = node->next)
+			push_global_uniform_handler(&ref, node->handler);
+		drawelement_ref de = light_deferred_drawelement(ref);
+		render_drawelement(de);
+		for (struct light_uniform_handler_node *node = light_uniform_handlers(ref); node; node = node->next)
+			pop_global_uniform_handler();
+}
 
 void apply_deferred_lights(struct light_list *lights) {
 	glClearColor(0,0,0,0);
@@ -129,18 +182,39 @@ void apply_deferred_lights(struct light_list *lights) {
 	render_drawelement(stock_deferred_copydepth);
 	glDisable(GL_DEPTH_TEST);
 	while (lights) {
-		for (struct light_uniform_handler_node *node = light_uniform_handlers(lights->ref); node; node = node->next)
-			push_global_uniform_handler(&lights->ref, node->handler);
-		drawelement_ref de = light_deferred_drawelement(lights->ref);
-		render_drawelement(de);
-		for (struct light_uniform_handler_node *node = light_uniform_handlers(lights->ref); node; node = node->next)
-			pop_global_uniform_handler();
+		if (light_is_on(lights->ref))
+			apply_single_deferred_light(lights->ref);
 		lights = lights->next;
 	}
 	glEnable(GL_DEPTH_TEST);
 	glDisable(GL_BLEND);
 }
 
+//! we provide this just because of the light on/off logic (and the global uniform handler)
+void render_light_representation(light_ref ref) {
+	drawelement_ref repr = light_representation(ref);
+	if (valid_drawelement_ref(repr))
+		if (light_is_on(ref) || show_light_representation_if_off(ref)) {
+			for (struct light_uniform_handler_node *node = light_uniform_handlers(ref); node; node = node->next)
+				push_global_uniform_handler(&ref, node->handler);
+			render_drawelement(repr);
+			for (struct light_uniform_handler_node *node = light_uniform_handlers(ref); node; node = node->next)
+				pop_global_uniform_handler();
+		}
+}
+void render_light_representation_with_shader(light_ref ref, shader_ref shader, uniform_setter_t handler) {
+	drawelement_ref repr = light_representation(ref);
+	if (valid_drawelement_ref(repr))
+		if (light_is_on(ref) || show_light_representation_if_off(ref)) {
+			for (struct light_uniform_handler_node *node = light_uniform_handlers(ref); node; node = node->next)
+				push_global_uniform_handler(&ref, node->handler);
+			if (handler) prepend_drawelement_uniform_handler(repr, handler);
+			render_drawelement_with_shader(repr, shader);
+			if (handler) pop_drawelement_uniform_handler(repr);
+			for (struct light_uniform_handler_node *node = light_uniform_handlers(ref); node; node = node->next)
+				pop_global_uniform_handler();
+		}
+}
 
 #define looking_for(Y) (strcmp(uniform, Y) == 0)
 #define transform_pos_to_eyespace(V) \
@@ -156,7 +230,10 @@ void apply_deferred_lights(struct light_list *lights) {
 	
 bool basic_light_uniform_handler(light_ref *ref, const char *uniform, int location) {
 	if (looking_for("light_col")) {
-		glUniform3fv(location, 1, (float*)light_color(*ref));
+		vec3f col = *light_color(*ref);
+		if (!light_is_on(*ref) && dim_light_representation_if_off(*ref))
+			mul_vec3f_by_scalar(&col, &col, .2);
+		glUniform3fv(location, 1, (float*)&col);
 		vec3f v = *light_color(*ref);
 	}
 	else if (looking_for("light_pos")) {
@@ -222,7 +299,7 @@ light_ref make_headmounted_spotlight(const char *name, framebuffer_ref gbuffer, 
 	return ref;
 }
 
-drawelement_ref build_light_representation_drawelement(const char *lightname, light_ref ref, float size_scale, float cutoff) {
+drawelement_ref build_spot_light_representation_drawelement(const char *lightname, light_ref ref, float size_scale, float cutoff) {
 	char *n = strappend("material for repr of spotlight ", lightname);
 	vec3f null = { 0,0,0 };
 	material_ref mat = make_material3f(n, light_color(ref), &null, &null);
@@ -233,6 +310,7 @@ drawelement_ref build_light_representation_drawelement(const char *lightname, li
 	struct stockshader_fragments ssf;
 	init_stockshader_fragments(&ssf);
 	stock_shader(&ssf, false, false, false, false);
+	stockshader_add_uniform(&ssf, "light_col");
 	// remove fragment code and add new fragment code
 	stockshader_clear_fsource(&ssf);
 	stockshader_add_fsource(&ssf, stock_light_representation_shader());
@@ -264,7 +342,7 @@ light_ref make_spotlight(const char *name, framebuffer_ref gbuffer,
 	add_shader_uniform(drawelement_shader(deferred), "light_col");
 	add_shader_uniform(drawelement_shader(deferred), "spot_cos_cutoff");
 
-	drawelement_ref rep = build_light_representation_drawelement(name, ref, 10, cutoff);
+	drawelement_ref rep = build_spot_light_representation_drawelement(name, ref, 10, cutoff);
 
 	make_lookat_matrixf(light_trafo(ref), pos, dir, up);
 	replace_drawelement_trafo(rep, light_trafo(ref));
@@ -288,7 +366,7 @@ light_ref make_spotlight_from_camera(const char *name, framebuffer_ref gbuffer, 
 	add_shader_uniform(drawelement_shader(deferred), "light_col");
 	add_shader_uniform(drawelement_shader(deferred), "spot_cos_cutoff");
 
-	drawelement_ref rep = build_light_representation_drawelement(name, ref, 10, cutoff);
+	drawelement_ref rep = build_spot_light_representation_drawelement(name, ref, 10, cutoff);
 
 	replace_light_trafo(ref, lookat_matrix_of_cam(cam));
 	replace_drawelement_trafo(rep, lookat_matrix_of_cam(cam));

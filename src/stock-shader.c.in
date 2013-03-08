@@ -532,10 +532,10 @@ const char* stock_light_representation_shader() {
 	return
 		shader{
 			#version 150 core
-			uniform vec4 ambient_color;
+			uniform vec3 light_col;
 			out vec4 out_col;
 			void main() {
-				out_col = vec4(ambient_color.rgb, 1);
+				out_col = vec4(light_col, 1);
 			}
 		}shader;
 }
@@ -756,6 +756,48 @@ drawelement_ref make_stock_gbuffer_default_drawelement(framebuffer_ref fbo, cons
 	compile_and_link_shader_showing_log_on_error(shader);
 	free_stockshader_fragments(&ssf);
 
+	drawelement_ref de = make_drawelement(effect_name, mesh, shader, mat);
+	prepend_drawelement_uniform_handler(de, (uniform_setter_t)default_material_uniform_handler);	// this is why we did a complete material setup.
+	
+	free(diffuse_name);
+	free(specular_name);
+	free(normal_name);
+	free(position_name);
+	free(depth_name);
+
+	return de;
+}
+	
+/*! \brief create a default gbuffer drawelement (screen aligned quad with texcoords) with appropriate material. the caller must provide a conforming shader.
+ *
+ *  \param effect_name will be used as name for the drawelement, the material and the shader. so take care.
+ *  \param shader a conforming shader.
+ *
+ *  you can add further uniforms to the resulting drawelement's shader.
+ *
+ *	\attention You <b>must</b> provide a <b>conforming</b> shader.
+ *
+ *	TODO describe what a conforming shader is. in the meantime, just see the code of \ref make_stock_gbuffer_default_drawelement.
+ *  TODO well, we could reimplement make_stock_gbuffer_default_drawelement to use this very function, thereby making it all explicit...
+ *
+ *  \ingroup deferred
+ */
+drawelement_ref make_stock_gbuffer_default_drawelement_with_shader(framebuffer_ref fbo, const char *effect_name, shader_ref shader) {
+	mesh_ref mesh = make_quad_with_tc(effect_name, 0);
+	vec4f c = { .8, .8, .8, 1.0 };
+	material_ref mat = make_material(effect_name, &c, &c, &c);
+	const char *name = framebuffer_name(fbo);
+	char *diffuse_name  = strappend3(name, "/", "diffuse"),
+	     *specular_name = strappend3(name, "/", "specular"),
+		 *normal_name   = strappend3(name, "/", "normal"),
+		 *position_name = strappend3(name, "/", "position"),
+		 *depth_name    = strappend3(name, "/", "depth");
+	material_add_texture_as(mat, find_texture(diffuse_name),  "gbuffer_diffuse");
+	material_add_texture_as(mat, find_texture(specular_name), "gbuffer_specular");
+	material_add_texture_as(mat, find_texture(normal_name),   "gbuffer_normal");
+	material_add_texture_as(mat, find_texture(position_name), "gbuffer_position");
+	material_add_texture_as(mat, find_texture(depth_name),    "gbuffer_depth");
+	
 	drawelement_ref de = make_drawelement(effect_name, mesh, shader, mat);
 	prepend_drawelement_uniform_handler(de, (uniform_setter_t)default_material_uniform_handler);	// this is why we did a complete material setup.
 	

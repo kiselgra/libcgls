@@ -159,6 +159,16 @@ void keyboard(unsigned char key, int x, int y) {
 		last_mouse_grab_y = y;
 		printf("  grab Z\n");
 	}
+	else if (key == 'o') {
+		if (valid_drawelement_ref(selected_de)) {
+			light_ref light = find_light_by_representation(selected_de);
+			if (valid_light_ref(light))
+				if (light_is_on(light))
+					light_off(light);
+				else
+					light_on(light);
+		}
+	}
 	else standard_keyboard(key, x, y);
 }
 

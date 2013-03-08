@@ -226,7 +226,7 @@ drawelement_ref build_light_representation_drawelement(const char *lightname, li
 	char *n = strappend("material for repr of spotlight ", lightname);
 	vec3f null = { 0,0,0 };
 	material_ref mat = make_material3f(n, light_color(ref), &null, &null);
-	matrix4x4f scale; vec3f v = { size_scale, size_scale, (1 + fabs(cos(cutoff))) * size_scale };
+	matrix4x4f scale; vec3f v = { size_scale, size_scale, (1 + fabs(cos(cutoff*M_PI/180.0))) * size_scale };
 	make_scale_matrix4x4f(&scale, &v);
 	mesh_ref mesh = make_cylinder(lightname, 31, &scale);
 	// get stock shader

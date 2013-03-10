@@ -88,6 +88,7 @@ static info_line_printer_t info_line_printer = default_info_line_printer;
 void default_info_line_printer(const char *fmt, va_list ap) {
 	printf("--> ");
 	vfprintf(stdout, fmt, ap);
+	printf("\n");
 }
 
 void info_line(const char *fmt, ...) {
@@ -219,16 +220,16 @@ void interaction_bm_mouse(interaction_mode *mode, int button, int state, int x, 
 		update_picking_buffer(bm->picking, bm->scene, x, yy);
 		bm->selected_de = read_picking_buffer(bm->picking, x, yy);
 		if (valid_drawelement_ref(bm->selected_de))
-			info_line("selected drawelement %s.\n", drawelement_name(bm->selected_de));
+			info_line("selected drawelement %s.", drawelement_name(bm->selected_de));
 		else
-			info_line("selected nothing.\n");
+			info_line("selected nothing.");
 	}
 }
 
 void interaction_bm_set_axis_to_x(interaction_mode *mode, int x, int y) {
 	struct blendermode_aux *bm = mode->aux;
 	if (valid_drawelement_ref(bm->selected_de)) {
-		info_line("axis = X.\n");
+		info_line("axis = X.");
 		bm->axis = X;
 	}
 	else
@@ -238,7 +239,7 @@ void interaction_bm_set_axis_to_x(interaction_mode *mode, int x, int y) {
 void interaction_bm_set_axis_to_y(interaction_mode *mode, int x, int y) {
 	struct blendermode_aux *bm = mode->aux;
 	if (valid_drawelement_ref(bm->selected_de)) {
-		info_line("axis = Y.\n");
+		info_line("axis = Y.");
 		bm->axis = Y;
 	}
 	else
@@ -248,7 +249,7 @@ void interaction_bm_set_axis_to_y(interaction_mode *mode, int x, int y) {
 void interaction_bm_set_axis_to_z(interaction_mode *mode, int x, int y) {
 	struct blendermode_aux *bm = mode->aux;
 	if (valid_drawelement_ref(bm->selected_de)) {
-		info_line("axis = Z.\n");
+		info_line("axis = Z.");
 		bm->axis = Z;
 	}
 	else
@@ -295,7 +296,7 @@ void interaction_bm_grab_motion(interaction_mode *mode, int x, int y) {
 
 void interaction_bm_enter_grab_mode(interaction_mode *mode) {
 	struct blendermode_aux *bm = mode->aux;
-	info_line("grab mode.\n");
+	info_line("grab mode.");
 	bm->grab = true;
 	mode->motion_handler = interaction_bm_grab_motion;
 	add_function_key_to_mode(mode, 'x', cgls_interaction_no_modifier, interaction_bm_set_axis_to_x);
@@ -306,7 +307,7 @@ void interaction_bm_enter_grab_mode(interaction_mode *mode) {
 
 void interaction_bm_leave_grab_mode(interaction_mode *mode) {
 	struct blendermode_aux *bm = mode->aux;
-	info_line("leaving grab mode.\n");
+	info_line("leaving grab mode.");
 	bm->grab = false;
 	mode->motion_handler = 0;
 	add_function_key_to_mode(mode, 'x', cgls_interaction_no_modifier, 0);
@@ -372,7 +373,7 @@ static void interaction_base_keyhandler(unsigned char key, int x, int y) {
 		}
 	}
 	if (!handled)
-		info_line("cannot find a mapping for key %c.\n", key);
+		info_line("cannot find a mapping for key %c.", key);
 }
 
 static void interaction_mouse_handler(int glut_button, int glut_state, int x, int y) {
@@ -404,7 +405,7 @@ static void interaction_mouse_handler(int glut_button, int glut_state, int x, in
 		}
 	}
 	if (!handled)
-		info_line("cannot find a mouse handler.\n");
+		info_line("cannot find a mouse handler.");
 
 	if (button == cgls_interaction_button_down)
 		cgls_interaction_last_mouse_x = x,
@@ -422,7 +423,7 @@ static void interaction_motion_handler(int x, int y) {
 		}
 	}
 	if (!handled)
-		info_line("cannot find a motion handler.\n");
+		info_line("cannot find a motion handler.");
 	cgls_interaction_last_mouse_x = x;
 	cgls_interaction_last_mouse_y = y;
 }

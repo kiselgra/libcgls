@@ -17,6 +17,8 @@ void update_picking_buffer(picking_buffer_ref ref, scene_ref scene, int x, int y
 drawelement_ref read_picking_buffer(picking_buffer_ref ref, unsigned int x, unsigned int y);
 void highlight_object(picking_buffer_ref ref, drawelement_ref de);
 
+int picking_buffer_height(picking_buffer_ref ref);
+int picking_buffer_width(picking_buffer_ref ref);
 
 #ifdef __cplusplus
 }

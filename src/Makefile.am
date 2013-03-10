@@ -8,14 +8,16 @@ BUILT_SOURCES += stock-shader.c picking.c
 EXTRA_DIST = stock-shader.c.in picking.c.in
 
 # libconfigfiles_la_SOURCES = grammar.yy  lexer.ll  parser.h  token.h lexer.h config_creator.h configfile.h configfile.cpp
-libcgls_la_SOURCES = 	drawelement.c drawelement.h \
-						objloader.c objloader.h \
-						scene.c scene.h \
-						c-utils.c c-utils.h \
+libcgls_la_SOURCES = 	\
 						basename.h \
+						c-utils.c c-utils.h \
+						drawelement.c drawelement.h \
+						interaction.c interaction.h \
 						light.c light.h \
 						material.c material.h \
+						objloader.c objloader.h \
 						picking.c picking.h \
+						scene.c scene.h \
 						stock-shader.c \
 						uniforms.c uniforms.h
 

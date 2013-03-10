@@ -4,6 +4,8 @@
 #include "picking.h"
 #include "scene.h"
 
+#include <stdarg.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -58,6 +60,10 @@ interaction_mode* pop_interaction_mode();
 interaction_mode* make_default_cgl_interaction_mode();
 interaction_mode* make_default_cgls_interaction_mode();
 interaction_mode* make_blender_style_interaction_mode(scene_ref scene, picking_buffer_ref pickingbuffer);
+
+typedef void (*info_line_printer_t)(const char *fmt, va_list ap);
+void default_info_line_printer(const char *fmt, va_list ap);
+void info_line(const char *fmt, ...);
 
 #ifdef __cplusplus
 }

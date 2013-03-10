@@ -149,6 +149,16 @@ void scene_set_lighting(scene_ref ref, scene_light_application_t app) {
 	scene->apply_lights = app;
 }
 
+bool scene_render_light_representations(scene_ref ref) {
+	struct scene *scene = scenes+ref.id;
+	return scene->show_light_representations;
+}
+
+void scene_rendering_of_light_representations(scene_ref ref, bool on) {
+	struct scene *scene = scenes+ref.id;
+	scene->show_light_representations = on;
+}
+
 /*! \brief Render the scene.
  *
  * 	Traversal.
@@ -222,9 +232,12 @@ void default_scene_renderer(scene_ref ref) {
 	if (use_single_shader_for_scene(ref)) {
 		shader_ref shader = single_shader_for_scene(ref);
 		for (drawelement_node *run = scene_drawelements(ref); run; run = run->next) {
-			prepend_drawelement_uniform_handler(run->ref, single_shader_extra_uniform_handler(ref));
+			uniform_setter_t extra = single_shader_extra_uniform_handler(ref);
+			if (extra)
+				prepend_drawelement_uniform_handler(run->ref, extra);
 			render_drawelement_with_shader(run->ref, shader);
-			pop_drawelement_uniform_handler(run->ref);
+			if (extra)
+				pop_drawelement_uniform_handler(run->ref);
 		}
 	}
 	else
@@ -373,12 +386,14 @@ void graph_scene_traverser(scene_ref ref) {
 				bind_shader(shader);
 				for (struct drawelement_node *deno = by_mat->drawelements; deno; deno = deno->next) {
 					shader_ref old_shader = drawelement_change_shader(by_mat->drawelements->ref, shader);
-					prepend_drawelement_uniform_handler(deno->ref, uniform_setter);
+					if (uniform_setter)
+						prepend_drawelement_uniform_handler(deno->ref, uniform_setter);
 					if (drawelement_using_index_range(deno->ref))
 						bind_uniforms_and_render_indices_of_drawelement(deno->ref);
 					else
 						bind_uniforms_and_render_drawelement_nonindexed(deno->ref);
-					pop_drawelement_uniform_handler(deno->ref);
+					if (uniform_setter)
+						pop_drawelement_uniform_handler(deno->ref);
 					drawelement_change_shader(by_mat->drawelements->ref, old_shader);
 				}
 				unbind_shader(shader);

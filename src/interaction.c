@@ -420,12 +420,19 @@ void interaction_bm_scale_motion(interaction_mode *mode, int x, int y) {
 	else if (bm->axis == Y) scale_vec.y = scale;
 	else if (bm->axis == Z) scale_vec.z = scale;
 	else scale_vec.x = scale_vec.y = scale_vec.z = scale;
-		
+	
 	matrix4x4f *de_trafo = drawelement_trafo(bm->selected_de);
 	matrix4x4f old_trafo, scale_mat;
-	copy_matrix4x4f(&old_trafo, de_trafo);
 	make_scale_matrix4x4f(&scale_mat, &scale_vec);
-	multiply_matrices4x4f(de_trafo, &old_trafo, &scale_mat);
+	
+	vec3f translation;
+	extract_pos_vec3f_of_matrix(&translation, de_trafo);
+	de_trafo->col_major[12] = de_trafo->col_major[13] = de_trafo->col_major[14] = 0;
+	copy_matrix4x4f(&old_trafo, de_trafo);
+	
+// 	multiply_matrices4x4f(de_trafo, &old_trafo, &scale_mat);
+	multiply_matrices4x4f(de_trafo, &scale_mat, &old_trafo);
+	de_trafo->col_major[12] = translation.x; de_trafo->col_major[13] = translation.y; de_trafo->col_major[14] = translation.z;
 }
 
 void interaction_bm_enter_grab_mode(interaction_mode *mode) {

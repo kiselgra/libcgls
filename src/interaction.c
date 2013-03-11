@@ -180,13 +180,14 @@ interaction_mode* make_default_cgls_interaction_mode() {
 /*! \defgroup blendermode blender-sytle interaction
  *  select and transform objects similar to blender (no `passive mothion', though).
  *
- *  use 'g' to grab an object. 
+ *  when an object is selected you can
+ *  \li use 'g' to grab an object. 
  *  	after this you have to select an axis along which to translate.
  *  	hitting g also activates the motion handler, i.e you wont be able to navigate in the scene, but will move the selected object.
  *  
- *  use 'g' or <esc> to leave grab mode.
+ *  \li use 'g' or <esc> to leave grab mode.
  *
- *  a non blender-style addition: use 'o' to turn a selected light on or off.
+ *  \li a non blender-style addition: use 'o' to turn a selected light on or off.
  */
 
 /*!	\addtogroup blendermode
@@ -197,20 +198,41 @@ enum { none, X, Y, Z };
 struct blendermode_aux {
 	scene_ref scene;
 	picking_buffer_ref picking;
-	bool grab;
+	bool grab, rotate;
 	int axis;
 	drawelement_ref selected_de;
 };
 
 void interaction_bm_enter_grab_mode(interaction_mode *mode);
-void interaction_bm_leave_grab_mode(interaction_mode *mode);
+void interaction_bm_enter_rotate_mode(interaction_mode *mode);
+void interaction_bm_leave_grab_or_rotate_mode(interaction_mode *mode);
+
+void interaction_bm_light_switch(interaction_mode *mode, int x, int y) {
+	struct blendermode_aux *bm = mode->aux;
+	if (valid_drawelement_ref(bm->selected_de)) {
+		light_ref light = find_light_by_representation(bm->selected_de);
+		if (valid_light_ref(light))
+			if (light_is_on(light))
+				light_off(light);
+			else
+				light_on(light);
+	}
+}
 
 void interaction_bm_grab_key(interaction_mode *mode, int x, int y) {
 	struct blendermode_aux *bm = mode->aux;
 	if (bm->grab)
-		interaction_bm_leave_grab_mode(mode);
+		interaction_bm_leave_grab_or_rotate_mode(mode);
 	else
 		interaction_bm_enter_grab_mode(mode);
+}
+
+void interaction_bm_rotate_key(interaction_mode *mode, int x, int y) {
+	struct blendermode_aux *bm = mode->aux;
+	if (bm->rotate)
+		interaction_bm_leave_grab_or_rotate_mode(mode);
+	else
+		interaction_bm_enter_rotate_mode(mode);
 }
 
 void interaction_bm_mouse(interaction_mode *mode, int button, int state, int x, int y) {
@@ -219,10 +241,18 @@ void interaction_bm_mouse(interaction_mode *mode, int button, int state, int x, 
 		int yy = picking_buffer_height(bm->picking) - y;
 		update_picking_buffer(bm->picking, bm->scene, x, yy);
 		bm->selected_de = read_picking_buffer(bm->picking, x, yy);
-		if (valid_drawelement_ref(bm->selected_de))
+		if (valid_drawelement_ref(bm->selected_de)) {
+			add_function_key_to_mode(mode, 'g', cgls_interaction_no_modifier, interaction_bm_grab_key);
+			add_function_key_to_mode(mode, 'r', cgls_interaction_no_modifier, interaction_bm_rotate_key);
+			add_function_key_to_mode(mode, 'o', cgls_interaction_no_modifier, interaction_bm_light_switch);
 			info_line("selected drawelement %s.", drawelement_name(bm->selected_de));
-		else
+		}
+		else {
+			add_function_key_to_mode(mode, 'g', cgls_interaction_no_modifier, 0);
+			add_function_key_to_mode(mode, 'r', cgls_interaction_no_modifier, 0);
+			add_function_key_to_mode(mode, 'o', cgls_interaction_no_modifier, 0);
 			info_line("selected nothing.");
+		}
 	}
 }
 
@@ -233,7 +263,7 @@ void interaction_bm_set_axis_to_x(interaction_mode *mode, int x, int y) {
 		bm->axis = X;
 	}
 	else
-		interaction_bm_leave_grab_mode(mode);
+		interaction_bm_leave_grab_or_rotate_mode(mode);
 }
 
 void interaction_bm_set_axis_to_y(interaction_mode *mode, int x, int y) {
@@ -243,7 +273,7 @@ void interaction_bm_set_axis_to_y(interaction_mode *mode, int x, int y) {
 		bm->axis = Y;
 	}
 	else
-		interaction_bm_leave_grab_mode(mode);
+		interaction_bm_leave_grab_or_rotate_mode(mode);
 }
 
 void interaction_bm_set_axis_to_z(interaction_mode *mode, int x, int y) {
@@ -253,13 +283,13 @@ void interaction_bm_set_axis_to_z(interaction_mode *mode, int x, int y) {
 		bm->axis = Z;
 	}
 	else
-		interaction_bm_leave_grab_mode(mode);
+		interaction_bm_leave_grab_or_rotate_mode(mode);
 }
 
 void interaction_bm_grab_motion(interaction_mode *mode, int x, int y) {
 	struct blendermode_aux *bm = mode->aux;
 	if (!valid_drawelement_ref(bm->selected_de)) {
-		interaction_bm_leave_grab_mode(mode);
+		interaction_bm_leave_grab_or_rotate_mode(mode);
 		return;
 	}
 	if (bm->axis != none) {
@@ -294,6 +324,53 @@ void interaction_bm_grab_motion(interaction_mode *mode, int x, int y) {
 	}
 }
 
+void make_translation_matrix4x4f(matrix4x4f *mat, vec3f *transl) {
+	make_unit_matrix4x4f(mat);
+	mat->col_major[12] = transl->x;
+	mat->col_major[13] = transl->y;
+	mat->col_major[14] = transl->z;
+}
+
+void interaction_bm_rotate_motion(interaction_mode *mode, int x, int y) {
+	struct blendermode_aux *bm = mode->aux;
+	if (!valid_drawelement_ref(bm->selected_de)) {
+		interaction_bm_leave_grab_or_rotate_mode(mode);
+		return;
+	}
+	if (bm->axis != none) {
+		int w = picking_buffer_width(bm->picking), h = picking_buffer_height(bm->picking);
+		vec2f c = { w/2.0, h/2.0 },
+			  last_pos = { cgls_interaction_last_mouse_x, h-cgls_interaction_last_mouse_y },
+			  curr_pos = { x, h-y };
+		vec2f last, curr, up = { 0, 1 };
+		sub_components_vec2f(&last, &last_pos, &c);
+		sub_components_vec2f(&curr, &curr_pos, &c);
+		normalize_vec2f(&last);
+		normalize_vec2f(&curr);
+		float last_angle = acosf(last.x);
+		if (last.y < 0) last_angle = 2*M_PI - last_angle;
+		float new_angle = acosf(curr.x);
+		if (curr.y < 0) new_angle = 2*M_PI - new_angle;
+		float angle = new_angle - last_angle;
+		if (angle > M_PI)  angle -= 2*M_PI;
+		if (angle < -M_PI) angle += 2*M_PI;
+		
+		static vec3f xax = { 1, 0, 0 };
+		static vec3f yax = { 0, 1, 0 };
+		static vec3f zax = { 0, 0, 1 };
+		static vec3f null = { 0, 0, 0 };
+		vec3f *ax = bm->axis == X ? &xax : bm->axis == Y ? &yax : &zax;
+		matrix4x4f rot, old_trafo, *de_trafo = drawelement_trafo(bm->selected_de);
+		make_rotation_matrix4x4f(&rot, ax, angle);
+		vec3f translation;
+		extract_pos_vec3f_of_matrix(&translation, de_trafo);
+		de_trafo->col_major[12] = de_trafo->col_major[13] = de_trafo->col_major[14] = 0;
+		copy_matrix4x4f(&old_trafo, de_trafo);
+		multiply_matrices4x4f(de_trafo, &old_trafo, &rot);
+		de_trafo->col_major[12] = translation.x; de_trafo->col_major[13] = translation.y; de_trafo->col_major[14] = translation.z;
+	}
+}
+
 void interaction_bm_enter_grab_mode(interaction_mode *mode) {
 	struct blendermode_aux *bm = mode->aux;
 	info_line("grab mode.");
@@ -305,27 +382,27 @@ void interaction_bm_enter_grab_mode(interaction_mode *mode) {
 	add_function_key_to_mode(mode,  27, cgls_interaction_no_modifier, interaction_bm_grab_key);
 }
 
-void interaction_bm_leave_grab_mode(interaction_mode *mode) {
+void interaction_bm_enter_rotate_mode(interaction_mode *mode) {
+	struct blendermode_aux *bm = mode->aux;
+	info_line("rotate mode.");
+	bm->rotate = true;
+	mode->motion_handler = interaction_bm_rotate_motion;
+	add_function_key_to_mode(mode, 'x', cgls_interaction_no_modifier, interaction_bm_set_axis_to_x);
+	add_function_key_to_mode(mode, 'y', cgls_interaction_no_modifier, interaction_bm_set_axis_to_y);
+	add_function_key_to_mode(mode, 'z', cgls_interaction_no_modifier, interaction_bm_set_axis_to_z);
+	add_function_key_to_mode(mode,  27, cgls_interaction_no_modifier, interaction_bm_rotate_key);
+}
+
+void interaction_bm_leave_grab_or_rotate_mode(interaction_mode *mode) {
 	struct blendermode_aux *bm = mode->aux;
 	info_line("leaving grab mode.");
 	bm->grab = false;
+	bm->rotate = false;
 	mode->motion_handler = 0;
 	add_function_key_to_mode(mode, 'x', cgls_interaction_no_modifier, 0);
 	add_function_key_to_mode(mode, 'y', cgls_interaction_no_modifier, 0);
 	add_function_key_to_mode(mode, 'z', cgls_interaction_no_modifier, 0);
 	add_function_key_to_mode(mode,  27, cgls_interaction_no_modifier, 0);
-}
-
-void interaction_bm_light_switch(interaction_mode *mode, int x, int y) {
-	struct blendermode_aux *bm = mode->aux;
-	if (valid_drawelement_ref(bm->selected_de)) {
-		light_ref light = find_light_by_representation(bm->selected_de);
-		if (valid_light_ref(light))
-			if (light_is_on(light))
-				light_off(light);
-			else
-				light_on(light);
-	}
 }
 
 interaction_mode* make_blender_style_interaction_mode(scene_ref scene, picking_buffer_ref pickingbuffer) {
@@ -335,12 +412,11 @@ interaction_mode* make_blender_style_interaction_mode(scene_ref scene, picking_b
 	aux->picking = pickingbuffer;
 	aux->axis = none;
 	aux->grab = false;
+	aux->rotate = false;
 	aux->selected_de.id = -1;
 
 	add_mouse_function_to_mode(mode, cgls_interaction_right_button, cgls_interaction_button_down, cgls_interaction_no_modifier, interaction_bm_mouse);
 
-	add_function_key_to_mode(mode, 'g', cgls_interaction_no_modifier, interaction_bm_grab_key);
-	add_function_key_to_mode(mode, 'o', cgls_interaction_no_modifier, interaction_bm_light_switch);
 
 	return mode;
 }

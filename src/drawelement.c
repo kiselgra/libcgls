@@ -126,6 +126,19 @@ void set_drawelement_index_buffer_range(drawelement_ref ref, unsigned int start,
 	de->use_index_range = true;
 }
 
+//! this returns the associated mesh's bounding box, transformed by the drawelement's matrix.
+void bounding_box_of_drawelement(drawelement_ref ref, vec3f *min, vec3f *max) {
+	struct drawelement* de = drawelements+ref.id;
+	vec4f tmp, res;
+	bounding_box_of_mesh(de->mesh, min, max);
+	tmp.x = min->x; tmp.y = min->y; tmp.z = min->z; tmp.w = 1;
+	multiply_matrix4x4f_vec4f(&res, de->trafo, &tmp);
+	min->x = res.x; min->y = res.y; min->z = res.z;
+	tmp.x = max->x; tmp.y = max->y; tmp.z = max->z; tmp.w = 1;
+	multiply_matrix4x4f_vec4f(&res, de->trafo, &tmp);
+	max->x = res.x; max->y = res.y; max->z = res.z;
+}
+
 //! @}
 
 // uniform handlers

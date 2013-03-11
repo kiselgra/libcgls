@@ -188,6 +188,8 @@ interaction_mode* make_default_cgls_interaction_mode() {
  *  \li use 'g' or <esc> to leave grab mode.
  *
  *  \li a non blender-style addition: use 'o' to turn a selected light on or off.
+ *
+ *  \li use 'a' to deselect.
  */
 
 /*!	\addtogroup blendermode
@@ -235,6 +237,18 @@ void interaction_bm_rotate_key(interaction_mode *mode, int x, int y) {
 		interaction_bm_enter_rotate_mode(mode);
 }
 
+void interaction_bm_deselect_key(interaction_mode *mode, int x, int y) {
+	struct blendermode_aux *bm = mode->aux;
+	add_function_key_to_mode(mode, 'g', cgls_interaction_no_modifier, 0);
+	add_function_key_to_mode(mode, 'r', cgls_interaction_no_modifier, 0);
+	add_function_key_to_mode(mode, 'o', cgls_interaction_no_modifier, 0);
+	add_function_key_to_mode(mode, 'a', cgls_interaction_no_modifier, 0);
+	if (valid_drawelement_ref(bm->selected_de))
+		info_line("deselected %s.", drawelement_name(bm->selected_de));
+	bm->selected_de.id = -1;
+	interaction_bm_leave_grab_or_rotate_mode(mode);
+}
+
 void interaction_bm_mouse(interaction_mode *mode, int button, int state, int x, int y) {
 	struct blendermode_aux *bm = mode->aux;
 	if (state == cgls_interaction_button_down) {
@@ -245,12 +259,11 @@ void interaction_bm_mouse(interaction_mode *mode, int button, int state, int x, 
 			add_function_key_to_mode(mode, 'g', cgls_interaction_no_modifier, interaction_bm_grab_key);
 			add_function_key_to_mode(mode, 'r', cgls_interaction_no_modifier, interaction_bm_rotate_key);
 			add_function_key_to_mode(mode, 'o', cgls_interaction_no_modifier, interaction_bm_light_switch);
+			add_function_key_to_mode(mode, 'a', cgls_interaction_no_modifier, interaction_bm_deselect_key);
 			info_line("selected drawelement %s.", drawelement_name(bm->selected_de));
 		}
 		else {
-			add_function_key_to_mode(mode, 'g', cgls_interaction_no_modifier, 0);
-			add_function_key_to_mode(mode, 'r', cgls_interaction_no_modifier, 0);
-			add_function_key_to_mode(mode, 'o', cgls_interaction_no_modifier, 0);
+			interaction_bm_deselect_key(mode, x, y);
 			info_line("selected nothing.");
 		}
 	}
@@ -366,7 +379,8 @@ void interaction_bm_rotate_motion(interaction_mode *mode, int x, int y) {
 		extract_pos_vec3f_of_matrix(&translation, de_trafo);
 		de_trafo->col_major[12] = de_trafo->col_major[13] = de_trafo->col_major[14] = 0;
 		copy_matrix4x4f(&old_trafo, de_trafo);
-		multiply_matrices4x4f(de_trafo, &old_trafo, &rot);
+// 		multiply_matrices4x4f(de_trafo, &old_trafo, &rot);
+		multiply_matrices4x4f(de_trafo, &rot, &old_trafo);
 		de_trafo->col_major[12] = translation.x; de_trafo->col_major[13] = translation.y; de_trafo->col_major[14] = translation.z;
 	}
 }

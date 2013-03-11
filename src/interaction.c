@@ -210,6 +210,10 @@ void interaction_bm_enter_rotate_mode(interaction_mode *mode);
 void interaction_bm_enter_scale_mode(interaction_mode *mode);
 void interaction_bm_leave_grs_mode(interaction_mode *mode);
 
+void interaction_bm_leave_grs_key(interaction_mode *mode, int x, int y) {
+	interaction_bm_leave_grs_mode(mode);
+}
+
 void interaction_bm_light_switch(interaction_mode *mode, int x, int y) {
 	struct blendermode_aux *bm = mode->aux;
 	if (valid_drawelement_ref(bm->selected_de)) {
@@ -224,26 +228,17 @@ void interaction_bm_light_switch(interaction_mode *mode, int x, int y) {
 
 void interaction_bm_grab_key(interaction_mode *mode, int x, int y) {
 	struct blendermode_aux *bm = mode->aux;
-	if (bm->grab)
-		interaction_bm_leave_grs_mode(mode);
-	else
-		interaction_bm_enter_grab_mode(mode);
+	interaction_bm_enter_grab_mode(mode);
 }
 
 void interaction_bm_rotate_key(interaction_mode *mode, int x, int y) {
 	struct blendermode_aux *bm = mode->aux;
-	if (bm->rotate)
-		interaction_bm_leave_grs_mode(mode);
-	else
-		interaction_bm_enter_rotate_mode(mode);
+	interaction_bm_enter_rotate_mode(mode);
 }
 
 void interaction_bm_scale_key(interaction_mode *mode, int x, int y) {
 	struct blendermode_aux *bm = mode->aux;
-	if (bm->scale)
-		interaction_bm_leave_grs_mode(mode);
-	else
-		interaction_bm_enter_scale_mode(mode);
+	interaction_bm_enter_scale_mode(mode);
 }
 
 void interaction_bm_deselect_key(interaction_mode *mode, int x, int y) {
@@ -439,33 +434,39 @@ void interaction_bm_enter_grab_mode(interaction_mode *mode) {
 	struct blendermode_aux *bm = mode->aux;
 	info_line("grab mode.");
 	bm->grab = true;
+	bm->rotate = false;
+	bm->scale = false;
 	mode->motion_handler = interaction_bm_grab_motion;
 	add_function_key_to_mode(mode, 'x', cgls_interaction_no_modifier, interaction_bm_set_axis_to_x);
 	add_function_key_to_mode(mode, 'y', cgls_interaction_no_modifier, interaction_bm_set_axis_to_y);
 	add_function_key_to_mode(mode, 'z', cgls_interaction_no_modifier, interaction_bm_set_axis_to_z);
-	add_function_key_to_mode(mode,  27, cgls_interaction_no_modifier, interaction_bm_grab_key);
+	add_function_key_to_mode(mode,  27, cgls_interaction_no_modifier, interaction_bm_leave_grs_key);
 }
 
 void interaction_bm_enter_rotate_mode(interaction_mode *mode) {
 	struct blendermode_aux *bm = mode->aux;
 	info_line("rotate mode.");
 	bm->rotate = true;
+	bm->scale = false;
+	bm->scale = false;
 	mode->motion_handler = interaction_bm_rotate_motion;
 	add_function_key_to_mode(mode, 'x', cgls_interaction_no_modifier, interaction_bm_set_axis_to_x);
 	add_function_key_to_mode(mode, 'y', cgls_interaction_no_modifier, interaction_bm_set_axis_to_y);
 	add_function_key_to_mode(mode, 'z', cgls_interaction_no_modifier, interaction_bm_set_axis_to_z);
-	add_function_key_to_mode(mode,  27, cgls_interaction_no_modifier, interaction_bm_rotate_key);
+	add_function_key_to_mode(mode,  27, cgls_interaction_no_modifier, interaction_bm_leave_grs_key);
 }
 
 void interaction_bm_enter_scale_mode(interaction_mode *mode) {
 	struct blendermode_aux *bm = mode->aux;
 	info_line("scale mode.");
+	bm->grab = false;
+	bm->rotate = false;
 	bm->scale = true;
 	mode->motion_handler = interaction_bm_scale_motion;
 	add_function_key_to_mode(mode, 'x', cgls_interaction_no_modifier, interaction_bm_set_axis_to_x);
 	add_function_key_to_mode(mode, 'y', cgls_interaction_no_modifier, interaction_bm_set_axis_to_y);
 	add_function_key_to_mode(mode, 'z', cgls_interaction_no_modifier, interaction_bm_set_axis_to_z);
-	add_function_key_to_mode(mode,  27, cgls_interaction_no_modifier, interaction_bm_scale_key);
+	add_function_key_to_mode(mode,  27, cgls_interaction_no_modifier, interaction_bm_leave_grs_key);
 }
 
 void interaction_bm_leave_grs_mode(interaction_mode *mode) {

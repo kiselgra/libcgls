@@ -12,6 +12,8 @@
 #include <string.h>
 #include <stdbool.h>
 
+float cgls_interaction_scale = 1;
+
 interaction_mode* make_interaction_mode(const char *name) {
 	interaction_mode *mode = malloc(sizeof(interaction_mode));
 	mode->name = strdup(name);
@@ -332,8 +334,8 @@ void interaction_bm_grab_motion(interaction_mode *mode, int x, int y) {
 		mul_components_vec4f(&y_direction, &y_direction, &mask);
 
 		// apply
-		mul_vec4f_by_scalar(&x_direction, &x_direction, delta_x);
-		mul_vec4f_by_scalar(&y_direction, &y_direction, delta_y);
+		mul_vec4f_by_scalar(&x_direction, &x_direction, delta_x * cgls_interaction_scale);
+		mul_vec4f_by_scalar(&y_direction, &y_direction, delta_y * cgls_interaction_scale);
 		matrix4x4f *de_trafo = drawelement_trafo(bm->selected_de);
 		vec4f whole;
 		add_components_vec4f(&whole, &x_direction, &y_direction);

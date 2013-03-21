@@ -76,6 +76,8 @@ typedef void (*info_line_printer_t)(const char *fmt, va_list ap);
 void default_info_line_printer(const char *fmt, va_list ap);
 void info_line(const char *fmt, ...);
 
+extern float cgls_interaction_scale;
+
 #ifdef __cplusplus
 }
 #endif

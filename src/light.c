@@ -175,11 +175,11 @@ void apply_single_deferred_light(light_ref ref) {
 }
 
 void apply_deferred_lights(struct light_list *lights) {
-	glClearColor(0,0,0,0);
+	glClearColor(0.1,0.1,0.4,0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	render_drawelement(stock_deferred_copydepth);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE);
-	render_drawelement(stock_deferred_copydepth);
 	glDisable(GL_DEPTH_TEST);
 	while (lights) {
 		if (light_is_on(lights->ref))

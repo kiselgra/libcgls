@@ -53,8 +53,8 @@ void display() {
     glFinish();
 	wall_time_t start = wall_time_in_ms();
 
-	glClearColor(0,0,0.25,1);
     bind_framebuffer(gbuffer);
+	glClearColor(0,0,0,1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     unbind_framebuffer(gbuffer);
 	/*

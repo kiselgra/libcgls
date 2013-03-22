@@ -1,5 +1,7 @@
 #include "scene.h"
 
+#include "stock-shader.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -190,6 +192,16 @@ void render_scene_deferred(scene_ref ref, framebuffer_ref gbuffer) {
 	struct scene *scene = scenes+ref.id;
 	scene->trav(ref);
 	unbind_framebuffer(gbuffer);
+
+	/*
+	glClearColor(0,0,0,0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	static drawelement_ref debug = { -1 };
+	if (!valid_drawelement_ref(debug))
+		debug = make_stock_gbuffer_default_drawelement(gbuffer, "debug", 0);
+	render_drawelement(debug);
+	return;
+	*/
 
 	if (scene->apply_lights)
 		scene->apply_lights(scene->lights);

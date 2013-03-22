@@ -400,7 +400,6 @@ const char* stock_effect_copy_depthbuffer() {
 			void main() {
 				float d = texture(gbuffer_depth, tc).r;
 				gl_FragDepth = d;
-				out_col = vec4(0,0,0,0);
 			}
 		}shader;
 }
@@ -428,6 +427,7 @@ const char* stock_effect_headmounted_spot() {
 			void main() {
 				vec3 pos_ec = texture(gbuffer_position, tc).xyz;
 				vec3 n = texture(gbuffer_normal, tc).xyz;
+				if (n.length() == 0) discard;
 
 				vec3 l = -normalize(pos_ec.xyz);
 				vec3 v = -normalize(pos_ec.xyz);
@@ -471,6 +471,7 @@ const char* stock_effect_spot() {
 				out_col = vec4(0,0,0,0);
 				vec3 pos_ec = texture(gbuffer_position, tc).xyz;
 				vec3 n = normalize(texture(gbuffer_normal, tc).xyz);
+				if (n.length() == 0) discard;
 				vec3 l = light_pos - pos_ec;
 				float distance = length(l);
 				l = normalize(l);
@@ -513,6 +514,7 @@ const char* stock_effect_hemisphere_lighting() {
 
 			void main() {
 				vec3 n = normalize(texture(gbuffer_normal, tc).xyz);
+				if (n.length() == 0) discard;
 				vec4 diffuse = texture(gbuffer_diffuse, tc);
 
 //                 float factor = max(0, 0.5*(1+dot(n, normalize(vec3(0,1,0)))));

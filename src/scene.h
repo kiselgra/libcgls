@@ -2,6 +2,7 @@
 #define __CGLS_SCENE_H__ 
 
 #include "drawelement.h"
+#include "light.h"
 
 /*! a very simple scene definition.
  *
@@ -41,6 +42,9 @@ void default_scene_renderer(scene_ref ref);
 typedef void (*scene_drawelement_inserter_t)(scene_ref, drawelement_ref);
 void default_scene_drawelement_inserter(scene_ref s, drawelement_ref d);
 
+typedef void (*scene_light_application_t)(struct light_list *);
+//!< a default is supplied in light.c
+
 enum { scene_type_default = 0, scene_type_graph = 1 };
 
 typedef struct drawelement_node {
@@ -61,7 +65,17 @@ void scene_set_traverser(scene_ref ref, scene_traverser_t trav);
 scene_traverser_t scene_traverser(scene_ref ref);
 void scene_add_drawelement(scene_ref ref, drawelement_ref de);
 drawelement_node* scene_drawelements(scene_ref ref);
+
+void scene_set_lighting(scene_ref ref, scene_light_application_t app);
+void add_light_to_scene(scene_ref ref, light_ref light);
+bool scene_render_light_representations(scene_ref ref);
+void scene_rendering_of_light_representations(scene_ref ref, bool on);
+
 void render_scene(scene_ref ref);
+void render_scene_deferred(scene_ref ref, framebuffer_ref gbuffer);
+void render_scene_to_buffer(scene_ref ref, framebuffer_ref target);
+void render_scene_deferred_to_buffer(scene_ref ref, framebuffer_ref gbuffer, framebuffer_ref target);
+
 void render_scene_with_shader(scene_ref ref, shader_ref shader, uniform_setter_t extra_handler);
 	
 void default_scene_renderer(scene_ref ref);

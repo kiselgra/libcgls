@@ -4,6 +4,8 @@
 #include "basename.h"
 #include "stock-shader.h"
 #include "picking.h"
+#include "light.h"
+#include "interaction.h"
 
 #include "cmdline.h"
 
@@ -22,9 +24,9 @@ float times[samples];
 int valid_pos = 0, curr_pos = 0;
 
 framebuffer_ref gbuffer;
-drawelement_ref deferred_spot, deferred_hemi, deferred_copydepth;
+// drawelement_ref deferred_spot, deferred_hemi;//, deferred_copydepth;
 picking_buffer_ref picking;
-drawelement_ref selected_de;
+drawelement_ref selected_de = { -1 };
 
 bool hemi_uniform_handler(drawelement_ref *dummy, const char *uniform, int location) {
 	if (strcmp(uniform, "hemi_dir") == 0) {
@@ -52,8 +54,12 @@ void display() {
 	wall_time_t start = wall_time_in_ms();
 
     bind_framebuffer(gbuffer);
+	glClearColor(0,0,0,1);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    unbind_framebuffer(gbuffer);
+	/*
+    bind_framebuffer(gbuffer);
 
-	glClearColor(0,0,0.25,1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	render_scene(the_scene);
 
@@ -69,7 +75,8 @@ void display() {
     render_drawelement(deferred_hemi);
 	glDisable(GL_BLEND);
 	glEnable(GL_DEPTH_TEST);
-
+	*/
+	render_scene_deferred(the_scene, gbuffer);
 
 	if (valid_drawelement_ref(selected_de))
 		highlight_object(picking, selected_de);
@@ -92,23 +99,30 @@ void idle() {
 	glutPostRedisplay(); 
 }
 
+enum ui_state_t { std, grab };
+enum axis { X, Y, Z, none };
+int ui_state = std;
+int axis = none;
+void grab_mouse_motion(int, int);
+int last_mouse_grab_x, last_mouse_grab_y;
+
 void keyboard(unsigned char key, int x, int y) {
-	if (key == 'c') {
-		vec3f cam_pos, cam_dir, cam_up;
-		matrix4x4f *lookat_matrix = lookat_matrix_of_cam(current_camera());
-		extract_pos_vec3f_of_matrix(&cam_pos, lookat_matrix);
-		extract_dir_vec3f_of_matrix(&cam_dir, lookat_matrix);
-		extract_up_vec3f_of_matrix(&cam_up, lookat_matrix);
-		printf("--pos %f,%f,%f ", cam_pos.x, cam_pos.y, cam_pos.z);
-		printf("--dir %f,%f,%f ", cam_dir.x, cam_dir.y, cam_dir.z);
-		printf("--up %f,%f,%f\n", cam_up.x, cam_up.y, cam_up.z);
-	}
-	else if (key == 'p') {
+	if (key == 'p') {
 		double sum = 0;
 		for (int i = 0; i < valid_pos; ++i)
 			sum += times[i];
 		float avg = sum / (double)valid_pos;
 		printf("average render time: %.3f ms, %.1f fps \t(sum %f, n %d)\n", avg, 1000.0f/avg, (float)sum, valid_pos);
+	}
+	if (key == 'o') {
+		if (valid_drawelement_ref(selected_de)) {
+			light_ref light = find_light_by_representation(selected_de);
+			if (valid_light_ref(light))
+				if (light_is_on(light))
+					light_off(light);
+				else
+					light_on(light);
+		}
 	}
 	else standard_keyboard(key, x, y);
 }
@@ -142,21 +156,6 @@ static void register_scheme_functions() {
 }
 #endif
 
-void mouse_func(int button, int state, int x, int y)
-{
-	if (state == GLUT_DOWN && button == GLUT_RIGHT_BUTTON) {
-		int yy = cmdline.res.y - y;
-		update_picking_buffer(picking, the_scene, x, yy);
-		selected_de = read_picking_buffer(picking, x, yy);
-		if (valid_drawelement_ref(selected_de))
-			printf("selected drawelement %s.\n", drawelement_name(selected_de));
-		else
-			printf("selected nothing.\n");
-	}
-	else
-		standard_mouse_func(button, state, x, y);
-}
-
 void actual_main() 
 {
 	dump_gl_info();
@@ -166,17 +165,14 @@ void actual_main()
 	register_display_function(display);
 	register_idle_function(idle);
 	register_keyboard_function(keyboard);
-	register_mouse_function(mouse_func);
+// 	register_mouse_function(mouse_func);
+
+	initialize_interaction();
+	push_interaction_mode(make_default_cgls_interaction_mode());
 
 	register_scheme_functions();
 
     gbuffer = make_stock_deferred_buffer("gbuffer", cmdline.res.x, cmdline.res.y, GL_RGBA8, GL_RGBA8, GL_RGBA16F, GL_RGBA32F, GL_DEPTH_COMPONENT24);
-    deferred_copydepth = make_stock_gbuffer_default_drawelement(gbuffer, "copy depth", stock_effect_copy_depthbuffer());
-    deferred_spot = make_stock_gbuffer_default_drawelement(gbuffer, "gbuffer spot", stock_effect_headmounted_spot());
-    deferred_hemi = make_stock_gbuffer_default_drawelement(gbuffer, "gbuffer hemi", stock_effect_hemisphere_lighting());
-	add_shader_uniform(drawelement_shader(deferred_hemi), "hemi_dir");
-	add_shader_uniform(drawelement_shader(deferred_hemi), "hemi_col");
-	prepend_drawelement_uniform_handler(deferred_hemi, (uniform_setter_t)hemi_uniform_handler);
 
 	picking = make_picking_buffer("pick", cmdline.res.x, cmdline.res.y);
 
@@ -186,6 +182,48 @@ void actual_main()
     free(config);
 	scene_ref scene = { 0 };
 	the_scene = scene;
+	
+	push_interaction_mode(make_blender_style_interaction_mode(the_scene, picking));
+	
+	{
+// 		mesh_ref mesh = make_cylinder("cyl", 10, 0);
+// 		vec4f white = { 1,1,1,1 };
+// 		material_ref mat = make_material("cyl-mat", &white, &white, &white);
+// 		material_use_stock_shader(mat);
+// 		drawelement_ref cyl = make_drawelement("cyl", mesh, material_shader(mat), mat);
+// 		prepend_drawelement_uniform_handler(cyl, (uniform_setter_t)default_matrix_uniform_handler);
+// 		prepend_drawelement_uniform_handler(cyl, (uniform_setter_t)default_material_uniform_handler);
+// // 		scene_add_drawelement(the_scene, cyl);
+	}
+
+	
+	light_ref hms = make_headmounted_spotlight("helmet", gbuffer, 30);
+	change_light_color3f(hms, .6, .6, .6);
+// 	add_light_to_scene(the_scene, hms);
+	
+	vec3f up = { 0, 1, 0 };
+	light_ref hemi = make_hemispherical_light("hemi", gbuffer, &up);
+	change_light_color3f(hemi, .9, .9, .9);
+	add_light_to_scene(the_scene, hemi);
+
+	vec3f p = { 311.678131,204.546875,-91.080360 };
+	vec3f d = { 0.443330,-0.523770,-0.727411 };
+	vec3f u = { 0.172540,0.846205,-0.504150};
+	light_ref spot = make_spotlight("spot", gbuffer, &p, &d, &u, 10);
+	change_light_color3f(spot, 1, .5, .5);
+	add_light_to_scene(the_scene, spot);
+
+	{
+	vec3f pos = { 0,10,0 },
+		  dir = { 1,0,0 },
+		  up = { 0,1,0 };
+	camera_ref c = make_perspective_cam("testcam", &pos, &dir, &up, 20, 1, 1, 1000);
+	light_ref camspot = make_spotlight_from_camera("camspot", gbuffer, c);
+	add_light_to_scene(the_scene, camspot);
+	}
+
+	scene_set_lighting(the_scene, apply_deferred_lights);
+
 
 	enter_glut_main_loop();
 }

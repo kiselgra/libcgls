@@ -83,6 +83,16 @@ int stockshader_vsources(struct stockshader_fragments *ssf) { return stringlist_
 int stockshader_fsources(struct stockshader_fragments *ssf) { return stringlist_length(ssf->fragment_sources); }
 int stockshader_uniforms(struct stockshader_fragments *ssf) { return stringlist_length(ssf->uniforms); }
 
+void stockshader_clear_fsource(struct stockshader_fragments *ssf) {
+	while (ssf->fragment_sources) {
+		if (ssf->fragment_sources->malloced)
+			free(ssf->fragment_sources->data);
+		struct stockshader_stringlist *next = ssf->fragment_sources->next;
+		free(ssf->fragment_sources);
+		ssf->fragment_sources = next;
+	}
+}
+
 //! @}
 
 // is this really used?
@@ -390,7 +400,6 @@ const char* stock_effect_copy_depthbuffer() {
 			void main() {
 				float d = texture(gbuffer_depth, tc).r;
 				gl_FragDepth = d;
-				out_col = vec4(0,0,0,0);
 			}
 		}shader;
 }
@@ -418,6 +427,7 @@ const char* stock_effect_headmounted_spot() {
 			void main() {
 				vec3 pos_ec = texture(gbuffer_position, tc).xyz;
 				vec3 n = texture(gbuffer_normal, tc).xyz;
+				if (n.length() == 0) discard;
 
 				vec3 l = -normalize(pos_ec.xyz);
 				vec3 v = -normalize(pos_ec.xyz);
@@ -435,11 +445,58 @@ const char* stock_effect_headmounted_spot() {
 		}shader;
 }
 
+/*! \brief a more usual spotlight. 
+ * 	you'll have to supply the uniforms:
+ * 	\param light_dir vec3
+ * 	\param light_pos vec3
+ * 	\param spot_cos_cutoff float, cosine of spot cutoff angle
+ * 	\param light_col vec3
+ *  \note the spot parameters are understood to be in eye space.
+ */
+const char* stock_effect_spot() {
+	return
+		shader{
+			#version 150 core
+			uniform sampler2D gbuffer_diffuse;
+			uniform sampler2D gbuffer_specular;
+			uniform sampler2D gbuffer_normal;
+			uniform sampler2D gbuffer_position;
+			uniform sampler2D gbuffer_depth;
+			uniform vec3 light_dir, light_pos, light_col;
+			uniform float spot_cos_cutoff;
+			out vec4 out_col;
+			in vec2 tc;
+			
+			void main() {
+				out_col = vec4(0,0,0,0);
+				vec3 pos_ec = texture(gbuffer_position, tc).xyz;
+				vec3 n = normalize(texture(gbuffer_normal, tc).xyz);
+				if (n.length() == 0) discard;
+				vec3 l = light_pos - pos_ec;
+				float distance = length(l);
+				l = normalize(l);
+				float ndotl = max(dot(n,l), 0.0);
 
-/*! apply hemispherical lighting. 
+				if (ndotl > 0.0) {
+					float cos_theta = dot(normalize(light_dir), -l);
+					if (cos_theta > spot_cos_cutoff) {
+						float spot_factor = cos_theta;	// atten...
+						float cutoff = acos(spot_cos_cutoff);
+						float angle = acos(cos_theta);
+						spot_factor *= 1.0 - smoothstep(cutoff * .7, cutoff, angle);
+						vec3 diffuse = texture(gbuffer_diffuse, tc).rgb;
+						out_col.rgb += spot_factor * ndotl * diffuse * light_col;
+					}
+				}
+			}
+		}shader;
+}
+
+
+/*! \brief apply hemispherical lighting. 
  *  you'll have to supply the uniforms 
- *  \param hemi_dir hemisphere direction to pole -- in eye space!
- *  \param hemi_col color of the light.
+ *  \param light_up hemisphere direction to pole -- in eye space!
+ *  \param light_col color of the light.
  *  by your own uniform handler.
  *
  *  \note you also have to add then to the resulting shader.
@@ -450,23 +507,40 @@ const char* stock_effect_hemisphere_lighting() {
 			#version 150 core
 			uniform sampler2D gbuffer_diffuse;
 			uniform sampler2D gbuffer_normal;
-            uniform vec3 hemi_dir;
-            uniform vec3 hemi_col;
+            uniform vec3 light_up;
+            uniform vec3 light_col;
 			out vec4 out_col;
 			in vec2 tc;
 
 			void main() {
 				vec3 n = normalize(texture(gbuffer_normal, tc).xyz);
+				if (n.length() == 0) discard;
 				vec4 diffuse = texture(gbuffer_diffuse, tc);
 
 //                 float factor = max(0, 0.5*(1+dot(n, normalize(vec3(0,1,0)))));
-                float factor = max(0, 0.5*(1+dot(n, normalize(hemi_dir))));
-                out_col = vec4(hemi_col * diffuse.rgb * factor, 0.);
+                float factor = max(0, 0.5*(1+dot(n, normalize(light_up))));
+                out_col = vec4(light_col * diffuse.rgb * factor, 0.);
 			}
 		}shader;
 }
 
 //! @}
+
+/*! \brief render light to a (non deferred) color buffer, potentially after applying a gbuffer to the target.
+ *	\ingroup lighting
+ *	\param ambient_color color of the light (directly written to framebuffer).
+ */
+const char* stock_light_representation_shader() {
+	return
+		shader{
+			#version 150 core
+			uniform vec3 light_col;
+			out vec4 out_col;
+			void main() {
+				out_col = vec4(light_col, 1);
+			}
+		}shader;
+}
 
 //! \attention TODO
 void apply_to_bound_gbuffer(shader_ref shader) {
@@ -576,6 +650,8 @@ static GLenum gl_type_of(GLenum x) {
 
 //! @}
 
+drawelement_ref stock_deferred_copydepth = { -1 };
+
 /*! \brief create a default gbuffer usable with the stock shaders.
  *
  *  this might seem oddly placed in \ref stock-shader.c but it is specifically
@@ -607,6 +683,7 @@ framebuffer_ref make_stock_deferred_buffer(const char *name, unsigned int width,
 	framebuffer_ref fbo = make_framebuffer(name, width, height);
 	tex_params_t param = default_fbo_tex_params();
 	param.min = param.mag = GL_NEAREST;
+	param.mipmapping = false;
 	texture_ref diffuse_tex  = make_empty_texture(diffuse_name,  width, height, GL_TEXTURE_2D, diffuse_format,  diffuse_type,  GL_RGBA, &param);
 	texture_ref specular_tex = make_empty_texture(specular_name, width, height, GL_TEXTURE_2D, specular_format, specular_type, GL_RGBA, &param);
 	texture_ref normal_tex   = make_empty_texture(normal_name,   width, height, GL_TEXTURE_2D, normal_format,   normal_type,   GL_RGBA, &param);
@@ -632,6 +709,8 @@ framebuffer_ref make_stock_deferred_buffer(const char *name, unsigned int width,
 	free(normal_name);
 	free(position_name);
 	free(depth_name);
+
+	stock_deferred_copydepth = make_stock_gbuffer_default_drawelement(fbo, "stock copy depth", stock_effect_copy_depthbuffer());
 
 	return fbo;
 }
@@ -679,6 +758,48 @@ drawelement_ref make_stock_gbuffer_default_drawelement(framebuffer_ref fbo, cons
 	compile_and_link_shader_showing_log_on_error(shader);
 	free_stockshader_fragments(&ssf);
 
+	drawelement_ref de = make_drawelement(effect_name, mesh, shader, mat);
+	prepend_drawelement_uniform_handler(de, (uniform_setter_t)default_material_uniform_handler);	// this is why we did a complete material setup.
+	
+	free(diffuse_name);
+	free(specular_name);
+	free(normal_name);
+	free(position_name);
+	free(depth_name);
+
+	return de;
+}
+	
+/*! \brief create a default gbuffer drawelement (screen aligned quad with texcoords) with appropriate material. the caller must provide a conforming shader.
+ *
+ *  \param effect_name will be used as name for the drawelement, the material and the shader. so take care.
+ *  \param shader a conforming shader.
+ *
+ *  you can add further uniforms to the resulting drawelement's shader.
+ *
+ *	\attention You <b>must</b> provide a <b>conforming</b> shader.
+ *
+ *	TODO describe what a conforming shader is. in the meantime, just see the code of \ref make_stock_gbuffer_default_drawelement.
+ *  TODO well, we could reimplement make_stock_gbuffer_default_drawelement to use this very function, thereby making it all explicit...
+ *
+ *  \ingroup deferred
+ */
+drawelement_ref make_stock_gbuffer_default_drawelement_with_shader(framebuffer_ref fbo, const char *effect_name, shader_ref shader) {
+	mesh_ref mesh = make_quad_with_tc(effect_name, 0);
+	vec4f c = { .8, .8, .8, 1.0 };
+	material_ref mat = make_material(effect_name, &c, &c, &c);
+	const char *name = framebuffer_name(fbo);
+	char *diffuse_name  = strappend3(name, "/", "diffuse"),
+	     *specular_name = strappend3(name, "/", "specular"),
+		 *normal_name   = strappend3(name, "/", "normal"),
+		 *position_name = strappend3(name, "/", "position"),
+		 *depth_name    = strappend3(name, "/", "depth");
+	material_add_texture_as(mat, find_texture(diffuse_name),  "gbuffer_diffuse");
+	material_add_texture_as(mat, find_texture(specular_name), "gbuffer_specular");
+	material_add_texture_as(mat, find_texture(normal_name),   "gbuffer_normal");
+	material_add_texture_as(mat, find_texture(position_name), "gbuffer_position");
+	material_add_texture_as(mat, find_texture(depth_name),    "gbuffer_depth");
+	
 	drawelement_ref de = make_drawelement(effect_name, mesh, shader, mat);
 	prepend_drawelement_uniform_handler(de, (uniform_setter_t)default_material_uniform_handler);	// this is why we did a complete material setup.
 	

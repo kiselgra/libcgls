@@ -32,6 +32,7 @@ int stockshader_vsources(struct stockshader_fragments *ssf);
 int stockshader_fsources(struct stockshader_fragments *ssf);
 int stockshader_uniforms(struct stockshader_fragments *ssf);
 void populate_shader_with_fragments(shader_ref shader, struct stockshader_fragments *ssf);
+void stockshader_clear_fsource(struct stockshader_fragments *ssf);
 
 void stock_shader(struct stockshader_fragments *ssf, bool ambient_tex, bool diffuse_tex, bool specular_tex, bool mask_tex);
 
@@ -47,6 +48,7 @@ framebuffer_ref make_stock_deferred_buffer(const char *name, unsigned int width,
                                            GLenum diffuse_format, GLenum specular_format, GLenum normal_format, 
                                            GLenum position_format, GLenum depth_format);
 drawelement_ref make_stock_gbuffer_default_drawelement(framebuffer_ref fbo, const char *effect_name, const char *fragment_source);
+drawelement_ref make_stock_gbuffer_default_drawelement_with_shader(framebuffer_ref fbo, const char *effect_name, shader_ref shader);
 
 
 const char* stock_gbuffer_using_vertex_shader();
@@ -54,7 +56,11 @@ const char* stock_gbuffer_using_vertex_shader();
 const char* stock_effect_copy_depthbuffer();
 const char* stock_effect_headmounted_spot();
 const char* stock_effect_hemisphere_lighting();
+const char* stock_effect_spot();
+ 
+const char* stock_light_representation_shader();
 
+extern drawelement_ref stock_deferred_copydepth;
 
 
 #ifdef __cplusplus

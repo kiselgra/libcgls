@@ -36,6 +36,13 @@ void pop_uniform_handler(struct uniform_handler_node **chain);
 void bind_handled_uniforms(struct uniform_handler_node *chain, shader_ref shader, void *thing, const char *entity_type, const char *entity_name);
 
 
+// - - -
+
+
+void push_global_uniform_handler(void *ref, uniform_setter_t handler);
+void* pop_global_uniform_handler();
+
+
 #ifdef __cplusplus
 }
 #endif

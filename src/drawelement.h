@@ -27,9 +27,11 @@ bool valid_drawelement_ref(drawelement_ref ref); // mm.m4
 
 const char* drawelement_name(drawelement_ref ref);
 matrix4x4f* drawelement_trafo(drawelement_ref ref);
+void replace_drawelement_trafo(drawelement_ref ref, matrix4x4f *new_trafo);
 mesh_ref drawelement_mesh(drawelement_ref ref);
 shader_ref drawelement_shader(drawelement_ref ref);
 material_ref drawelement_material(drawelement_ref ref);
+void bounding_box_of_drawelement(drawelement_ref ref, vec3f *min, vec3f *max);
 
 material_ref drawelement_change_material(drawelement_ref ref, material_ref m);
 shader_ref drawelement_change_shader(drawelement_ref ref, shader_ref s);

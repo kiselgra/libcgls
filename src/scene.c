@@ -1,5 +1,7 @@
 #include "scene.h"
 
+#include "stock-shader.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,10 +12,16 @@ struct scene {
 	scene_traverser_t trav;
 	drawelement_node *drawelements;
 	drawelement_node *back;
-    unsigned int aux_type;
+
 	shader_ref with_shader;  //!< this is the temporary shader for special purpose passes.
 	shader_ref *shader;      //!< makes for faster checking.
 	uniform_setter_t extra_uniform_handler; //!< valid only when rendering in single-shader mode.
+
+	scene_light_application_t apply_lights;
+	struct light_list *lights;
+	bool show_light_representations;
+
+    unsigned int aux_type;
 	void *aux;
 };
 
@@ -49,6 +57,9 @@ scene_ref make_scene(const char *name) { // no pun intended.
 	scene->with_shader = make_invalid_shader();
 	scene->shader = 0;
 	scene->extra_uniform_handler = 0;
+	scene->lights = 0;
+	scene->apply_lights = 0;
+	scene->show_light_representations = true;
 
 	return ref;
 }
@@ -127,9 +138,92 @@ drawelement_node* scene_drawelements(scene_ref ref) {
 	return scene->drawelements;
 }
 
+void add_light_to_scene(scene_ref ref, light_ref light) {
+	struct scene *scene = scenes+ref.id;
+	struct light_list *node = malloc(sizeof(struct light_list));
+	node->next = scene->lights;
+	node->ref = light;
+	scene->lights = node;
+}
+
+void scene_set_lighting(scene_ref ref, scene_light_application_t app) {
+	struct scene *scene = scenes+ref.id;
+	scene->apply_lights = app;
+}
+
+bool scene_render_light_representations(scene_ref ref) {
+	struct scene *scene = scenes+ref.id;
+	return scene->show_light_representations;
+}
+
+void scene_rendering_of_light_representations(scene_ref ref, bool on) {
+	struct scene *scene = scenes+ref.id;
+	scene->show_light_representations = on;
+}
+
+/*! \brief Render the scene.
+ *
+ * 	Traversal.
+ * 	Calls the scene traverser to render the drawelements. Potentially to a Gbuffer.
+ * 	
+ * 	Lighting.
+ * 	Currently we only support lighting by a scheme in accordance to our stock
+ * 	lighting, see \ref light.h, and our deferred pipeline.
+ * 	Extending this function to handle lighting under forward rendering should
+ * 	be straight forward, given appropriate shaders are bound to the
+ * 	drawelements being rendered.
+ */
 void render_scene(scene_ref ref) {
 	struct scene *scene = scenes+ref.id;
 	scene->trav(ref);
+}
+
+//!	\copydoc render_scene
+void render_scene_to_buffer(scene_ref ref, framebuffer_ref target) {
+	bind_framebuffer(target);
+	struct scene *scene = scenes+ref.id;
+	scene->trav(ref);
+	unbind_framebuffer(target);
+}
+
+//!	\copydoc render_scene
+void render_scene_deferred(scene_ref ref, framebuffer_ref gbuffer) {
+	bind_framebuffer(gbuffer);
+	struct scene *scene = scenes+ref.id;
+	scene->trav(ref);
+	unbind_framebuffer(gbuffer);
+
+	/*
+	glClearColor(0,0,0,0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	static drawelement_ref debug = { -1 };
+	if (!valid_drawelement_ref(debug))
+		debug = make_stock_gbuffer_default_drawelement(gbuffer, "debug", 0);
+	render_drawelement(debug);
+	return;
+	*/
+
+	if (scene->apply_lights)
+		scene->apply_lights(scene->lights);
+	if (scene->show_light_representations)
+		for (struct light_list *run = scene->lights; run; run = run->next)
+			render_light_representation(run->ref);
+}
+
+//!	\copydoc render_scene
+void render_scene_deferred_to_buffer(scene_ref ref, framebuffer_ref gbuffer, framebuffer_ref target) {
+	bind_framebuffer(gbuffer);
+	struct scene *scene = scenes+ref.id;
+	scene->trav(ref);
+	unbind_framebuffer(gbuffer);
+
+	bind_framebuffer(target);
+	if (scene->apply_lights)
+		scene->apply_lights(scene->lights);
+	if (scene->show_light_representations)
+		for (struct light_list *run = scene->lights; run; run = run->next)
+			render_light_representation(run->ref);
+	unbind_framebuffer(target);
 }
 
 void render_scene_with_shader(scene_ref ref, shader_ref shader, uniform_setter_t extra_handler) {
@@ -138,6 +232,9 @@ void render_scene_with_shader(scene_ref ref, shader_ref shader, uniform_setter_t
 	scene->shader = &scene->with_shader;
 	scene->extra_uniform_handler = extra_handler;
 	scene->trav(ref);
+	if (scene->show_light_representations)
+		for (struct light_list *run = scene->lights; run; run = run->next)
+			render_light_representation_with_shader(run->ref, shader, single_shader_extra_uniform_handler(ref));
 	scene->shader = 0;
 	scene->with_shader = make_invalid_shader();
 	scene->extra_uniform_handler = 0;
@@ -147,9 +244,12 @@ void default_scene_renderer(scene_ref ref) {
 	if (use_single_shader_for_scene(ref)) {
 		shader_ref shader = single_shader_for_scene(ref);
 		for (drawelement_node *run = scene_drawelements(ref); run; run = run->next) {
-			prepend_drawelement_uniform_handler(run->ref, single_shader_extra_uniform_handler(ref));
+			uniform_setter_t extra = single_shader_extra_uniform_handler(ref);
+			if (extra)
+				prepend_drawelement_uniform_handler(run->ref, extra);
 			render_drawelement_with_shader(run->ref, shader);
-			pop_drawelement_uniform_handler(run->ref);
+			if (extra)
+				pop_drawelement_uniform_handler(run->ref);
 		}
 	}
 	else
@@ -298,12 +398,14 @@ void graph_scene_traverser(scene_ref ref) {
 				bind_shader(shader);
 				for (struct drawelement_node *deno = by_mat->drawelements; deno; deno = deno->next) {
 					shader_ref old_shader = drawelement_change_shader(by_mat->drawelements->ref, shader);
-					prepend_drawelement_uniform_handler(deno->ref, uniform_setter);
+					if (uniform_setter)
+						prepend_drawelement_uniform_handler(deno->ref, uniform_setter);
 					if (drawelement_using_index_range(deno->ref))
 						bind_uniforms_and_render_indices_of_drawelement(deno->ref);
 					else
 						bind_uniforms_and_render_drawelement_nonindexed(deno->ref);
-					pop_drawelement_uniform_handler(deno->ref);
+					if (uniform_setter)
+						pop_drawelement_uniform_handler(deno->ref);
 					drawelement_change_shader(by_mat->drawelements->ref, old_shader);
 				}
 				unbind_shader(shader);

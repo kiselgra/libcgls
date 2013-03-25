@@ -1,6 +1,7 @@
 #include "uniforms.h"
 
 #include "drawelement.h"
+#include "c-utils.h"
 
 #include <stdlib.h>
 
@@ -99,6 +100,9 @@ void append_scheme_uniform_handler(struct uniform_handler_node **chain, SCM hand
 }
 #endif
 
+define_slist(global_uniform_handler_node, void *ref; uniform_setter_t handler);
+struct global_uniform_handler_node *global_handlers = 0;
+
 void bind_handled_uniforms(struct uniform_handler_node *chain, shader_ref shader, void *thing, const char *entity_type, const char *entity_name) {
 	for (int i = 0; i < shader_uniforms(shader); ++i) {
 		const char *name = shader_uniform_name_by_id(shader, i);
@@ -121,11 +125,68 @@ void bind_handled_uniforms(struct uniform_handler_node *chain, shader_ref shader
 #endif
 			run = run->next;
 		}
-		if (!run)
-			printf("WARNING: cannot find a handler for uniform %s of shader %s when attached to %s %s.\n", 
-					name, shader_name(shader), entity_type, entity_name);
+		if (!run) {
+			struct global_uniform_handler_node *node = global_handlers; 
+			while (node) {
+				if ((node->handler)(node->ref, name, loc))
+					break;
+				node = node->next;
+			}
+			if (!node)
+				printf("WARNING: cannot find a handler for uniform %s of shader %s when attached to %s %s.\n", 
+						name, shader_name(shader), entity_type, entity_name);
+		}
 	}
 }
 
 //! @}
+
+/*! \defgroup globaluniforms Global Uniform Handling
+ * 	\ingroup uniforms
+ *
+ * 	To support handling uniforms which are not associated with a drawelement,
+ * 	but some other element of the scene we provide `global uniform handlers'.
+ *
+ * 	They are global in the sense that drawelement uniform values (as well as the
+ * 	set of handled uniforms itself) varies between different drawelements:
+ * 	global uniform handling does not change by drawelements.
+ *
+ * 	An example, and the original motivation for this, is handling of lights.
+ * 	To set uniforms depending on a light's properties, the light itself
+ * 	has to be accessible (via the void *ref).
+ * 	So when rendering a deferred pass to apply a specific light effect, the 
+ * 	drawelement uniform handling is extended by light specific uniform handling.
+ *
+ * 	\note Any global setting can be overridden by specifying a drawelement uniform
+ * 			handler that accepts a uniform of the given name.
+ *
+ * 	\note We don't have global scheme handlers just yet.
+ */
+
+
+/*! \addtogroup globaluniforms
+ * 	@{
+ */
+
+void push_global_uniform_handler(void *ref, uniform_setter_t handler) {
+	struct global_uniform_handler_node *node = malloc(sizeof(struct global_uniform_handler_node));
+	node->next = global_handlers;
+	node->ref = ref;
+	node->handler = handler;
+	global_handlers = node;
+}
+
+void* pop_global_uniform_handler() {
+	if (global_handlers) {
+		struct global_uniform_handler_node *old = global_handlers;
+		void *ref = old->ref;
+		global_handlers = old->next;
+		free(old);
+		return ref;
+	}
+	return 0;
+}
+
+//! @}
+
 

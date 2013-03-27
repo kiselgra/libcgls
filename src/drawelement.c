@@ -37,6 +37,8 @@ struct drawelement {
 	bool malloced_trafo;
 	bool use_index_range;
 	unsigned int index_buffer_start, indices;
+	vec3f bb_min, bb_max;
+	bool has_bb;
 };
 
 #include <libcgl/mm.h>
@@ -62,6 +64,7 @@ drawelement_ref make_drawelement(const char *name, mesh_ref mr, shader_ref sr, m
 	make_unit_matrix4x4f(de->trafo);
 
 	de->use_index_range = false;
+	de->has_bb = false;
 
 // 	printf("create drawelement %s.\n", de->name);
 	return ref;
@@ -126,17 +129,37 @@ void set_drawelement_index_buffer_range(drawelement_ref ref, unsigned int start,
 	de->use_index_range = true;
 }
 
-//! this returns the associated mesh's bounding box, transformed by the drawelement's matrix.
+void set_drawelement_bounding_box(drawelement_ref ref, vec3f *min, vec3f *max) {
+	struct drawelement* de = drawelements+ref.id;
+	de->bb_min = *min;
+	de->bb_max = *max;
+	de->has_bb = true;
+}
+
+//! this returns the drawelement's initial bounding box, transformed by the drawelement's matrix.
 void bounding_box_of_drawelement(drawelement_ref ref, vec3f *min, vec3f *max) {
 	struct drawelement* de = drawelements+ref.id;
 	vec4f tmp, res;
-	bounding_box_of_mesh(de->mesh, min, max);
-	tmp.x = min->x; tmp.y = min->y; tmp.z = min->z; tmp.w = 1;
+	tmp.x = de->bb_min.x; 
+	tmp.y = de->bb_min.y; 
+	tmp.z = de->bb_min.z; 
+	tmp.w = 1;
 	multiply_matrix4x4f_vec4f(&res, de->trafo, &tmp);
-	min->x = res.x; min->y = res.y; min->z = res.z;
-	tmp.x = max->x; tmp.y = max->y; tmp.z = max->z; tmp.w = 1;
+	min->x = res.x; 
+	min->y = res.y; 
+	min->z = res.z;
+	tmp.x = de->bb_max.x; 
+	tmp.y = de->bb_max.y; 
+	tmp.z = de->bb_max.z; 
+	tmp.w = 1;
 	multiply_matrix4x4f_vec4f(&res, de->trafo, &tmp);
-	max->x = res.x; max->y = res.y; max->z = res.z;
+	max->x = res.x; 
+	max->y = res.y; 
+	max->z = res.z;
+}
+
+bool drawelement_has_bounding_box(drawelement_ref ref) {
+	return drawelements[ref.id].has_bb;
 }
 
 //! @}
@@ -401,6 +424,14 @@ SCM_DEFINE(s_de_idxbuf_range, "drawelement-index-buffer-range!", 3, 0, 0, (SCM i
 	unsigned int pos = scm_to_uint(p),
 				 len = scm_to_uint(l);
 	set_drawelement_index_buffer_range(ref, pos, len);
+	return SCM_BOOL_T;
+}
+
+SCM_DEFINE(s_de_setbb, "drawelement-bounding-box!", 3, 0, 0, (SCM id, SCM bbmin, SCM bbmax), "") {
+    drawelement_ref ref = { scm_to_int(id) };
+	vec3f bbmi = scm_vec_to_vec3f(bbmin),
+		  bbma = scm_vec_to_vec3f(bbmin);
+	set_drawelement_bounding_box(ref, &bbmi, &bbma);
 	return SCM_BOOL_T;
 }
 

@@ -41,7 +41,7 @@
 		 	 (gl:uniform3f location (car h) (cadr h) (caddr h))))
 		(else #f)))
 
-(define (make-de name mesh material)
+(define (make-de name mesh material bbmin bbmax)
   (material-use-stock-shader! material)
   (let* ((shader (material-shader material))
 		 (de (make-drawelement name mesh shader material)))
@@ -49,10 +49,11 @@
 	(prepend-uniform-handler de 'default-material-uniform-handler)
 	;(prepend-uniform-handler de custom-uniform-handler)
     (add-drawelement-to-scene the-scene de)
+    (drawelement-bounding-box! de bbmin bbmax)
     de))
 
-(define (make-de-idx name mesh material pos len)
-  (let ((de (make-de name mesh material)))
+(define (make-de-idx name mesh material pos len bbmin bbmax)
+  (let ((de (make-de name mesh material bbmin bbmax)))
     (drawelement-index-buffer-range! de pos len)))
 
 (let ((fallback (make-material "fallback" (list 1 0 0 1) (list 1 0 0 1) (list 0 0 0 1))))

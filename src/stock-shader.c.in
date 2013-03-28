@@ -233,6 +233,46 @@ const char* fragment_part_no_diff_no_no(const char ***u) {
 		}shader;
 }
 
+const char* fragment_part_no_diff_spec_no(const char ***u) {
+	static const char *uniforms[] = {
+		"ambient_color",
+		"diffuse_color",
+		"specular_color",
+		"shininess",
+		"diffuse_tex",
+		"specular_tex",
+		0
+	};
+	*u = uniforms;
+	return
+		shader{
+			#version 420 core
+			uniform vec4 ambient_color;
+			uniform vec4 diffuse_color;
+			uniform vec4 specular_color;
+			uniform float shininess;
+			uniform sampler2D diffuse_tex;
+			uniform sampler2D specular_tex;
+			in vec2 tc;
+
+			float mask() {
+				return 1.0;
+			}
+
+			vec4 ambient() {
+				return ambient_color;
+			}
+
+			vec4 diffuse() {
+				return diffuse_color * texture(diffuse_tex, tc);
+			}
+
+			vec4 specular() {
+				return specular_color * texture(specular_tex, tc);
+			}
+		}shader;
+}
+
 const char* fragment_part_no_diff_no_mask(const char ***u) {
 	static const char *uniforms[] = {
 		"ambient_color",
@@ -582,6 +622,7 @@ void add_stock_fragment_shader_part(struct stockshader_fragments *ssf, bool use_
 	if      (  !ambient_tex  &&  !diffuse_tex  &&  !specular_tex  &&  !mask_tex)    src = fragment_part_no_no_no_no(&uniforms);
 	else if (  !ambient_tex  &&   diffuse_tex  &&  !specular_tex  &&  !mask_tex)    src = fragment_part_no_diff_no_no(&uniforms);
 	else if (  !ambient_tex  &&   diffuse_tex  &&  !specular_tex  &&   mask_tex)    src = fragment_part_no_diff_no_mask(&uniforms);
+	else if (  !ambient_tex  &&   diffuse_tex  &&   specular_tex  &&  !mask_tex)    src = fragment_part_no_diff_spec_no(&uniforms);
 // 	else if (   ambient_tex  &&  !diffuse_tex  &&  !specular_tex  &&  !mask_tex)    src = fragment_part_no_no_no_no(&uniforms);
 // 	else if (   ambient_tex  &&   diffuse_tex  &&  !specular_tex  &&  !mask_tex)    src = fragment_part_no_diff_no_no(&uniforms);
 // 	else if (   ambient_tex  &&   diffuse_tex  &&  !specular_tex  &&   mask_tex)    src = fragment_part_no_diff_no_mask(&uniforms);

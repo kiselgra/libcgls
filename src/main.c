@@ -156,6 +156,20 @@ static void register_scheme_functions() {
 }
 #endif
 
+void show_fps(interaction_mode *m, int x, int y) {
+	double sum = 0;
+	for (int i = 0; i < valid_pos; ++i)
+		sum += times[i];
+	float avg = sum / (double)valid_pos;
+	printf("average render time: %.3f ms, %.1f fps \t(sum %f, n %d)\n", avg, 1000.0f/avg, (float)sum, valid_pos);
+}
+
+interaction_mode* make_viewer_mode() {
+	interaction_mode *m = make_interaction_mode("viewer");
+	add_function_key_to_mode(m, 'p', cgls_interaction_no_button, show_fps);
+	return m;
+}
+
 void actual_main() 
 {
 	dump_gl_info();
@@ -169,6 +183,7 @@ void actual_main()
 
 	initialize_interaction();
 	push_interaction_mode(make_default_cgls_interaction_mode());
+	push_interaction_mode(make_viewer_mode());
 
 	register_scheme_functions();
 

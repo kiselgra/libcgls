@@ -1,3 +1,5 @@
+#include "objloader.h"
+
 #include "drawelement.h"
 #include "basename.h"
 #include "scene.h"
@@ -47,7 +49,7 @@ void add_texture_if_found(material_ref mat, const char *filename, tex_params_t *
  *	\deprecated use \ref load_objfile_and_create_objects_with_single_vbo.
  */
 void load_objfile_and_create_objects_with_separate_vbos(const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max, 
-                                                        void (*make_drawelem)(const char*, mesh_ref, material_ref), material_ref fallback_material) {
+                                                        void (*make_drawelem)(const char*, mesh_ref, material_ref, vec3f *bbmin, vec3f *bbmax), material_ref fallback_material) {
 	obj_data objdata;
 	const char *modelname = object_name ? object_name : filename;
 	
@@ -111,7 +113,19 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 		material_ref mat;
 		if (group->mtl) mat = find_material(group->mtl->name);
 		else            mat = fallback_material;
-		make_drawelem(group->name, m, mat);
+
+		vec3f bbmi; vec3f *bb_min = &bbmi; *bb_min = v[0]; 
+		vec3f bbma; vec3f *bb_max = &bbmi; *bb_max = v[0];
+		for (int i = 0; i < verts; ++i) {
+			if (v[i].x < bb_min->x) bb_min->x = v[i].x;
+			if (v[i].y < bb_min->y) bb_min->y = v[i].y;
+			if (v[i].z < bb_min->z) bb_min->z = v[i].z;
+			if (v[i].x > bb_max->x) bb_max->x = v[i].x;
+			if (v[i].y > bb_max->y) bb_max->y = v[i].y;
+			if (v[i].z > bb_max->z) bb_max->z = v[i].z;
+		}
+
+		make_drawelem(group->name, m, mat, bb_min, bb_max);
 	
 		free(v);
 		free(n);
@@ -178,7 +192,7 @@ static void example_make_drawelem(const char *name, mesh_ref mesh, material_ref 
  *	\param fallback_material The material to be used should there be a sub mesh for which we can't find a material.
  */
 void load_objfile_and_create_objects_with_single_vbo(const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max, 
-                                                     void (*make_drawelem)(const char*, mesh_ref, material_ref, unsigned int start, unsigned int len), material_ref fallback_material) {
+                                                     void (*make_drawelem)(const char*, mesh_ref, material_ref, unsigned int start, unsigned int len, vec3f *bbmin, vec3f *bbmax), material_ref fallback_material) {
 	obj_data objdata;
 	const char *modelname = object_name ? object_name : filename;
 
@@ -232,17 +246,31 @@ void load_objfile_and_create_objects_with_single_vbo(const char *filename, const
 	add_index_buffer_to_mesh(m, indices, index_buffer, GL_STATIC_DRAW);
 	unbind_mesh_from_gl(m);
 
-	free(index_buffer);
-
 	int pos = 0;
 	for (int i = 0; i < objdata.number_of_groups; ++i) {
 		obj_group *g = objdata.groups + i;
 		material_ref mat;
 		if (g->mtl) mat = find_material(g->mtl->name);
 		else        mat = fallback_material;
-		make_drawelem(g->name, m, mat, pos, g->triangles*3);
+
+		vec3f bbmi; vec3f *bb_min = &bbmi; *bb_min = objdata.vertex_data[index_buffer[pos]]; 
+		vec3f bbma; vec3f *bb_max = &bbma; *bb_max = objdata.vertex_data[index_buffer[pos]]; 
+		for (int i = 0; i < g->triangles*3; ++i) {
+			int id = index_buffer[pos+i];
+			if (objdata.vertex_data[id].x < bb_min->x) bb_min->x = objdata.vertex_data[id].x;
+			if (objdata.vertex_data[id].y < bb_min->y) bb_min->y = objdata.vertex_data[id].y;
+			if (objdata.vertex_data[id].z < bb_min->z) bb_min->z = objdata.vertex_data[id].z;
+			if (objdata.vertex_data[id].x > bb_max->x) bb_max->x = objdata.vertex_data[id].x;
+			if (objdata.vertex_data[id].y > bb_max->y) bb_max->y = objdata.vertex_data[id].y;
+			if (objdata.vertex_data[id].z > bb_max->z) bb_max->z = objdata.vertex_data[id].z;
+		}
+
+		make_drawelem(g->name, m, mat, pos, g->triangles*3, bb_min, bb_max);
 		pos += g->triangles*3;
 	}
+	
+	free(index_buffer);
+
 	
 	if (bb_min && bb_max) {
 		*bb_min = objdata.vertex_data[0]; 
@@ -269,8 +297,8 @@ SCM_DEFINE(s_load_objfile_and_create_objects_with_separate_vbos,
            "load-objfile-and-create-objects-with-separate-vbos", 4, 0, 0, (SCM filename, SCM object_name, SCM callback, SCM fallback_mat), "") {
 	char *f = scm_to_locale_string(filename);
 	char *o = scm_to_locale_string(object_name);
-	void create_drawelement_forwarder(const char *modelname, mesh_ref mesh, material_ref mat) {
-		scm_call_3(callback, scm_from_locale_string(modelname), scm_from_int(mesh.id), scm_from_int(mat.id));
+	void create_drawelement_forwarder(const char *modelname, mesh_ref mesh, material_ref mat, vec3f *bmi, vec3f *bma) {
+		scm_call_5(callback, scm_from_locale_string(modelname), scm_from_int(mesh.id), scm_from_int(mat.id), vec3f_to_list(bmi), vec3f_to_list(bma));
 	}
 	vec3f min, max;
 	vec4f amb = {1,0,0,1}, diff = {1,0,0,1}, spec = {1,0,0,1};
@@ -283,8 +311,8 @@ SCM_DEFINE(s_load_objfile_and_create_objects_with_single_vbos,
            "load-objfile-and-create-objects-with-single-vbo", 4, 0, 0, (SCM filename, SCM object_name, SCM callback, SCM fallback_mat), "") {
 	char *f = scm_to_locale_string(filename);
 	char *o = scm_to_locale_string(object_name);
-	void create_drawelement_forwarder(const char *modelname, mesh_ref mesh, material_ref mat, unsigned int pos, unsigned int len) {
-		scm_call_5(callback, scm_from_locale_string(modelname), scm_from_int(mesh.id), scm_from_int(mat.id), scm_from_uint(pos), scm_from_uint(len));
+	void create_drawelement_forwarder(const char *modelname, mesh_ref mesh, material_ref mat, unsigned int pos, unsigned int len, vec3f *bmi, vec3f *bma) {
+		scm_call_7(callback, scm_from_locale_string(modelname), scm_from_int(mesh.id), scm_from_int(mat.id), scm_from_uint(pos), scm_from_uint(len), vec3f_to_list(bmi), vec3f_to_list(bma));
 	}
 	vec3f min, max;
 	vec4f amb = {1,0,0,1}, diff = {1,0,0,1}, spec = {1,0,0,1};

@@ -389,6 +389,8 @@ void graph_scene_traverser(scene_ref ref) {
 	shader_ref shader = single_shader_for_scene(ref);
 	uniform_setter_t uniform_setter = single_shader_extra_uniform_handler(ref);
 
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
 	if (use_single_shader)
 		for (struct by_mesh *by_mesh = gs->meshes; by_mesh; by_mesh = by_mesh->next) {
 			bind_mesh_to_gl(by_mesh->mesh);
@@ -430,6 +432,7 @@ void graph_scene_traverser(scene_ref ref) {
 			}
 			unbind_mesh_from_gl(by_mesh->mesh);
 		}
+	glDisable(GL_CULL_FACE);
 }
 
 void graph_scene_bulk_traverser(scene_ref ref) {

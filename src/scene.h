@@ -4,6 +4,8 @@
 #include "drawelement.h"
 #include "light.h"
 
+#include <libmcm/vectors.h>
+
 /*! a very simple scene definition.
  *
  * the basic mechanism is as follows:
@@ -91,6 +93,9 @@ scene_ref make_graph_scene(const char *name);
 define_slist(graph_scene_bulk_de_list, drawelement_ref ref);
 void free_graph_scene_bulk_de_list(struct graph_scene_bulk_de_list *list);
 struct graph_scene_bulk_de_list* graph_scene_bulk_drawelements(scene_ref ref);
+
+
+extern vec4f cgls_scene_clear_color;
 
 #ifdef __cplusplus
 }

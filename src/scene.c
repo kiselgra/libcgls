@@ -29,6 +29,8 @@ struct scene {
 define_mm(scene, scenes, scene_ref);
 #include "scene.xx"
 
+vec4f cgls_scene_clear_color = { 0, 0 ,0, 0 };
+
 /*! \defgroup basic_scene Basic Scene
  *  Standard, most primitive, scene type
  *
@@ -568,6 +570,14 @@ SCM_DEFINE(s_scene_stats, "scene-stats", 0, 0, 0, (), "") {
         printf("all in all there are %d drawelements.\n", de);
     }
     return SCM_BOOL_T;
+}
+
+SCM_DEFINE(s_scene_clear_color_x, "scene-clear-color!", 4, 0, 0, (SCM r, SCM g, SCM b, SCM a), "") {
+	cgls_scene_clear_color.x = scm_to_double(r);
+	cgls_scene_clear_color.y = scm_to_double(g);
+	cgls_scene_clear_color.z = scm_to_double(b);
+	cgls_scene_clear_color.w = scm_to_double(a);
+	return SCM_BOOL_T;
 }
 
 void register_scheme_functions_for_scene() {

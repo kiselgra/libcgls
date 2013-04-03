@@ -169,11 +169,36 @@ void interaction_decrease_move_factor(interaction_mode *mode, int x, int y) {
 	cgl_cam_move_factor /= 2;
 }
 
+enum { interaction_camera_stack_elements = 64 };
+static matrix4x4f interaction_camera_stack[interaction_camera_stack_elements];
+static int interaction_camera_stack_pointer = 0;
+
+void interaction_push_camera(interaction_mode *mode, int x, int y) {
+	if (interaction_camera_stack_pointer == interaction_camera_stack_elements) {
+		info_line("Camera stack overflow. What are you doing? :)");
+		return;
+	}
+	info_line("pushing camera matrix %d.", interaction_camera_stack_pointer);
+	copy_matrix4x4f(interaction_camera_stack + interaction_camera_stack_pointer++, lookat_matrix_of_cam(current_camera()));
+}
+
+void interaction_pop_camera(interaction_mode *mode, int x, int y) {
+	if (interaction_camera_stack_pointer == 0) {
+		info_line("Camera stack underflow. No worries. :)");
+		return;
+	}
+	copy_matrix4x4f(lookat_matrix_of_cam(current_camera()), interaction_camera_stack + --interaction_camera_stack_pointer);
+	info_line("popping camera matrix %d.", interaction_camera_stack_pointer);
+	recompute_gl_matrices_of_cam(current_camera());
+}
+
 interaction_mode* make_default_cgls_interaction_mode() {
 	interaction_mode *mode = make_interaction_mode("cgls-default");
 	add_function_key_to_mode(mode, 'c', cgls_interaction_no_modifier, interaction_print_camera_lookat);
 	add_function_key_to_mode(mode, '+', cgls_interaction_no_modifier, interaction_increase_move_factor);
 	add_function_key_to_mode(mode, '-', cgls_interaction_no_modifier, interaction_decrease_move_factor);
+	add_function_key_to_mode(mode, ' ', cgls_interaction_shift, interaction_push_camera);
+	add_function_key_to_mode(mode, ' ', cgls_interaction_alt, interaction_pop_camera);
 	return mode;
 }
 //! @}
@@ -513,6 +538,11 @@ static void interaction_base_keyhandler(unsigned char key, int x, int y) {
 	if (glut_modifiers & GLUT_ACTIVE_SHIFT)   modifiers += cgls_interaction_shift;
 	if (glut_modifiers & GLUT_ACTIVE_CTRL)	  modifiers += cgls_interaction_control;
 	if (glut_modifiers & GLUT_ACTIVE_ALT)     modifiers += cgls_interaction_alt;
+
+// 	printf("key: %d mod %s %s %s\n", key, 
+// 			(glut_modifiers & GLUT_ACTIVE_SHIFT)   ? "[S]" : "[ ]",
+// 			(glut_modifiers & GLUT_ACTIVE_CTRL)	   ? "[C]" : "[ ]",
+// 			(glut_modifiers & GLUT_ACTIVE_ALT)     ? "[A]" : "[ ]");
 
 	bool handled = false;
 	for (struct mode_node *run = modes; run; run = run->next) {

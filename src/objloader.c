@@ -15,6 +15,9 @@
 #include "basename.h"
 #include <libgen.h>
 
+
+#include "modelloader.h"	//TMP
+
 /*! \defgroup objloading Obj File Loading
  *
  *	\see objloader.h
@@ -50,6 +53,10 @@ void add_texture_if_found(material_ref mat, const char *filename, tex_params_t *
  */
 void load_objfile_and_create_objects_with_separate_vbos(const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max, 
                                                         void (*make_drawelem)(const char*, mesh_ref, material_ref, vec3f *bbmin, vec3f *bbmax), material_ref fallback_material) {
+
+	load_model_and_create_objects_with_separate_vbos(filename, object_name, bb_min, bb_max, make_drawelem, fallback_material);
+
+	return;
 	obj_data objdata;
 	const char *modelname = object_name ? object_name : filename;
 	

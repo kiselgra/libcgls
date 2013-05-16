@@ -57,6 +57,18 @@ fi
 CFLAGS="$CFLAGS $DEBUG_FLAGS"
 CXXFLAGS="$CXXFLAGS $DEBUG_FLAGS"
 
+AC_ARG_ENABLE(assimp,
+			[AS_HELP_STRING([--enable-assimp], [Wether to include support for the assimp library. Default: no.])],
+			with_ai="$enableval", with_ai="no")
+AC_ARG_ENABLE(arschwichtel,
+			[AS_HELP_STRING([--enable-arschwichtel], [Wether to include support for the assimp library. Default: no.])],
+			with_ai="$enableval")
+if test "x$with_ai" == "xyes" ; then
+	PKG_CHECK_MODULES(AI, assimp)
+fi
+AC_SUBST([AI_CFLAGS])
+AC_SUBST([AI_LIBS])
+
 # Checks for header files.
 AC_HEADER_STDC
 AC_CHECK_HEADERS([inttypes.h stdlib.h string.h unistd.h])

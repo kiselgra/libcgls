@@ -22,6 +22,7 @@ interaction_mode* make_interaction_mode(const char *name) {
 	mode->fallback_keyhandler = 0;
 	mode->fallback_mouse_handler = 0;
 	mode->motion_handler = 0;
+	mode->type = cgls_invalid_interaction_mode;
 	mode->aux = 0;
 	return mode;
 }
@@ -132,6 +133,7 @@ void interaction_cgl_motion_handler(interaction_mode *mode, int x, int y) {
 
 interaction_mode* make_default_cgl_interaction_mode() {
 	interaction_mode *mode = make_interaction_mode("cgl-default");
+	mode->type = cgls_interaction_mode_cgl;
 	change_fallback_keyhandler_for_mode(mode, interaction_cgl_keyboard_handler);
 	change_fallback_mouse_handler_for_mode(mode, interaction_cgl_mouse_handler);
 	change_motion_handler_for_mode(mode, interaction_cgl_motion_handler);
@@ -171,6 +173,7 @@ void interaction_decrease_move_factor(interaction_mode *mode, int x, int y) {
 
 interaction_mode* make_default_cgls_interaction_mode() {
 	interaction_mode *mode = make_interaction_mode("cgls-default");
+	mode->type = cgls_interaction_mode_cgls;
 	add_function_key_to_mode(mode, 'c', cgls_interaction_no_modifier, interaction_print_camera_lookat);
 	add_function_key_to_mode(mode, '+', cgls_interaction_no_modifier, interaction_increase_move_factor);
 	add_function_key_to_mode(mode, '-', cgls_interaction_no_modifier, interaction_decrease_move_factor);
@@ -486,6 +489,7 @@ void interaction_bm_leave_grs_mode(interaction_mode *mode) {
 
 interaction_mode* make_blender_style_interaction_mode(scene_ref scene, picking_buffer_ref pickingbuffer) {
 	interaction_mode *mode = make_interaction_mode("blender mode");
+	mode->type = cgls_interaction_mode_blender;
 	struct blendermode_aux *aux = mode->aux = malloc(sizeof(struct blendermode_aux));
 	aux->scene = scene;
 	aux->picking = pickingbuffer;
@@ -497,9 +501,17 @@ interaction_mode* make_blender_style_interaction_mode(scene_ref scene, picking_b
 
 	add_mouse_function_to_mode(mode, cgls_interaction_right_button, cgls_interaction_button_down, cgls_interaction_no_modifier, interaction_bm_mouse);
 
-
 	return mode;
 }
+
+drawelement_ref blender_mode_selected_drawelement(interaction_mode *mode) {
+	if (mode->type != cgls_interaction_mode_blender) {
+		drawelement_ref ret = { -1 };
+		return ret;
+	}
+	return ((struct blendermode_aux*)mode->aux)->selected_de;
+}
+
 //! @}
 
 // actual mode management

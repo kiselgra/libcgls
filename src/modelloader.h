@@ -1,5 +1,5 @@
-#ifndef __MODELLOADER_H__ 
-#define __MODELLOADER_H__ 
+#ifndef __CGLS_MODELLOADER_H__ 
+#define __CGLS_MODELLOADER_H__ 
 
 #include "drawelement.h"
 

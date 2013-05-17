@@ -7,12 +7,15 @@
 #include <libcgl/impex.h>
 
 #include <iostream>
+#include <sstream>
+#include <iomanip>
 
 #include <assimp/assimp.hpp>
 #include <assimp/aiScene.h>
 #include <assimp/aiPostProcess.h>
 #include <assimp/types.h>
 
+#include "skeletal.h"
 using namespace std;
 using namespace Assimp;
 
@@ -28,6 +31,56 @@ vec4f col_to_vec4f(const aiColor4D &c) {
 vec3f ass_imp_vec3_to_vec3f(const aiVector3D &v) {
 	vec3f ret = { v.x, v.y, v.z };
 	return ret;
+}
+
+void ass_imp_mat4_to_matrix4x4f(matrix4x4f *to, const aiMatrix4x4 &from) {
+	to->col_major[0] = from.a1; to->col_major[4] = from.a2; to->col_major[8]  = from.a3; to->col_major[12] = from.a4;
+	to->col_major[1] = from.b1; to->col_major[5] = from.b2; to->col_major[9]  = from.b3; to->col_major[13] = from.b4;
+	to->col_major[2] = from.c1; to->col_major[6] = from.c2; to->col_major[10] = from.c3; to->col_major[14] = from.c4;
+	to->col_major[3] = from.d1; to->col_major[7] = from.d2; to->col_major[11] = from.d3; to->col_major[15] = from.d4;
+}
+
+aiBone* find_bone(aiScene const *model_scene, aiString name) {
+	for (int m = 0; m < model_scene->mNumMeshes; ++m)
+		if (model_scene->mMeshes[m]->HasBones())
+			for (int b = 0; b < model_scene->mMeshes[m]->mNumBones; ++b)
+				if (model_scene->mMeshes[m]->mBones[b]->mName == name)
+					return model_scene->mMeshes[m]->mBones[b];
+	return 0;
+}
+
+bone_list* traverse_nodes(aiScene const *model_scene, aiNode *node, aiMatrix4x4 curr_trafo) {
+	curr_trafo = curr_trafo * node->mTransformation;
+	bone_list *ret = 0;
+	for (int c = 0; c < node->mNumChildren; ++c) {
+		bone_list *childs_bones = traverse_nodes(model_scene, node->mChildren[c], curr_trafo);
+		bone_list *tmp = childs_bones;
+		while (childs_bones) {
+			tmp = childs_bones;
+			childs_bones = childs_bones->next;
+			tmp->next = ret;
+			ret = tmp;
+		}
+	}
+	aiBone *found_bone = find_bone(model_scene, node->mName);
+	if (found_bone) {
+		struct bone *bone = (struct bone*)malloc(sizeof(struct bone));
+		ass_imp_mat4_to_matrix4x4f(&bone->rest_trafo, curr_trafo);
+		bone->children = ret;
+		ret = (bone_list*)malloc(sizeof(bone_list));
+		ret->bone = bone;
+		ret->next = 0;
+	}
+	return ret;
+}
+
+skeletal* generate_skeletal_anim(aiScene const* model_scene) {
+	aiNode *root = model_scene->mRootNode;
+	aiMatrix4x4 curr_trafo;
+	bone_list *bones = traverse_nodes(model_scene, root, curr_trafo);
+	skeletal *skel = (skeletal*)malloc(sizeof(skeletal));
+	skel->bones = bones;
+	return skel;
 }
 
 void load_model_and_create_objects_with_separate_vbos(const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max,
@@ -74,16 +127,16 @@ void load_model_and_create_objects_with_separate_vbos(const char *filename, cons
 
 	vec3f model_bbmi, model_bbma;
 
+	generate_skeletal_anim(model_scene);
+
 	for (int i = 0; i < model_scene->mNumMeshes; ++i) {
 		aiMesh *group = model_scene->mMeshes[i];
-		cout << "group" << endl;
-		cout << "------> " << group->HasFaces() << endl;
-		cout << "------> " << group->mNumFaces << endl;
-		cout << "------> " << group->mFaces << endl;
 		int pos = 1;
 		int norm = group->HasNormals() ? 1 : 0;
 		int tc = group->HasTextureCoords(0) ? 1 : 0;
-		mesh_ref m = make_mesh((string(modelname) + "/" + (const char*)group->mName.data).c_str(), pos+norm+tc);
+		int bones = group->HasBones() ? group->mNumBones : 0;
+
+		mesh_ref m = make_mesh((string(modelname) + "/" + (const char*)group->mName.data).c_str(), pos+norm+tc+bones);
 		bind_mesh_to_gl(m);
 
 		int verts = group->mNumVertices;
@@ -98,6 +151,23 @@ void load_model_and_create_objects_with_separate_vbos(const char *filename, cons
 			add_vertex_buffer_to_mesh(m, "in_tc", GL_FLOAT, verts, 2, tc, GL_STATIC_DRAW);
 			delete [] tc;
 		}
+
+		if (bones) {
+			for (int b = 0; b < bones; ++b) {
+				float *weights = new float[verts];
+				aiBone *bone_data = group->mBones[b];
+				cout << "BONE " << b << ": " << bone_data->mName.data << endl;
+				if (bone_data->mNumWeights != verts)
+					cerr << "   - - - >  number bone weights does not match vertex number!" << endl;
+				for (int i = 0; i < verts; ++i)
+					weights[i] = 0;
+				for (int i = 0; i < bone_data->mNumWeights; ++i)
+					weights[bone_data->mWeights[i].mVertexId] = bone_data->mWeights[i].mWeight;
+				ostringstream oss; oss << "bone_weights_" << setw(2) << setfill('0') << b;
+				add_vertex_buffer_to_mesh(m, oss.str().c_str(), GL_FLOAT, verts, 1, weights, GL_STATIC_DRAW);
+			}
+		}
+
 		unsigned int *ids = new unsigned int[3 * group->mNumFaces];
 		for (int i = 0; i < group->mNumFaces; ++i) {
 			ids[3*i+0] = group->mFaces[i].mIndices[0];

@@ -176,6 +176,8 @@ void actual_main()
 	for (int i = 0; i < samples; ++i)
 		times[i] = 0.0f;
 
+	stop_debug_output();
+
 	register_display_function(display);
 	register_idle_function(idle);
 	register_keyboard_function(keyboard);

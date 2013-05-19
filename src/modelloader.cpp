@@ -86,7 +86,7 @@ skeletal* generate_skeletal_anim(aiScene const* model_scene) {
 void load_model_and_create_objects_with_separate_vbos(const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max,
                                                       void (*make_drawelem)(const char*, mesh_ref, material_ref, vec3f *bbmin, vec3f *bbmax), material_ref fallback_material) {
 	const char *modelname = object_name ? object_name : filename;
-	
+
 	char *dirname_tmp = strdup(filename);
 	prepend_image_path(dirname(dirname_tmp));
 	free(dirname_tmp);
@@ -188,7 +188,7 @@ void load_model_and_create_objects_with_separate_vbos(const char *filename, cons
 
 		aiVector3D *v = group->mVertices;
 		vec3f bbmi; vec3f *bb_min = &bbmi; *bb_min = ass_imp_vec3_to_vec3f(v[0]);
-		vec3f bbma; vec3f *bb_max = &bbmi; *bb_max = ass_imp_vec3_to_vec3f(v[0]);
+		vec3f bbma; vec3f *bb_max = &bbma; *bb_max = ass_imp_vec3_to_vec3f(v[0]);
 		for (int i = 0; i < verts; ++i) {
 			if (v[i].x < bb_min->x) bb_min->x = v[i].x;
 			if (v[i].y < bb_min->y) bb_min->y = v[i].y;

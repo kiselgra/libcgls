@@ -12,6 +12,7 @@
  *
  * A material collects information about surface properties, such as colors, textures (regardless of use).
  * It furthermore can generate and hold a shader applicaple to render objects of a given material via the stock shader pipeline, see \ref deferred.
+ * TODO not true anymore
  *
  * \section mattex Handling of textures
  * A material collects all its textures into one list.
@@ -34,9 +35,6 @@ struct material {
 	struct texture_node *textures_head, *back;
     int textures;
 	// blend stuff?
-	//! material's default shader.
-	shader_ref shader;
-	bool use_shader;
 	void *aux;
 };
 
@@ -63,9 +61,6 @@ material_ref make_material(const char *name, vec4f *amb, vec4f *diff, vec4f *spe
 
     mat->textures = 0;
 	mat->textures_head = mat->back = 0;
-
-	mat->shader.id -1;
-	mat->use_shader = false;
 
 	mat->aux = 0;
 	return ref;
@@ -167,7 +162,12 @@ void material_set_aux(material_ref ref, void *aux) {
 /*! \brief Generate a shader applicable to rendering using the stock shader pipeline, see \ref deferred.
  *  \note Generating shaders for a non-deferred pipeline would be a rather more global undertaking.
  */
-void material_use_stock_shader(material_ref ref) {
+struct stockshader_fragments* material_stock_shader_fragment(material_ref ref, struct stockshader_fragments *ssf) {
+	if (!ssf) {
+		ssf = malloc(sizeof(struct stockshader_fragments));
+		init_stockshader_fragments(ssf);
+	}
+
 	struct material *mat = materials+ref.id;
 	struct texture_node *textures = material_textures(ref);
 	bool has_texture_called(const char *name) {
@@ -180,45 +180,12 @@ void material_use_stock_shader(material_ref ref) {
 	bool diffuse_tex  = has_texture_called("diffuse_tex");
 	bool specular_tex = has_texture_called("specular_tex");
 	bool mask_tex     = has_texture_called("mask_tex");
-	mat->use_shader = true;
 
-	struct stockshader_fragments ssf;
-	init_stockshader_fragments(&ssf);
-	stock_shader(&ssf, ambient_tex, diffuse_tex, specular_tex, mask_tex);
-	mat->shader = make_shader("test", stockshader_inputs(&ssf));
-	populate_shader_with_fragments(mat->shader, &ssf);
-	compile_and_link_shader_showing_log_on_error(mat->shader);
-}
-
-bool material_has_shader(material_ref ref) {
-	struct material *mat = materials+ref.id;
-	return valid_shader_ref(mat->shader);
-}
-
-void enable_material_shader(material_ref ref) {
-	if (material_has_shader(ref)) {
-		struct material *mat = materials+ref.id;
-		mat->use_shader = true;
-	}
-}
-
-void disable_material_shader(material_ref ref) {
-	if (material_has_shader(ref)) {
-		struct material *mat = materials+ref.id;
-		mat->use_shader = false;
-	}
-}
-
-bool material_shader_enabled(material_ref ref) {
-	if (!material_has_shader(ref))
-		return false;
-	struct material *mat = materials+ref.id;
-	return mat->use_shader;
-}
-
-shader_ref material_shader(material_ref ref) {
-	struct material *mat = materials+ref.id;
-	return mat->shader;
+	add_stock_fragment_shader_part(ssf, true, ambient_tex, diffuse_tex, specular_tex, mask_tex, true);
+// 	mat->shader = make_shader("test", stockshader_inputs(&ssf));
+// 	populate_shader_with_fragments(mat->shader, &ssf);
+// 	compile_and_link_shader_showing_log_on_error(mat->shader);
+	return ssf;
 }
 
 //! @}
@@ -357,18 +324,6 @@ SCM_DEFINE(s_material_specular_color_x, "set-material-specular-color!", 2, 0, 0,
     vec4f color = scm_vec_to_vec4f(col);
     *material_specular_color(ref) = color;
     return SCM_BOOL_T;
-}
-
-SCM_DEFINE(s_material_use_stock_shader, "material-use-stock-shader!", 1, 0, 0, (SCM id), "") {
-	REF(id);
-	material_use_stock_shader(ref);
-	return SCM_BOOL_T;
-}
-
-SCM_DEFINE(s_mat_shader, "material-shader", 1, 0, 0, (SCM id), "") {
-	material_ref ref = { scm_to_int(id) };
-	shader_ref sref = material_shader(ref);
-	return scm_from_int(sref.id);
 }
 
 

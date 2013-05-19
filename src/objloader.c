@@ -52,7 +52,7 @@ void add_texture_if_found(material_ref mat, const char *filename, tex_params_t *
  *	\deprecated use \ref load_objfile_and_create_objects_with_single_vbo.
  */
 void load_objfile_and_create_objects_with_separate_vbos(const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max, 
-                                                        void (*make_drawelem)(const char*, mesh_ref, material_ref, vec3f *bbmin, vec3f *bbmax), material_ref fallback_material) {
+                                                        drawelement_ref (*make_drawelem)(const char*, mesh_ref, material_ref, vec3f *bbmin, vec3f *bbmax), material_ref fallback_material) {
 
 	load_model_and_create_objects_with_separate_vbos(filename, object_name, bb_min, bb_max, make_drawelem, fallback_material);
 
@@ -182,7 +182,7 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
  *	Note that these are two versions, implementing the same logic for both <tt>load_objfile_*</tt> calls.
  *
  */
-static void example_make_drawelem(const char *name, mesh_ref mesh, material_ref mat, unsigned int start, unsigned int len) {}
+static drawelement_ref example_make_drawelem(const char *name, mesh_ref mesh, material_ref mat, unsigned int start, unsigned int len) {}
 
 /*! \brief Load and obj file and store all data in a single vbo, creating indexed drawelements.
  *	\ingroup objloading
@@ -199,7 +199,7 @@ static void example_make_drawelem(const char *name, mesh_ref mesh, material_ref 
  *	\param fallback_material The material to be used should there be a sub mesh for which we can't find a material.
  */
 void load_objfile_and_create_objects_with_single_vbo(const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max, 
-                                                     void (*make_drawelem)(const char*, mesh_ref, material_ref, unsigned int start, unsigned int len, vec3f *bbmin, vec3f *bbmax), material_ref fallback_material) {
+                                                     drawelement_ref (*make_drawelem)(const char*, mesh_ref, material_ref, unsigned int start, unsigned int len, vec3f *bbmin, vec3f *bbmax), material_ref fallback_material) {
 	obj_data objdata;
 	const char *modelname = object_name ? object_name : filename;
 
@@ -297,6 +297,8 @@ void load_objfile_and_create_objects_with_single_vbo(const char *filename, const
 
 #ifdef WITH_GUILE
 #include <libguile.h>
+	
+#pragma GCC diagnostic ignored "-Wtrampolines"
 
 bool custom_light_handler(drawelement_ref ref, const char *uniform, int location);
 
@@ -304,8 +306,10 @@ SCM_DEFINE(s_load_objfile_and_create_objects_with_separate_vbos,
            "load-objfile-and-create-objects-with-separate-vbos", 4, 0, 0, (SCM filename, SCM object_name, SCM callback, SCM fallback_mat), "") {
 	char *f = scm_to_locale_string(filename);
 	char *o = scm_to_locale_string(object_name);
-	void create_drawelement_forwarder(const char *modelname, mesh_ref mesh, material_ref mat, vec3f *bmi, vec3f *bma) {
-		scm_call_5(callback, scm_from_locale_string(modelname), scm_from_int(mesh.id), scm_from_int(mat.id), vec3f_to_list(bmi), vec3f_to_list(bma));
+	drawelement_ref create_drawelement_forwarder(const char *modelname, mesh_ref mesh, material_ref mat, vec3f *bmi, vec3f *bma) {
+		SCM id = scm_call_5(callback, scm_from_locale_string(modelname), scm_from_int(mesh.id), scm_from_int(mat.id), vec3f_to_list(bmi), vec3f_to_list(bma));
+		drawelement_ref ref = { scm_to_int(id) };
+		return ref;
 	}
 	vec3f min, max;
 	vec4f amb = {1,0,0,1}, diff = {1,0,0,1}, spec = {1,0,0,1};
@@ -318,8 +322,10 @@ SCM_DEFINE(s_load_objfile_and_create_objects_with_single_vbos,
            "load-objfile-and-create-objects-with-single-vbo", 4, 0, 0, (SCM filename, SCM object_name, SCM callback, SCM fallback_mat), "") {
 	char *f = scm_to_locale_string(filename);
 	char *o = scm_to_locale_string(object_name);
-	void create_drawelement_forwarder(const char *modelname, mesh_ref mesh, material_ref mat, unsigned int pos, unsigned int len, vec3f *bmi, vec3f *bma) {
-		scm_call_7(callback, scm_from_locale_string(modelname), scm_from_int(mesh.id), scm_from_int(mat.id), scm_from_uint(pos), scm_from_uint(len), vec3f_to_list(bmi), vec3f_to_list(bma));
+	drawelement_ref create_drawelement_forwarder(const char *modelname, mesh_ref mesh, material_ref mat, unsigned int pos, unsigned int len, vec3f *bmi, vec3f *bma) {
+		SCM id = scm_call_7(callback, scm_from_locale_string(modelname), scm_from_int(mesh.id), scm_from_int(mat.id), scm_from_uint(pos), scm_from_uint(len), vec3f_to_list(bmi), vec3f_to_list(bma));
+		drawelement_ref ref = { scm_to_int(id) };
+		return ref;
 	}
 	vec3f min, max;
 	vec4f amb = {1,0,0,1}, diff = {1,0,0,1}, spec = {1,0,0,1};

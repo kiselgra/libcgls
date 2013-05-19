@@ -57,7 +57,8 @@ picking_buffer_ref make_picking_buffer(const char *name, unsigned int width, uns
 
 	vec4f hc = { 1, 0.5, 0, 1 }, no = { 0, 0, 0, 1 };
 	buf->hightlight_material = make_material("pickingbuffer/highliting-material", &hc, &hc, &no);
-	material_use_stock_shader(buf->hightlight_material);
+// 	material_use_stock_shader(buf->hightlight_material, 0);
+	// TODO
 
 	buf->w = width;
 	buf->h = height;

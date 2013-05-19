@@ -93,6 +93,27 @@ void stockshader_clear_fsource(struct stockshader_fragments *ssf) {
 	}
 }
 
+void stockshader_debug_output(struct stockshader_fragments *ssf) {
+	printf("STOCK SHADER\n");
+	printf("------------\n");
+	printf("inputs: ");
+	for (struct stockshader_stringlist *run = ssf->inputs; run; run = run->next)
+		printf("\t%s", run->data);
+	printf("\n");
+	printf("uniforms: ");
+	for (struct stockshader_stringlist *run = ssf->uniforms; run; run = run->next)
+		printf("\t%s", run->data);
+	printf("\n");
+	printf("vertex sources: ");
+	for (struct stockshader_stringlist *run = ssf->vertex_sources; run; run = run->next)
+		printf("\n%s", run->data);
+	printf("\n");
+	printf("fragment sources: ");
+	for (struct stockshader_stringlist *run = ssf->fragment_sources; run; run = run->next)
+		printf("\n%s", run->data);
+	printf("\n------------\n");
+}
+
 //! @}
 
 // is this really used?
@@ -136,6 +157,53 @@ const char* vertex_pos_norm_notex() {
 }
 
 const char* vertex_pos_norm_tex() {
+	return
+		shader{
+			#version 420 core
+			in vec3 in_pos;
+			in vec3 in_norm;
+			in vec2 in_tc;
+	
+			uniform mat4 proj;
+			uniform mat4 view;
+			uniform mat4 model;
+			
+			out vec4 pos_wc;
+			out vec3 norm_wc;
+			out vec2 tc;
+
+			void main() {
+				pos_wc = model * vec4(in_pos, 1.0);
+				norm_wc = (model * vec4(in_norm,0.0)).xyz; // assuming model is not strange.
+				tc = in_tc;
+				gl_Position = proj * view * pos_wc;
+			}
+		}shader;
+}
+
+const char* vertex_pos_norm_notex_upto_4_bones() {
+	return
+		shader{
+			#version 420 core
+			in vec3 in_pos;
+			in vec3 in_norm;
+	
+			uniform mat4 proj;
+			uniform mat4 view;
+			uniform mat4 model;
+			
+			out vec4 pos_wc;
+			out vec3 norm_wc;
+
+			void main() {
+				pos_wc = model * vec4(in_pos, 1.0);
+				norm_wc = (model * vec4(in_norm,0.0)).xyz; // assuming model is not strange.
+				gl_Position = proj * view * pos_wc;
+			}
+		}shader;
+}
+
+const char* vertex_pos_norm_tex_upto_4_bones() {
 	return
 		shader{
 			#version 420 core
@@ -417,7 +485,7 @@ const char* stock_show_gbuffer_debug_shader() {
 				else if (tc.x >= 0.5 && tc.y >= 0.5)
 					out_col = vec4(texture(gbuffer_normal, tc2 - vec2(1,1)).rgb, 1);
 				else if (tc.x < 0.5 && tc.y < 0.5)
-					out_col = vec4(texture(gbuffer_depth, tc2).rgb, 1);
+					out_col = vec4(texture(gbuffer_depth, tc2).rrr, 1);
 				else
 				{
 					if (length(texture(gbuffer_normal, tc2 - vec2(1,1)).rgb) < 0.1)
@@ -592,10 +660,14 @@ void apply_to_bound_gbuffer(shader_ref shader) {
  * 	@{
  */
 
-void add_stock_vertex_shader(struct stockshader_fragments *ssf, bool use_normals, bool use_texcoords) {
+void add_stock_vertex_shader_part(struct stockshader_fragments *ssf, bool use_normals, bool use_texcoords, int bones) {
 	const char *src = 0;
-	if      ( use_normals && !use_texcoords) src = vertex_pos_norm_notex();
-	else if ( use_normals &&  use_texcoords) src = vertex_pos_norm_tex();
+	if      ( use_normals && !use_texcoords) { if (bones == 0)     src = vertex_pos_norm_notex();
+                                               else if (bones < 4) src = vertex_pos_norm_notex_upto_4_bones();
+	}
+	else if ( use_normals &&  use_texcoords) { if (bones == 0)     src = vertex_pos_norm_tex();
+                                               else if (bones < 4) src = vertex_pos_norm_tex_upto_4_bones();
+	}
 
 	stockshader_add_input(ssf, "in_pos");
 	if (use_normals) stockshader_add_input(ssf, "in_norm");
@@ -606,16 +678,11 @@ void add_stock_vertex_shader(struct stockshader_fragments *ssf, bool use_normals
 	stockshader_add_vsource(ssf, src);
 }
 
-void add_stock_fragment_shader_part(struct stockshader_fragments *ssf, bool use_normals, bool ambient_tex, bool diffuse_tex, bool specular_tex, bool mask_tex) {
-	bool use_tc = false;
-	if (ambient_tex || diffuse_tex || specular_tex || mask_tex)
-		use_tc = true;
+void add_stock_fragment_shader_part(struct stockshader_fragments *ssf, bool use_normals, bool ambient_tex, bool diffuse_tex, bool specular_tex, bool mask_tex, bool use_gbuffer_stock_shader) {
 	if (ign_amb())
 		ambient_tex = false;
 
-	add_stock_vertex_shader(ssf, use_normals, use_tc);
-
-	printf("making shader:   A:%d  D:%d  S:%d  M:%d\n", ambient_tex, diffuse_tex, specular_tex, mask_tex);
+// 	printf("making shader:   A:%d  D:%d  S:%d  M:%d\n", ambient_tex, diffuse_tex, specular_tex, mask_tex);
 
 	const char *src = 0;
 	const char **uniforms = 0;
@@ -631,6 +698,9 @@ void add_stock_fragment_shader_part(struct stockshader_fragments *ssf, bool use_
 	for (int i = 0; uniforms[i]; ++i)
 		stockshader_add_uniform(ssf, uniforms[i]);
 	stockshader_add_fsource(ssf, src);
+	
+	if (use_gbuffer_stock_shader)
+		stockshader_add_fsource(ssf, stock_gbuffer_creation_fragment_shader());
 }
 
 /*! very basic extension to \ref compile_and_link_shader.
@@ -650,13 +720,65 @@ bool compile_and_link_shader_showing_log_on_error(shader_ref shader) {
 	}
 }
 
+/*
 //! generates the shader fragments for the stock shader as specified by the flags.
-void stock_shader(struct stockshader_fragments *ssf, bool ambient_tex, bool diffuse_tex, bool specular_tex, bool mask_tex) {
+void stock_shader(struct stockshader_fragments *ssf, bool ambient_tex, bool diffuse_tex, bool specular_tex, bool mask_tex, int bones) {
+	add_stock_vertex_shader_part(ssf, true, ambient_tex, diffuse_tex, specular_tex, mask_tex, bones);
 	add_stock_fragment_shader_part(ssf, true, ambient_tex, diffuse_tex, specular_tex, mask_tex);
 
 // 	stockshader_add_fsource(ssf, dummy_fragment_shader());
 	stockshader_add_fsource(ssf, stock_gbuffer_creation_fragment_shader());
 }
+*/
+
+struct stockshader_fragments* make_stock_shader_fragments(drawelement_ref de, struct stockshader_fragments *ssf, bool consider_material) {
+	if (!ssf) {
+		ssf = malloc(sizeof(struct stockshader_fragments));
+		init_stockshader_fragments(ssf);
+	}
+
+	if (consider_material) {
+		material_stock_shader_fragment(drawelement_material(de), ssf);
+	}
+
+	bool tc = false;
+	for (struct stockshader_stringlist *run = ssf->uniforms; run; run = run->next)
+		if (strcmp(run->data, "ambient_tex") == 0
+		    || strcmp(run->data, "diffuse_tex") == 0
+		    || strcmp(run->data, "specular_tex") == 0
+		    || strcmp(run->data, "mask_tex") == 0) {
+			tc = true;
+			break;
+		}
+			
+	add_stock_vertex_shader_part(ssf, true, tc, drawelement_number_of_bones(de));
+
+	return ssf;
+}
+
+shader_ref make_stock_shader(const char *name, drawelement_ref de, struct stockshader_fragments *ssf, bool consider_material) {
+	struct stockshader_fragments local;
+	if (!ssf) {
+		init_stockshader_fragments(&local);
+		ssf = make_stock_shader_fragments(de, &local, consider_material);
+	}
+	
+	char *sname = 0;
+	if (!name) {
+		const char *template = "stock-shader for ";
+		sname = malloc(strlen(drawelement_name(de)) + strlen(template) + 1);
+		strcpy(sname, template);
+		strcat(sname, drawelement_name(de));
+	}
+
+	shader_ref shader = make_shader(name ? name : sname, stockshader_inputs(ssf));
+	populate_shader_with_fragments(shader, ssf);
+	compile_and_link_shader_showing_log_on_error(shader);
+	
+	free(sname);
+	return shader;
+}
+
 
 //! adds the accumulated data regarding the shader fragments to the given shader (which must at least exist, see \ref make_shader).
 void populate_shader_with_fragments(shader_ref shader, struct stockshader_fragments *ssf) {

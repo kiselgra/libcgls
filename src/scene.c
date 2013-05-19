@@ -327,8 +327,10 @@ void graph_scene_drawelement_inserter(scene_ref ref, drawelement_ref de) {
 		char *mat_name = strappend("material_for_", name);
 		vec4f c = { .8, .8, .8, 1 };
 		material_ref mat = make_material(mat_name, &c, &c, &c);
-		material_use_stock_shader(mat);
-		new_entry->bulk_de = make_drawelement(name, mesh, material_shader(mat), mat);
+		shader_ref bulk_shader = { -1 };
+		new_entry->bulk_de = make_drawelement(name, mesh, bulk_shader, mat);
+		bulk_shader = make_stock_shader(0, new_entry->bulk_de, 0, true);
+		drawelement_change_shader(new_entry->bulk_de, bulk_shader);
 		//! \attention when different model transformations are applied to different submeshes, our scheme (copying the first we get a hold of) will break.
 		copy_matrix4x4f(drawelement_trafo(new_entry->bulk_de), drawelement_trafo(de));
 		for (struct uniform_handler_node *run = drawelement_uniform_handlers(de); run; run = run->next)

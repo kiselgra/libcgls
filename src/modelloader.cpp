@@ -16,6 +16,8 @@
 #include <assimp/types.h>
 
 #include "skeletal.h"
+#include "stock-shader.h"
+
 using namespace std;
 using namespace Assimp;
 
@@ -67,6 +69,7 @@ bone_list* traverse_nodes(aiScene const *model_scene, aiNode *node, aiMatrix4x4 
 		struct bone *bone = (struct bone*)malloc(sizeof(struct bone));
 		ass_imp_mat4_to_matrix4x4f(&bone->rest_trafo, curr_trafo);
 		bone->children = ret;
+		bone->name = strdup((char*)found_bone->mName.data);
 		ret = (bone_list*)malloc(sizeof(bone_list));
 		ret->bone = bone;
 		ret->next = 0;
@@ -74,17 +77,16 @@ bone_list* traverse_nodes(aiScene const *model_scene, aiNode *node, aiMatrix4x4 
 	return ret;
 }
 
-skeletal* generate_skeletal_anim(aiScene const* model_scene) {
+skeletal_animation_ref generate_skeletal_anim(aiScene const* model_scene) {
 	aiNode *root = model_scene->mRootNode;
 	aiMatrix4x4 curr_trafo;
 	bone_list *bones = traverse_nodes(model_scene, root, curr_trafo);
-	skeletal *skel = (skeletal*)malloc(sizeof(skeletal));
-	skel->bones = bones;
-	return skel;
+	skeletal_animation_ref ref = make_skeletal_animation("test", bones);
+	return ref;
 }
 
 void load_model_and_create_objects_with_separate_vbos(const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max,
-                                                      void (*make_drawelem)(const char*, mesh_ref, material_ref, vec3f *bbmin, vec3f *bbmax), material_ref fallback_material) {
+                                                      drawelement_ref (*make_drawelem)(const char*, mesh_ref, material_ref, vec3f *bbmin, vec3f *bbmax), material_ref fallback_material) {
 	const char *modelname = object_name ? object_name : filename;
 
 	char *dirname_tmp = strdup(filename);
@@ -127,7 +129,7 @@ void load_model_and_create_objects_with_separate_vbos(const char *filename, cons
 
 	vec3f model_bbmi, model_bbma;
 
-	generate_skeletal_anim(model_scene);
+	skeletal_animation_ref anim = generate_skeletal_anim(model_scene);
 
 	for (int i = 0; i < model_scene->mNumMeshes; ++i) {
 		aiMesh *group = model_scene->mMeshes[i];
@@ -135,6 +137,9 @@ void load_model_and_create_objects_with_separate_vbos(const char *filename, cons
 		int norm = group->HasNormals() ? 1 : 0;
 		int tc = group->HasTextureCoords(0) ? 1 : 0;
 		int bones = group->HasBones() ? group->mNumBones : 0;
+		bone **found_bones = new bone*[bones];
+		for (int i = 0; i < bones; ++i)
+			found_bones[i] = 0;
 
 		mesh_ref m = make_mesh((string(modelname) + "/" + (const char*)group->mName.data).c_str(), pos+norm+tc+bones);
 		bind_mesh_to_gl(m);
@@ -165,6 +170,7 @@ void load_model_and_create_objects_with_separate_vbos(const char *filename, cons
 					weights[bone_data->mWeights[i].mVertexId] = bone_data->mWeights[i].mWeight;
 				ostringstream oss; oss << "bone_weights_" << setw(2) << setfill('0') << b;
 				add_vertex_buffer_to_mesh(m, oss.str().c_str(), GL_FLOAT, verts, 1, weights, GL_STATIC_DRAW);
+				found_bones[b] = find_bone_in_skeletal_animation(anim, (char*)bone_data->mName.data);
 			}
 		}
 
@@ -183,6 +189,7 @@ void load_model_and_create_objects_with_separate_vbos(const char *filename, cons
 		aiString doh;
 		mm->Get(AI_MATKEY_NAME, doh);
 		n = (const char*)doh.data;
+		string addendum = bones ? string("+B-hack") : string("");	// This should really be done differently!
 		std::string mat_name = string(modelname) + "/" + n;
 		material_ref mat = find_material(mat_name.c_str());
 
@@ -210,7 +217,17 @@ void load_model_and_create_objects_with_separate_vbos(const char *filename, cons
 			if (bbma.z > model_bbma.z) model_bbma.z = bbma.z;
 		}
 
-		make_drawelem(mesh_name(m), m, mat, bb_min, bb_max);
+		drawelement_ref de = make_drawelem(mesh_name(m), m, mat, bb_min, bb_max);
+		if (!valid_drawelement_ref(de))
+			continue;
+
+		make_drawelement_part_of_skeletal_animation(de, anim);
+		assign_bones_to_drawelement(de, bones, found_bones);
+
+		if (!valid_shader_ref(drawelement_shader(de))) {
+			shader_ref shader = make_stock_shader(0, de, 0, true);
+			drawelement_change_shader(de, shader);
+		}
 	}
 
 	*bb_min = model_bbmi;

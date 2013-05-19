@@ -39,6 +39,9 @@ struct drawelement {
 	unsigned int index_buffer_start, indices;
 	vec3f bb_min, bb_max;
 	bool has_bb;
+	unsigned int affecting_bones;
+	struct bone **bones;
+	skeletal_animation_ref skeletal_animation;
 };
 
 #include <libcgl/mm.h>
@@ -65,6 +68,10 @@ drawelement_ref make_drawelement(const char *name, mesh_ref mr, shader_ref sr, m
 
 	de->use_index_range = false;
 	de->has_bb = false;
+
+	de->affecting_bones = 0;
+	de->bones = 0;
+	de->skeletal_animation.id = -1;
 
 // 	printf("create drawelement %s.\n", de->name);
 	return ref;
@@ -308,6 +315,34 @@ struct drawelement_list* list_drawelements() {
     return head;
 }
 
+bool drawelement_with_bones(drawelement_ref ref) {
+	return drawelements[ref.id].affecting_bones > 0;
+}
+
+int drawelement_number_of_bones(drawelement_ref ref) {
+	return drawelements[ref.id].affecting_bones;
+}
+
+struct bone** drawelement_bones(drawelement_ref ref) {
+	return drawelements[ref.id].bones;
+}
+
+void assign_bones_to_drawelement(drawelement_ref ref, int n, struct bone **bones) {
+	struct drawelement *de = drawelements + ref.id;
+	de->affecting_bones = n;
+	de->bones = malloc(sizeof(struct bone*)*n);
+	for (int i = 0; i < n; ++i)
+		de->bones[i] = bones[i];
+}
+
+void make_drawelement_part_of_skeletal_animation(drawelement_ref ref, skeletal_animation_ref sa) {
+	drawelements[ref.id].skeletal_animation = sa;
+}
+
+skeletal_animation_ref drawelement_skeletal_animation(drawelement_ref ref) {
+	return drawelements[ref.id].skeletal_animation;
+}
+
 //! @}
 
 #ifdef WITH_GUILE
@@ -442,11 +477,16 @@ SCM_DEFINE(s_de_change_shader, "change-drawelement-shader", 2, 0, 0, (SCM de_ref
 	return scm_from_int(old.id);
 }
 
+SCM_DEFINE(s_de_nr_bones, "drawelement-number-of-bones", 1, 0, 0, (SCM de_ref), "") {
+    drawelement_ref de = { scm_to_int(de_ref) };
+	int b = drawelement_number_of_bones(de);
+	return scm_from_int(b);
+}
+
 SCM_DEFINE(s_TMP_mem_barr, "memory-barrier!!", 0, 0, 0, (), "") {
     glMemoryBarrier(GL_ALL_BARRIER_BITS);
     return SCM_BOOL_T;
 }
-
 
 void register_scheme_functions_for_drawelement() {
 #include "drawelement.x"

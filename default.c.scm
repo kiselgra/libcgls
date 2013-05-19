@@ -42,8 +42,8 @@
 		(else #f)))
 
 (define (make-de name mesh material bbmin bbmax)
-  (material-use-stock-shader! material)
-  (let* ((shader (material-shader material))
+  ;(material-use-stock-shader! material)
+  (let* ((shader -1);(material-shader material))
 		 (de (make-drawelement name mesh shader material)))
 	(prepend-uniform-handler de 'default-matrix-uniform-handler)
 	(prepend-uniform-handler de 'default-material-uniform-handler)
@@ -54,7 +54,8 @@
 
 (define (make-de-idx name mesh material pos len bbmin bbmax)
   (let ((de (make-de name mesh material bbmin bbmax)))
-    (drawelement-index-buffer-range! de pos len)))
+    (drawelement-index-buffer-range! de pos len)
+    de))
 
 (let ((fallback (make-material "fallback" (list 1 0 0 1) (list 1 0 0 1) (list 0 0 0 1))))
   (receive (min max) (if use-graph

@@ -39,8 +39,8 @@ struct texture_node* material_textures(material_ref ref);
 void material_add_texture(material_ref ref, texture_ref tex);
 void material_add_texture_as(material_ref ref, texture_ref tex, const char *name);
 
-void material_use_stock_shader(material_ref ref);
-shader_ref material_shader(material_ref);
+struct stockshader_fragments;
+struct stockshader_fragments*  material_stock_shader_fragment(material_ref ref, struct stockshader_fragments *ssf);
 
 void* material_aux(material_ref ref);
 void material_set_aux(material_ref ref, void *aux);

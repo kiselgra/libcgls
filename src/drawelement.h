@@ -3,6 +3,7 @@
 
 #include "material.h"
 #include "uniforms.h"
+#include "skeletal.h"
 
 #include <libcgl/libcgl.h>
 
@@ -56,6 +57,13 @@ drawelement_ref find_drawelement(const char *name);
 struct drawelement_list* list_drawelements();
 
 struct uniform_handler_node* drawelement_uniform_handlers(drawelement_ref ref);
+
+void assign_bones_to_drawelement(drawelement_ref ref, int n, struct bone **bones);
+struct bone** drawelement_bones(drawelement_ref ref);
+int drawelement_number_of_bones(drawelement_ref ref);
+bool drawelement_with_bones(drawelement_ref ref);
+skeletal_animation_ref drawelement_skeletal_animation(drawelement_ref ref);
+void make_drawelement_part_of_skeletal_animation(drawelement_ref ref, skeletal_animation_ref sa);
 
 #ifdef __cplusplus
 }

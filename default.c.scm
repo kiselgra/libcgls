@@ -26,8 +26,8 @@
 (defmacro cmdline (x)
   `(query-cmdline ',x))
 
-(define use-graph #f)
-;(define use-graph #t)
+;(define use-graph #f)
+(define use-graph #t)
 
 (define the-scene (if use-graph (make-graph-scene "default")
                                 (make-scene "default")))
@@ -58,9 +58,11 @@
     de))
 
 (let ((fallback (make-material "fallback" (list 1 0 0 1) (list 1 0 0 1) (list 0 0 0 1))))
-  (receive (min max) (if use-graph
-                         (load-objfile-and-create-objects-with-single-vbo (cmdline model) (cmdline model) make-de-idx fallback)
-                         (load-objfile-and-create-objects-with-separate-vbos (cmdline model) (cmdline model) make-de fallback))
+  (receive (min max) (if (not (string=? (basename (cmdline model) ".obj") (basename (cmdline model))))
+                         (if use-graph
+                             (load-objfile-and-create-objects-with-single-vbo (cmdline model) (cmdline model) make-de-idx fallback)
+                             (load-objfile-and-create-objects-with-separate-vbos (cmdline model) (cmdline model) make-de fallback))
+                         (load-model-and-create-objects-with-separate-vbos (cmdline model) (cmdline model) make-de fallback))
     (let* ((near 1)
 		   (far 1000)
 		   (diam (vec-sub max min))

@@ -181,7 +181,7 @@ const char* vertex_pos_norm_tex() {
 		}shader;
 }
 
-const char* vertex_pos_norm_notex_upto_4_bones() {
+const char* vertex_pos_norm_notex_upto_8_bones() {
 	return
 		shader{
 			#version 420 core
@@ -203,7 +203,7 @@ const char* vertex_pos_norm_notex_upto_4_bones() {
 		}shader;
 }
 
-const char* vertex_pos_norm_tex_upto_4_bones() {
+const char* vertex_pos_norm_tex_upto_8_bones() {
 	return
 		shader{
 			#version 420 core
@@ -663,10 +663,10 @@ void apply_to_bound_gbuffer(shader_ref shader) {
 void add_stock_vertex_shader_part(struct stockshader_fragments *ssf, bool use_normals, bool use_texcoords, int bones) {
 	const char *src = 0;
 	if      ( use_normals && !use_texcoords) { if (bones == 0)     src = vertex_pos_norm_notex();
-                                               else if (bones < 4) src = vertex_pos_norm_notex_upto_4_bones();
+                                               else if (bones < 8) src = vertex_pos_norm_notex_upto_8_bones();
 	}
 	else if ( use_normals &&  use_texcoords) { if (bones == 0)     src = vertex_pos_norm_tex();
-                                               else if (bones < 4) src = vertex_pos_norm_tex_upto_4_bones();
+                                               else if (bones < 8) src = vertex_pos_norm_tex_upto_8_bones();
 	}
 
 	stockshader_add_input(ssf, "in_pos");

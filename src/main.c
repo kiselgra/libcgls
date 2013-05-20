@@ -141,18 +141,21 @@ void adjust_view(const vec3f *bb_min, const vec3f *bb_max, vec3f *cam_pos, float
 	cgl_cam_move_factor = *distance / 20.0f;
 }
 
+// TODO this whole thing should go to some standard libcgls place...
 #ifdef WITH_GUILE
 void register_scheme_functions_for_cgls_objloader();
 void register_scheme_functions_for_material();
 void register_scheme_functions_for_cmdline();
 void register_scheme_functions_for_drawelement();
 void register_scheme_functions_for_scene();
+void register_scheme_functions_for_cgls_modelloader();
 static void register_scheme_functions() {
 	register_scheme_functions_for_cgls_objloader();
 	register_scheme_functions_for_material();
 	register_scheme_functions_for_cmdline();
 	register_scheme_functions_for_drawelement();
 	register_scheme_functions_for_scene();
+	register_scheme_functions_for_cgls_modelloader();
 }
 #endif
 

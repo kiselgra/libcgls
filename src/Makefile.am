@@ -2,7 +2,7 @@ lib_LTLIBRARIES = libcgls.la
 noinst_PROGRAMS = viewer-cgls #tsm
 
 BUILT_SOURCES = drawelement.xx scene.xx material.xx picking.xx light.xx skeletal.xx
-BUILT_SOURCES += objloader.x cmdline.x material.x drawelement.x scene.x
+BUILT_SOURCES += objloader.x cmdline.x material.x drawelement.x scene.x modelloader-scm.x
 BUILT_SOURCES += stock-shader.c picking.c
 
 EXTRA_DIST = stock-shader.c.in picking.c.in
@@ -15,7 +15,7 @@ libcgls_la_SOURCES = 	\
 						interaction.c interaction.h \
 						light.c light.h \
 						material.c material.h \
-						modelloader.cpp \
+						modelloader.cpp modelloader-scm.c modelloader.h \
 						objloader.c objloader.h \
 						picking.c picking.h \
 						scene.c scene.h \
@@ -39,6 +39,7 @@ library_include_HEADERS = drawelement.h objloader.h scene.h c-utils.h basename.h
 
 # setting c++ flags:
 # AM_CXXFLAGS = -Wall -ansi -pedantic -ggdb -pg
+AM_CXXFLAGS = -ffor-scope
 
 # setting c preprocessor flags for main project
 viewer_cgls_CPPFLAGS = -D PACKAGE=\"$(PACKAGE)\" -D VERSION=\"$(VERSION)\" -D DATADIR=\"$(pkgdatadir)\" -D_GNU_SOURCE @GUILE_DEF@ $(GUILE_CFLAGS) $(CGL_CFLAGS) $(AI_CFLAGS)

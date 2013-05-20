@@ -4,6 +4,7 @@
 #include "basename.h"
 #include "scene.h"
 #include "cmdline.h"
+#include "stock-shader.h"
 
 
 #include <libcgl/libcgl.h>
@@ -54,9 +55,9 @@ void add_texture_if_found(material_ref mat, const char *filename, tex_params_t *
 void load_objfile_and_create_objects_with_separate_vbos(const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max, 
                                                         drawelement_ref (*make_drawelem)(const char*, mesh_ref, material_ref, vec3f *bbmin, vec3f *bbmax), material_ref fallback_material) {
 
-	load_model_and_create_objects_with_separate_vbos(filename, object_name, bb_min, bb_max, make_drawelem, fallback_material);
-
-	return;
+// 	load_model_and_create_objects_with_separate_vbos(filename, object_name, bb_min, bb_max, make_drawelem, fallback_material);
+// 
+// 	return;
 	obj_data objdata;
 	const char *modelname = object_name ? object_name : filename;
 	
@@ -132,15 +133,20 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 			if (v[i].z > bb_max->z) bb_max->z = v[i].z;
 		}
 
-		make_drawelem(group->name, m, mat, bb_min, bb_max);
+		drawelement_ref de = make_drawelem(group->name, m, mat, bb_min, bb_max);
 	
 		free(v);
 		free(n);
 		free(t);
 		free(indices);
-
-		// - create material
-		// - call mesh created handler (with mesh and mat, should create shader and de)
+		
+		if (!valid_drawelement_ref(de))
+			continue;
+		
+		if (!valid_shader_ref(drawelement_shader(de))) {
+			shader_ref shader = make_stock_shader(0, de, 0, true);
+			drawelement_change_shader(de, shader);
+		}
 	}
 	
 	if (bb_min && bb_max) {	// {{{
@@ -272,8 +278,16 @@ void load_objfile_and_create_objects_with_single_vbo(const char *filename, const
 			if (objdata.vertex_data[id].z > bb_max->z) bb_max->z = objdata.vertex_data[id].z;
 		}
 
-		make_drawelem(g->name, m, mat, pos, g->triangles*3, bb_min, bb_max);
+		drawelement_ref de = make_drawelem(g->name, m, mat, pos, g->triangles*3, bb_min, bb_max);
 		pos += g->triangles*3;
+		
+		if (!valid_drawelement_ref(de))
+			continue;
+		
+		if (!valid_shader_ref(drawelement_shader(de))) {
+			shader_ref shader = make_stock_shader(0, de, 0, true);
+			drawelement_change_shader(de, shader);
+		}
 	}
 	
 	free(index_buffer);

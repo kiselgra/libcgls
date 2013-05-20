@@ -90,7 +90,7 @@ void display() {
 	curr_pos = (curr_pos+1) % samples;
 	valid_pos = (valid_pos == samples ? samples : valid_pos+1);
 
-    check_for_gl_errors("blarg");
+    check_for_gl_errors("display");
 
 	swap_buffers();
 }

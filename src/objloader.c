@@ -34,6 +34,7 @@
 
 
 void add_texture_if_found(material_ref mat, const char *filename, tex_params_t *p, const char *texname) {
+	printf("---------------------------------- looking for %s\n", filename);
 	char *fn = find_file(filename);
 	if (fn) {
 		texture_ref tex = find_texture_by_filename(fn);

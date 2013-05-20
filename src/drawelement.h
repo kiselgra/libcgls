@@ -64,6 +64,10 @@ int drawelement_number_of_bones(drawelement_ref ref);
 bool drawelement_with_bones(drawelement_ref ref);
 skeletal_animation_ref drawelement_skeletal_animation(drawelement_ref ref);
 void make_drawelement_part_of_skeletal_animation(drawelement_ref ref, skeletal_animation_ref sa);
+matrix4x4f* drawelement_bone_matrix_area(drawelement_ref ref);
+
+
+bool bone_matrix_uniform_handler(drawelement_ref *ref, const char *uniform, int location);
 
 #ifdef __cplusplus
 }

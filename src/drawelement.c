@@ -41,6 +41,7 @@ struct drawelement {
 	bool has_bb;
 	unsigned int affecting_bones;
 	struct bone **bones;
+	matrix4x4f *bone_matrix_area;
 	skeletal_animation_ref skeletal_animation;
 };
 
@@ -72,6 +73,7 @@ drawelement_ref make_drawelement(const char *name, mesh_ref mr, shader_ref sr, m
 	de->affecting_bones = 0;
 	de->bones = 0;
 	de->skeletal_animation.id = -1;
+	de->bone_matrix_area = 0;
 
 // 	printf("create drawelement %s.\n", de->name);
 	return ref;
@@ -333,6 +335,7 @@ void assign_bones_to_drawelement(drawelement_ref ref, int n, struct bone **bones
 	de->bones = malloc(sizeof(struct bone*)*n);
 	for (int i = 0; i < n; ++i)
 		de->bones[i] = bones[i];
+	de->bone_matrix_area = malloc(sizeof(matrix4x4f) * n);
 }
 
 void make_drawelement_part_of_skeletal_animation(drawelement_ref ref, skeletal_animation_ref sa) {
@@ -341,6 +344,10 @@ void make_drawelement_part_of_skeletal_animation(drawelement_ref ref, skeletal_a
 
 skeletal_animation_ref drawelement_skeletal_animation(drawelement_ref ref) {
 	return drawelements[ref.id].skeletal_animation;
+}
+
+matrix4x4f* drawelement_bone_matrix_area(drawelement_ref ref) {
+	return drawelements[ref.id].bone_matrix_area;
 }
 
 //! @}

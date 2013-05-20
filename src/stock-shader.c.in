@@ -228,6 +228,85 @@ const char* vertex_pos_norm_tex_upto_8_bones() {
 		}shader;
 }
 
+const char* vertex_pos_norm_notex_upto_24_bones() {
+	return
+		shader{
+			#version 420 core
+			in vec3 in_pos;
+			in vec3 in_norm;
+			in vec4 bone_weight_01;
+			in vec4 bone_weight_02;
+			in vec4 bone_weight_03;
+			in vec4 bone_weight_04;
+			in vec4 bone_weight_05;
+			in vec4 bone_weight_06;
+	
+			uniform mat4 proj;
+			uniform mat4 view;
+			uniform mat4 model;
+			uniform mat4 bone_matrices[24];
+			
+			out vec4 pos_wc;
+			out vec3 norm_wc;
+
+			void main() {
+				mat4 bone_trafo = mat4(0);
+				for (int i = 0; i < 4; ++i) {
+					bone_trafo += bone_matrices[0+i] * bone_weight_01[i];
+					bone_trafo += bone_matrices[4+i] * bone_weight_02[i];
+					bone_trafo += bone_matrices[8+i] * bone_weight_03[i];
+					bone_trafo += bone_matrices[12+i] * bone_weight_04[i];
+					bone_trafo += bone_matrices[16+i] * bone_weight_05[i];
+// 					bone_trafo += bone_matrices[20+i] * bone_weight_06[i];
+				}
+				pos_wc = model * bone_trafo * vec4(in_pos, 1);
+				norm_wc = mat3(model) * mat3(bone_trafo) * in_norm; // assuming model is not strange.
+				gl_Position = proj * view * pos_wc;
+			}
+		}shader;
+}
+
+const char* vertex_pos_norm_tex_upto_24_bones() {
+	return
+		shader{
+			#version 420 core
+			in vec3 in_pos;
+			in vec3 in_norm;
+			in vec2 in_tc;
+			in vec4 bone_weight_01;
+			in vec4 bone_weight_02;
+			in vec4 bone_weight_03;
+			in vec4 bone_weight_04;
+			in vec4 bone_weight_05;
+			in vec4 bone_weight_06;
+		
+			uniform mat4 proj;
+			uniform mat4 view;
+			uniform mat4 model;
+			uniform mat4 bone_matrices[24];
+			
+			out vec4 pos_wc;
+			out vec3 norm_wc;
+			out vec2 tc;
+
+			void main() {
+				mat4 bone_trafo = mat4(0);
+				for (int i = 0; i < 4; ++i) {
+					bone_trafo += bone_matrices[0+i] * bone_weight_01[i];
+					bone_trafo += bone_matrices[4+i] * bone_weight_02[i];
+					bone_trafo += bone_matrices[8+i] * bone_weight_03[i];
+					bone_trafo += bone_matrices[12+i] * bone_weight_04[i];
+					bone_trafo += bone_matrices[16+i] * bone_weight_05[i];
+// 					bone_trafo += bone_matrices[20+i] * bone_weight_06[i];
+				}
+				pos_wc = model * bone_trafo * vec4(in_pos, 1);
+				norm_wc = mat3(model) * mat3(bone_trafo) * in_norm; // assuming model is not strange.
+				tc = in_tc;
+				gl_Position = proj * view * pos_wc;
+			}
+		}shader;
+}
+
 const char* fragment_part_no_no_no_no(const char ***u) {
 	static const char *uniforms[] = {
 		"ambient_color",
@@ -662,12 +741,19 @@ void apply_to_bound_gbuffer(shader_ref shader) {
 
 void add_stock_vertex_shader_part(struct stockshader_fragments *ssf, bool use_normals, bool use_texcoords, int bones) {
 	const char *src = 0;
-	if      ( use_normals && !use_texcoords) { if (bones == 0)     src = vertex_pos_norm_notex();
-                                               else if (bones < 8) src = vertex_pos_norm_notex_upto_8_bones();
+	if      ( use_normals && !use_texcoords) { if (bones == 0)       src = vertex_pos_norm_notex();
+                                               else if (bones <= 8)  src = vertex_pos_norm_notex_upto_8_bones();
+                                               else if (bones <= 24) src = vertex_pos_norm_notex_upto_24_bones();
+											   else { fprintf(stderr, "tooo many bones!\n"); exit(1); }
 	}
-	else if ( use_normals &&  use_texcoords) { if (bones == 0)     src = vertex_pos_norm_tex();
-                                               else if (bones < 8) src = vertex_pos_norm_tex_upto_8_bones();
+	else if ( use_normals &&  use_texcoords) { if (bones == 0)       src = vertex_pos_norm_tex();
+                                               else if (bones <= 8)  src = vertex_pos_norm_tex_upto_8_bones();
+                                               else if (bones <= 24) src = vertex_pos_norm_tex_upto_24_bones();
+											   else { fprintf(stderr, "tooo many bones!\n"); exit(1); }
 	}
+
+	if (bones)
+		stockshader_add_uniform(ssf, "bone_matrices");
 
 	stockshader_add_input(ssf, "in_pos");
 	if (use_normals) stockshader_add_input(ssf, "in_norm");

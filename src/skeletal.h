@@ -17,6 +17,7 @@ struct bone {
 	char *name;
 	matrix4x4f rest_trafo;
 	struct bone_list *children;
+	int local_id;
 };
 
 typedef struct {

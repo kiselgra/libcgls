@@ -42,6 +42,13 @@ void ass_imp_mat4_to_matrix4x4f(matrix4x4f *to, const aiMatrix4x4 &from) {
 	to->col_major[3] = from.d1; to->col_major[7] = from.d2; to->col_major[11] = from.d3; to->col_major[15] = from.d4;
 }
 
+// void ass_imp_mat4_to_matrix4x4f(matrix4x4f *to, const aiMatrix4x4 &from) {
+// 	to->col_major[0] = from.a1; to->col_major[4] = from.b1; to->col_major[8]  = from.c1; to->col_major[12] = from.d1;
+// 	to->col_major[1] = from.a2; to->col_major[5] = from.b2; to->col_major[9]  = from.c2; to->col_major[13] = from.d2;
+// 	to->col_major[2] = from.a3; to->col_major[6] = from.b3; to->col_major[10] = from.c3; to->col_major[14] = from.d3;
+// 	to->col_major[3] = from.a4; to->col_major[7] = from.b4; to->col_major[11] = from.c4; to->col_major[15] = from.d4;
+// }
+
 aiBone* find_bone(aiScene const *model_scene, aiString name) {
 	for (int m = 0; m < model_scene->mNumMeshes; ++m)
 		if (model_scene->mMeshes[m]->HasBones())
@@ -51,11 +58,13 @@ aiBone* find_bone(aiScene const *model_scene, aiString name) {
 	return 0;
 }
 
-bone_list* traverse_nodes(aiScene const *model_scene, aiNode *node, aiMatrix4x4 curr_trafo) {
+bone_list* traverse_nodes(aiScene const *model_scene, aiNode *node, aiMatrix4x4 curr_trafo, int d) {
+	cout << "trav node " << node->mName.data << endl;
+// 	curr_trafo = node->mTransformation * curr_trafo;
 	curr_trafo = curr_trafo * node->mTransformation;
 	bone_list *ret = 0;
 	for (int c = 0; c < node->mNumChildren; ++c) {
-		bone_list *childs_bones = traverse_nodes(model_scene, node->mChildren[c], curr_trafo);
+		bone_list *childs_bones = traverse_nodes(model_scene, node->mChildren[c], curr_trafo, d+1);
 		bone_list *tmp = childs_bones;
 		while (childs_bones) {
 			tmp = childs_bones;
@@ -66,10 +75,14 @@ bone_list* traverse_nodes(aiScene const *model_scene, aiNode *node, aiMatrix4x4 
 	}
 	aiBone *found_bone = find_bone(model_scene, node->mName);
 	if (found_bone) {
+		for (int i = 0; i < d; ++i) cout << "  ";
+		cout << "trav node " << node->mName.data;
+		cout << " A BONE" << endl;
 		struct bone *bone = (struct bone*)malloc(sizeof(struct bone));
 		ass_imp_mat4_to_matrix4x4f(&bone->rest_trafo, curr_trafo);
 		bone->children = ret;
 		bone->name = strdup((char*)found_bone->mName.data);
+		bone->local_id = -1;
 		ret = (bone_list*)malloc(sizeof(bone_list));
 		ret->bone = bone;
 		ret->next = 0;
@@ -80,7 +93,7 @@ bone_list* traverse_nodes(aiScene const *model_scene, aiNode *node, aiMatrix4x4 
 skeletal_animation_ref generate_skeletal_anim(aiScene const* model_scene) {
 	aiNode *root = model_scene->mRootNode;
 	aiMatrix4x4 curr_trafo;
-	bone_list *bones = traverse_nodes(model_scene, root, curr_trafo);
+	bone_list *bones = traverse_nodes(model_scene, root, curr_trafo, 0);
 	skeletal_animation_ref ref = make_skeletal_animation("test", bones);
 	return ref;
 }
@@ -125,6 +138,18 @@ void load_model_and_create_objects_with_separate_vbos(const char *filename, cons
 		float s;
 		mtl->Get(AI_MATKEY_SHININESS, s);
 		material_set_specular_exponent(mat, s);
+			
+		{
+			material_ref mat = make_material((string(modelname) + "/" + n + "+B-hack").c_str(), &col_amb, &col_diff, &col_spec);
+
+			if (mtl->GetTexture(aiTextureType_AMBIENT, 0, &doh) == AI_SUCCESS)  add_texture_if_found(mat, (const char*)doh.data, &p, "ambient_tex");
+			if (mtl->GetTexture(aiTextureType_DIFFUSE, 0, &doh) == AI_SUCCESS)  add_texture_if_found(mat, (const char*)doh.data, &p, "diffuse_tex");
+			if (mtl->GetTexture(aiTextureType_SPECULAR, 0, &doh) == AI_SUCCESS) add_texture_if_found(mat, (const char*)doh.data, &p, "specular_tex");
+			if (mtl->GetTexture(aiTextureType_OPACITY, 0, &doh) == AI_SUCCESS)  add_texture_if_found(mat, (const char*)doh.data, &p, "mask_tex");
+			float s;
+			mtl->Get(AI_MATKEY_SHININESS, s);
+			material_set_specular_exponent(mat, s);
+		}
 	}
 
 	vec3f model_bbmi, model_bbma;
@@ -141,6 +166,7 @@ void load_model_and_create_objects_with_separate_vbos(const char *filename, cons
 		for (int i = 0; i < bones; ++i)
 			found_bones[i] = 0;
 
+// 		cout << "mesh " << i << ": " << group->mName.data << endl;
 		mesh_ref m = make_mesh((string(modelname) + "/" + (const char*)group->mName.data).c_str(), pos+norm+tc+bones);
 		bind_mesh_to_gl(m);
 
@@ -158,19 +184,25 @@ void load_model_and_create_objects_with_separate_vbos(const char *filename, cons
 		}
 
 		if (bones) {
-			for (int b = 0; b < bones; ++b) {
-				float *weights = new float[verts];
-				aiBone *bone_data = group->mBones[b];
-				cout << "BONE " << b << ": " << bone_data->mName.data << endl;
-				if (bone_data->mNumWeights != verts)
-					cerr << "   - - - >  number bone weights does not match vertex number!" << endl;
-				for (int i = 0; i < verts; ++i)
-					weights[i] = 0;
-				for (int i = 0; i < bone_data->mNumWeights; ++i)
-					weights[bone_data->mWeights[i].mVertexId] = bone_data->mWeights[i].mWeight;
-				ostringstream oss; oss << "bone_weights_" << setw(2) << setfill('0') << b;
-				add_vertex_buffer_to_mesh(m, oss.str().c_str(), GL_FLOAT, verts, 1, weights, GL_STATIC_DRAW);
-				found_bones[b] = find_bone_in_skeletal_animation(anim, (char*)bone_data->mName.data);
+			int components_in_last_buffer = bones % 4;
+			int vertex_buffers = bones / 4 + (components_in_last_buffer!=0 ? 1 : 0);
+
+			for (int buf = 0; buf < vertex_buffers; ++buf) {
+				float *weights = new float[4*verts];
+				for (int b = 0; b < 4; ++b) {
+					int bone_id = 4*buf + b;
+					for (int i = 0; i < verts; ++i)
+						weights[4*i+b] = 0;
+					if (bone_id >= bones)
+						continue;
+					aiBone *bone_data = group->mBones[bone_id];
+// 					cout << "BONE " << bone_id << ": " << bone_data->mName.data << endl;
+					for (int i = 0; i < bone_data->mNumWeights; ++i)
+						weights[4*bone_data->mWeights[i].mVertexId+b] = bone_data->mWeights[i].mWeight;
+					found_bones[bone_id] = find_bone_in_skeletal_animation(anim, (char*)bone_data->mName.data);
+				}
+				ostringstream oss; oss << "bone_weights_" << setw(2) << setfill('0') << buf;
+				add_vertex_buffer_to_mesh(m, oss.str().c_str(), GL_FLOAT, verts, 4, weights, GL_STATIC_DRAW);
 			}
 		}
 
@@ -223,6 +255,7 @@ void load_model_and_create_objects_with_separate_vbos(const char *filename, cons
 
 		make_drawelement_part_of_skeletal_animation(de, anim);
 		assign_bones_to_drawelement(de, bones, found_bones);
+		prepend_drawelement_uniform_handler(de, (uniform_setter_t)bone_matrix_uniform_handler);
 
 		if (!valid_shader_ref(drawelement_shader(de))) {
 			shader_ref shader = make_stock_shader(0, de, 0, true);

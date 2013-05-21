@@ -256,7 +256,7 @@ const char* vertex_pos_norm_notex_upto_24_bones() {
 					bone_trafo += bone_matrices[4+i] * bone_weight_02[i];
 					bone_trafo += bone_matrices[8+i] * bone_weight_03[i];
 					bone_trafo += bone_matrices[12+i] * bone_weight_04[i];
-					bone_trafo += bone_matrices[16+i] * bone_weight_05[i];
+					if (i < 3) bone_trafo += bone_matrices[16+i] * bone_weight_05[i];
 // 					bone_trafo += bone_matrices[20+i] * bone_weight_06[i];
 				}
 				pos_wc = model * bone_trafo * vec4(in_pos, 1);
@@ -284,6 +284,7 @@ const char* vertex_pos_norm_tex_upto_24_bones() {
 			uniform mat4 view;
 			uniform mat4 model;
 			uniform mat4 bone_matrices[24];
+			uniform int bones;
 			
 			out vec4 pos_wc;
 			out vec3 norm_wc;
@@ -292,12 +293,12 @@ const char* vertex_pos_norm_tex_upto_24_bones() {
 			void main() {
 				mat4 bone_trafo = mat4(0);
 				for (int i = 0; i < 4; ++i) {
-					bone_trafo += bone_matrices[0+i] * bone_weight_01[i];
-					bone_trafo += bone_matrices[4+i] * bone_weight_02[i];
-					bone_trafo += bone_matrices[8+i] * bone_weight_03[i];
-					bone_trafo += bone_matrices[12+i] * bone_weight_04[i];
-					bone_trafo += bone_matrices[16+i] * bone_weight_05[i];
-// 					bone_trafo += bone_matrices[20+i] * bone_weight_06[i];
+					if (0+i < bones)  bone_trafo += bone_matrices[0+i] * bone_weight_01[i];
+					if (4+i < bones)  bone_trafo += bone_matrices[4+i] * bone_weight_02[i];
+					if (8+i < bones)  bone_trafo += bone_matrices[8+i] * bone_weight_03[i];
+					if (12+i < bones) bone_trafo += bone_matrices[12+i] * bone_weight_04[i];
+					if (16+i < bones) bone_trafo += bone_matrices[16+i] * bone_weight_05[i];
+					if (20+i < bones) bone_trafo += bone_matrices[20+i] * bone_weight_06[i];
 				}
 				pos_wc = model * bone_trafo * vec4(in_pos, 1);
 				norm_wc = mat3(model) * mat3(bone_trafo) * in_norm; // assuming model is not strange.
@@ -752,12 +753,23 @@ void add_stock_vertex_shader_part(struct stockshader_fragments *ssf, bool use_no
 											   else { fprintf(stderr, "tooo many bones!\n"); exit(1); }
 	}
 
-	if (bones)
+	if (bones) {
 		stockshader_add_uniform(ssf, "bone_matrices");
+		stockshader_add_uniform(ssf, "bones");
+	}
 
 	stockshader_add_input(ssf, "in_pos");
 	if (use_normals) stockshader_add_input(ssf, "in_norm");
 	if (use_texcoords) stockshader_add_input(ssf, "in_tc");
+
+	int vertex_inputs = (bones/4) + ((bones%4==0)?0:1);
+	char *buf = 0;
+	for (int b = 0; b < vertex_inputs; ++b) {
+		asprintf(&buf, "bone_weight_%02d", b);
+		stockshader_add_input(ssf, buf);
+		free(buf);
+	}
+
 	stockshader_add_uniform(ssf, "proj");
 	stockshader_add_uniform(ssf, "view");
 	stockshader_add_uniform(ssf, "model");

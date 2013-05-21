@@ -90,10 +90,18 @@ bool bone_matrix_uniform_handler(drawelement_ref *ref, const char *uniform, int 
 		int bones = drawelement_number_of_bones(*ref);
 		struct bone **de_bones = drawelement_bones(*ref);
 		matrix4x4f *matrices = drawelement_bone_matrix_area(*ref);
-		for (int i = 0; i < bones; ++i)
-			memcpy(matrices+i, &de_bones[i]->rest_trafo, sizeof(matrix4x4f));
+		for (int i = 0; i < bones; ++i) {
+// 			memcpy(matrices+i, &de_bones[i]->rest_trafo, sizeof(matrix4x4f));
+// 			memcpy(matrices+i, &de_bones[i]->rest_trafo, sizeof(matrix4x4f));
+			multiply_matrices4x4f(matrices+i, &de_bones[i]->rest_trafo, &de_bones[i]->offset_trafo);
+		}
 		glUniformMatrix4fv(location, bones, GL_FALSE, matrices);
-		return true;
 	}
-	return false;
+	else if (strcmp(uniform, "bones") == 0) {
+		int bones = drawelement_number_of_bones(*ref);
+		glUniform1i(location, bones);
+	}
+	else
+		return false;
+	return true;
 }

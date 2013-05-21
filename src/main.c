@@ -221,17 +221,25 @@ void actual_main()
 	change_light_color3f(hms, .6, .6, .6);
 // 	add_light_to_scene(the_scene, hms);
 	
-	vec3f up = { 0, 1, 0 };
-	light_ref hemi = make_hemispherical_light("hemi", gbuffer, &up);
-	change_light_color3f(hemi, .9, .9, .9);
-	add_light_to_scene(the_scene, hemi);
+	{
+		vec3f up = { 0, 0, 1 };
+		light_ref hemi = make_hemispherical_light("hemi", gbuffer, &up);
+		change_light_color3f(hemi, 1.9, 1.9, 1.9);
+		add_light_to_scene(the_scene, hemi);
+	}
+	{
+		vec3f up = { 0, 0, -1 };
+		light_ref hemi = make_hemispherical_light("hemi2", gbuffer, &up);
+		change_light_color3f(hemi, 1.9, 1.9, 1.9);
+		add_light_to_scene(the_scene, hemi);
+	}
 
 	vec3f p = { 311.678131,204.546875,-91.080360 };
 	vec3f d = { 0.443330,-0.523770,-0.727411 };
 	vec3f u = { 0.172540,0.846205,-0.504150};
 	light_ref spot = make_spotlight("spot", gbuffer, &p, &d, &u, 10);
 	change_light_color3f(spot, 1, .5, .5);
-	add_light_to_scene(the_scene, spot);
+// 	add_light_to_scene(the_scene, spot);
 
 	{
 	vec3f pos = { 0,10,0 },
@@ -239,7 +247,7 @@ void actual_main()
 		  up = { 0,1,0 };
 	camera_ref c = make_perspective_cam("testcam", &pos, &dir, &up, 20, 1, 1, 1000);
 	light_ref camspot = make_spotlight_from_camera("camspot", gbuffer, c);
-	add_light_to_scene(the_scene, camspot);
+// 	add_light_to_scene(the_scene, camspot);
 	}
 
 	scene_set_lighting(the_scene, apply_deferred_lights);

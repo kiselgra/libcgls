@@ -58,10 +58,28 @@ aiBone* find_bone(aiScene const *model_scene, aiString name) {
 	return 0;
 }
 
+void indent(int d) {
+	for (int i = 0; i < d; ++i) cout << "    ";
+}
+
+void print_matrix(const aiMatrix4x4 &m, int d) {
+	indent(d);	cout << m.a1 << "\t" << m.a2 << "\t" << m.a3 << "\t" << m.a4 << endl;
+	indent(d);	cout << m.b1 << "\t" << m.b2 << "\t" << m.b3 << "\t" << m.b4 << endl;
+	indent(d);	cout << m.c1 << "\t" << m.c2 << "\t" << m.c3 << "\t" << m.c4 << endl;
+	indent(d);	cout << m.d1 << "\t" << m.d2 << "\t" << m.d3 << "\t" << m.d4 << endl;
+}
+
 bone_list* traverse_nodes(aiScene const *model_scene, aiNode *node, aiMatrix4x4 curr_trafo, int d) {
-	cout << "trav node " << node->mName.data << endl;
+	indent(d);
+	aiBone *b = find_bone(model_scene, node->mName);
+	cout << node->mName.data;
+	if (b) cout << "(BONE)";
+	cout << endl;
+	print_matrix(curr_trafo, d);
+
 // 	curr_trafo = node->mTransformation * curr_trafo;
 	curr_trafo = curr_trafo * node->mTransformation;
+// 	curr_trafo = node->mTransformation;
 	bone_list *ret = 0;
 	for (int c = 0; c < node->mNumChildren; ++c) {
 		bone_list *childs_bones = traverse_nodes(model_scene, node->mChildren[c], curr_trafo, d+1);
@@ -75,11 +93,12 @@ bone_list* traverse_nodes(aiScene const *model_scene, aiNode *node, aiMatrix4x4 
 	}
 	aiBone *found_bone = find_bone(model_scene, node->mName);
 	if (found_bone) {
-		for (int i = 0; i < d; ++i) cout << "  ";
-		cout << "trav node " << node->mName.data;
-		cout << " A BONE" << endl;
+// 		for (int i = 0; i < d; ++i) cout << "  ";
+// 		cout << "trav node " << node->mName.data;
+// 		cout << " A BONE" << endl;
 		struct bone *bone = (struct bone*)malloc(sizeof(struct bone));
 		ass_imp_mat4_to_matrix4x4f(&bone->rest_trafo, curr_trafo);
+		ass_imp_mat4_to_matrix4x4f(&bone->offset_trafo, found_bone->mOffsetMatrix);
 		bone->children = ret;
 		bone->name = strdup((char*)found_bone->mName.data);
 		bone->local_id = -1;

@@ -43,6 +43,8 @@ void render_drawelement_with(drawelement_ref ref, shader_ref shader, material_re
 void bind_uniforms_and_render_indices_of_drawelement(drawelement_ref ref);
 void bind_uniforms_and_render_drawelement_nonindexed(drawelement_ref ref);
 bool drawelement_using_index_range(drawelement_ref ref);
+unsigned int drawelement_index_range_start(drawelement_ref ref);
+unsigned int drawelement_index_range_len(drawelement_ref ref);
 
 void prepend_drawelement_uniform_handler(drawelement_ref ref, uniform_setter_t handler);
 void append_drawelement_uniform_handler(drawelement_ref ref, uniform_setter_t handler);

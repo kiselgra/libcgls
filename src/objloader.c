@@ -48,7 +48,7 @@ void add_texture_if_found(material_ref mat, const char *filename, tex_params_t *
  *	See \ref load_objfile_and_create_objects_with_single_vbo for a more 'detailled' description.
  *	\deprecated use \ref load_objfile_and_create_objects_with_single_vbo.
  */
-void load_objfile_and_create_objects_with_separate_vbos(const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max, 
+void load_objfile_and_create_objects_with_separate_vbos(const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max,
                                                         void (*make_drawelem)(const char*, mesh_ref, material_ref, vec3f *bbmin, vec3f *bbmax), material_ref fallback_material) {
 	obj_data objdata;
 	const char *modelname = object_name ? object_name : filename;
@@ -114,7 +114,7 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 		if (group->mtl) mat = find_material(group->mtl->name);
 		else            mat = fallback_material;
 
-		vec3f bbmi; vec3f *bb_min = &bbmi; *bb_min = v[0]; 
+		vec3f bbmi; vec3f *bb_min = &bbmi; *bb_min = v[0];
 		vec3f bbma; vec3f *bb_max = &bbmi; *bb_max = v[0];
 		for (int i = 0; i < verts; ++i) {
 			if (v[i].x < bb_min->x) bb_min->x = v[i].x;
@@ -137,7 +137,7 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 	}
 	
 	if (bb_min && bb_max) {	// {{{
-		*bb_min = objdata.vertex_data[0]; 
+		*bb_min = objdata.vertex_data[0];
 		*bb_max = objdata.vertex_data[0];
 		for (int i = 0; i < objdata.vertices; ++i) {
 			if (objdata.vertex_data[i].x < bb_min->x) bb_min->x = objdata.vertex_data[i].x;
@@ -177,6 +177,10 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
  */
 static void example_make_drawelem(const char *name, mesh_ref mesh, material_ref mat, unsigned int start, unsigned int len) {}
 
+static void load_objfile_and_create_objects_with_single_vbo_general(
+                        const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max,
+                        void (*make_drawelem)(const char*, mesh_ref, material_ref, unsigned int start, unsigned int len, vec3f *bbmin, vec3f *bbmax),
+                        material_ref fallback_material, bool keep_meshes_on_cpu);
 /*! \brief Load and obj file and store all data in a single vbo, creating indexed drawelements.
  *	\ingroup objloading
  *
@@ -191,8 +195,24 @@ static void example_make_drawelem(const char *name, mesh_ref mesh, material_ref 
  *	\param make_drawelem This function is called for each sub mesh of the model. Its job is to actually create the drawelement. See \ref example_make_drawelem.
  *	\param fallback_material The material to be used should there be a sub mesh for which we can't find a material.
  */
-void load_objfile_and_create_objects_with_single_vbo(const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max, 
-                                                     void (*make_drawelem)(const char*, mesh_ref, material_ref, unsigned int start, unsigned int len, vec3f *bbmin, vec3f *bbmax), material_ref fallback_material) {
+void load_objfile_and_create_objects_with_single_vbo(	// i really don't like writing it with such strange indent, the name, however, is just too long...
+                  const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max,
+                  void (*make_drawelem)(const char*, mesh_ref, material_ref, unsigned int start, unsigned int len, vec3f *bbmin, vec3f *bbmax),
+                  material_ref fallback_material) {
+	load_objfile_and_create_objects_with_single_vbo_general(filename, object_name, bb_min, bb_max, make_drawelem, fallback_material, false);
+}
+
+void load_objfile_and_create_objects_with_single_vbo_keeping_cpu_data(
+                  const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max,
+                  void (*make_drawelem)(const char*, mesh_ref, material_ref, unsigned int start, unsigned int len, vec3f *bbmin, vec3f *bbmax),
+                  material_ref fallback_material) {
+	load_objfile_and_create_objects_with_single_vbo_general(filename, object_name, bb_min, bb_max, make_drawelem, fallback_material, true);
+}
+
+static void load_objfile_and_create_objects_with_single_vbo_general(
+                        const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max,
+                        void (*make_drawelem)(const char*, mesh_ref, material_ref, unsigned int start, unsigned int len, vec3f *bbmin, vec3f *bbmax),
+                        material_ref fallback_material, bool keep_meshes_on_cpu) {
 	obj_data objdata;
 	const char *modelname = object_name ? object_name : filename;
 
@@ -220,6 +240,8 @@ void load_objfile_and_create_objects_with_single_vbo(const char *filename, const
     if (objdata.normals) comps++;
     if (objdata.texcoords) comps++;
     mesh_ref m = make_mesh(modelname, comps);
+	if (keep_meshes_on_cpu)
+		mesh_keep_cpu_data(m);
 	bind_mesh_to_gl(m);
 
 	add_vertex_buffer_to_mesh(m, "in_pos", GL_FLOAT, objdata.vertices, 3, objdata.vertex_data, GL_STATIC_DRAW);
@@ -253,8 +275,8 @@ void load_objfile_and_create_objects_with_single_vbo(const char *filename, const
 		if (g->mtl) mat = find_material(g->mtl->name);
 		else        mat = fallback_material;
 
-		vec3f bbmi; vec3f *bb_min = &bbmi; *bb_min = objdata.vertex_data[index_buffer[pos]]; 
-		vec3f bbma; vec3f *bb_max = &bbma; *bb_max = objdata.vertex_data[index_buffer[pos]]; 
+		vec3f bbmi; vec3f *bb_min = &bbmi; *bb_min = objdata.vertex_data[index_buffer[pos]];
+		vec3f bbma; vec3f *bb_max = &bbma; *bb_max = objdata.vertex_data[index_buffer[pos]];
 		for (int i = 0; i < g->triangles*3; ++i) {
 			int id = index_buffer[pos+i];
 			if (objdata.vertex_data[id].x < bb_min->x) bb_min->x = objdata.vertex_data[id].x;
@@ -273,7 +295,7 @@ void load_objfile_and_create_objects_with_single_vbo(const char *filename, const
 
 	
 	if (bb_min && bb_max) {
-		*bb_min = objdata.vertex_data[0]; 
+		*bb_min = objdata.vertex_data[0];
 		*bb_max = objdata.vertex_data[0];
 		for (int i = 0; i < objdata.vertices; ++i) {
 			if (objdata.vertex_data[i].x < bb_min->x) bb_min->x = objdata.vertex_data[i].x;
@@ -307,17 +329,19 @@ SCM_DEFINE(s_load_objfile_and_create_objects_with_separate_vbos,
 	return scm_values(scm_list_2(vec3f_to_list(&min), vec3f_to_list(&max)));
 }
 
-SCM_DEFINE(s_load_objfile_and_create_objects_with_single_vbos,
-           "load-objfile-and-create-objects-with-single-vbo", 4, 0, 0, (SCM filename, SCM object_name, SCM callback, SCM fallback_mat), "") {
+SCM_DEFINE(s_load_objfile_and_create_objects_with_single_vbos_general,
+           "load-objfile-and-create-objects-with-single-vbo-general", 5, 0, 0,
+		   (SCM filename, SCM object_name, SCM callback, SCM fallback_mat, SCM keep_cpu_data), "") {
 	char *f = scm_to_locale_string(filename);
 	char *o = scm_to_locale_string(object_name);
+	bool keep = scm_is_true(keep_cpu_data);
 	void create_drawelement_forwarder(const char *modelname, mesh_ref mesh, material_ref mat, unsigned int pos, unsigned int len, vec3f *bmi, vec3f *bma) {
 		scm_call_7(callback, scm_from_locale_string(modelname), scm_from_int(mesh.id), scm_from_int(mat.id), scm_from_uint(pos), scm_from_uint(len), vec3f_to_list(bmi), vec3f_to_list(bma));
 	}
 	vec3f min, max;
 	vec4f amb = {1,0,0,1}, diff = {1,0,0,1}, spec = {1,0,0,1};
 	material_ref fallback = { scm_to_int(fallback_mat) };
-	load_objfile_and_create_objects_with_single_vbo(f, o, &min, &max, create_drawelement_forwarder, fallback);
+	load_objfile_and_create_objects_with_single_vbo_general(f, o, &min, &max, create_drawelement_forwarder, fallback, keep);
 	return scm_values(scm_list_2(vec3f_to_list(&min), vec3f_to_list(&max)));
 }
 
@@ -325,6 +349,10 @@ void register_scheme_functions_for_cgls_objloader() {
 #ifndef SCM_MAGIC_SNARFER
 #include "objloader.x"
 #endif
+	scm_c_eval_string("(define (load-objfile-and-create-objects-with-single-vbo filename objname callback fallback-mat)\
+	                     (load-objfile-and-create-objects-with-single-vbo-general filename objname callback fallback-mat #f))");
+	scm_c_eval_string("(define (load-objfile-and-create-objects-with-single-vbo-keeping-cpu-data filename objname callback fallback-mat)\
+	                     (load-objfile-and-create-objects-with-single-vbo-general filename objname callback fallback-mat #t))");
 }
 
 #endif

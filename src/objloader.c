@@ -160,7 +160,7 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
  *	Here is a small Scheme snipped (taken from default.c.scm) showing the default implementation (which uses a stock-shader):
  *	\code
  *  (define (make-de name mesh material)
- *    (material-use-stock-shader! material)
+ *    (material-use-stock-shader! material) ;; a little out of date...
  *    (let* ((shader (material-shader material))
  *           (de (make-drawelement name mesh shader material)))
  *      (prepend-uniform-handler de 'default-matrix-uniform-handler)

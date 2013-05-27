@@ -129,6 +129,16 @@ void set_drawelement_index_buffer_range(drawelement_ref ref, unsigned int start,
 	de->use_index_range = true;
 }
 
+unsigned int drawelement_index_range_start(drawelement_ref ref) {
+	struct drawelement* de = drawelements+ref.id;
+	return de->index_buffer_start;
+}
+
+unsigned int drawelement_index_range_len(drawelement_ref ref) {
+	struct drawelement* de = drawelements+ref.id;
+	return de->indices;
+}
+
 void set_drawelement_bounding_box(drawelement_ref ref, vec3f *min, vec3f *max) {
 	struct drawelement* de = drawelements+ref.id;
 	de->bb_min = *min;

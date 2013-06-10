@@ -102,6 +102,7 @@ bone_list* traverse_nodes(aiScene const *model_scene, aiNode *node, aiMatrix4x4 
 	aiBone *found_bone = find_bone(model_scene, node->mName);
 	if (found_bone) {
 		struct bone *bone = (struct bone*)malloc(sizeof(struct bone));
+		ass_imp_mat4_to_matrix4x4f(&bone->rest_trafo_relative, node->mTransformation);
 		ass_imp_mat4_to_matrix4x4f(&bone->rest_trafo, curr_trafo);
 		ass_imp_mat4_to_matrix4x4f(&bone->offset_trafo, found_bone->mOffsetMatrix);
 		copy_matrix4x4f(&bone->current_trafo, &bone->rest_trafo);
@@ -135,6 +136,16 @@ void load_model_and_create_objects_with_separate_vbos(const char *filename, cons
 	aiScene const *model_scene;
 
 	model_scene = importer.ReadFile(filename, aiProcessPreset_TargetRealtime_Quality); // includes triangulation
+
+	if (!model_scene) {
+		cerr << endl;
+		cerr << endl;
+		cerr << "could not load model " << filename << endl;
+		cerr << importer.GetErrorString() << endl;
+		cerr << endl;
+		cerr << endl;
+		exit(0);
+	}
 	
 	// convert the materials
 	// note: the material names are not prefixed until now.
@@ -221,7 +232,7 @@ void load_model_and_create_objects_with_separate_vbos(const char *filename, cons
 					if (bone_id >= bones)
 						continue;
 					aiBone *bone_data = group->mBones[bone_id];
-// 					cout << "BONE " << bone_id << ": " << bone_data->mName.data << endl;
+					cout << "BONE " << bone_id << ": " << bone_data->mName.data << endl;
 					for (int i = 0; i < bone_data->mNumWeights; ++i)
 						weights[4*bone_data->mWeights[i].mVertexId+b] = bone_data->mWeights[i].mWeight;
 					found_bones[bone_id] = find_bone_in_skeletal_animation(anim, (char*)bone_data->mName.data);
@@ -303,6 +314,7 @@ void load_model_and_create_objects_with_separate_vbos(const char *filename, cons
 void show_anim(aiAnimation *anim) {
 	cout << "\tName: " << anim->mName.data << endl;
 	cout << "\tDuration: " << anim->mDuration << endl;
+	cout << "\tChannels: " << anim->mChannels << endl;
 	for (int i = 0; i < anim->mNumChannels; ++i) {
 		aiNodeAnim *na = anim->mChannels[i];
 		cout << "\tChannel " << i << endl;
@@ -332,6 +344,12 @@ struct single_bone_animation_list*  convert_single_bone_animation(aiNodeAnim *ch
 	std::sort(channel->mRotationKeys, channel->mRotationKeys+channel->mNumRotationKeys);
 	std::sort(channel->mScalingKeys,  channel->mScalingKeys +channel->mNumScalingKeys);
 
+	bool first = true;
+	aiQuaternion *first_quat = 0;
+	aiVector3D *first_scale = 0;
+	aiVector3D *first_trans = 0;
+
+	/*
 	// collect animation keys of same time step into single entries
 	int pi = 0, ri = 0, si = 0;
 	int pn = channel->mNumPositionKeys, rn = channel->mNumRotationKeys, sn = channel->mNumScalingKeys;
@@ -360,6 +378,15 @@ struct single_bone_animation_list*  convert_single_bone_animation(aiNodeAnim *ch
 		if (found_pos)   make_vec3f(&curr->keyframe.translation, found_pos->mValue.x, found_pos->mValue.y, found_pos->mValue.z);
 		if (found_rot)   make_quaternion4f(&curr->keyframe.rotation, found_rot->mValue.x, found_rot->mValue.y, found_rot->mValue.z, found_rot->mValue.w);
 		if (found_scale) make_vec3f(&curr->keyframe.scale, found_scale->mValue.x, found_scale->mValue.y, found_scale->mValue.z);
+		if (first) {
+			if (found_pos)   first_trans = new aiVector3D(found_pos->mValue);
+			else             first_trans = new aiVector3D(0,0,0);
+			if (found_rot)   first_quat = new aiQuaternion(found_rot->mValue);
+			else             first_quat = new aiQuaternion(0,0,0,1);
+			if (found_scale) first_scale = new aiVector3D(found_scale->mValue);
+			else             first_scale = new aiVector3D(1,1,1);
+			first = false;
+		}
 		curr->keyframe.time = tmin;
 		// go forward
 		if (pi < pn && found_pos) ++pi;
@@ -369,6 +396,18 @@ struct single_bone_animation_list*  convert_single_bone_animation(aiNodeAnim *ch
 		bone_frames->keyframes = curr;
 		curr->next = old_head;
 	}
+	*/
+
+	if (channel->mPositionKeys[0].mTime != channel->mRotationKeys[0].mTime ||  channel->mRotationKeys[0].mTime != channel->mScalingKeys[0].mTime) {
+		cerr << "       ! ! ! ! ! ! ! " << endl;
+		exit(0);
+	}
+	first_trans = new aiVector3D(channel->mPositionKeys[0].mValue);
+	first_quat = new aiQuaternion(channel->mRotationKeys[0].mValue);
+	first_scale = new aiVector3D(channel->mScalingKeys[0].mValue);
+	bone_frames->keyframes = (bone_frame_list*)malloc(sizeof(bone_frame_list));
+	bone_frames->keyframes->keyframe.time = 0;
+	bone_frames->keyframes->next = 0;
 
 	cout << "frames for bone " << bone_frames->bone->name << ":\t ";
 	for (bone_frame_list *run = bone_frames->keyframes; run; run = run->next)
@@ -386,6 +425,17 @@ struct single_bone_animation_list*  convert_single_bone_animation(aiNodeAnim *ch
 		copy->next = prev_head;
 	}
 	bone_frames->keyframes = rev_list;
+
+	aiMatrix4x4 ScalingM;
+	aiMatrix4x4::Scaling(*first_scale, ScalingM);
+
+	aiMatrix4x4 RotationM = aiMatrix4x4(first_quat->GetMatrix());
+	
+	aiMatrix4x4 TranslationM;
+	aiMatrix4x4::Translation(*first_trans, TranslationM);
+
+	aiMatrix4x4 trafo = TranslationM * RotationM * ScalingM;
+	ass_imp_mat4_to_matrix4x4f(&bone_frames->bone->rest_trafo_relative, trafo);
 
 	return bone_frames;
 }

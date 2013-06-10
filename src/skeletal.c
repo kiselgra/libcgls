@@ -163,6 +163,7 @@ void evaluate_bone_animation_at(struct bone *bone, struct bone_key_frame *this, 
 // 	// S*R*T
 // 	multiply_matrices4x4f(&tmp, &R, &T);
 // 	multiply_matrices4x4f(&bone->current_trafo, &S, &tmp);
+	copy_matrix4x4f(&bone->current_trafo, &bone->rest_trafo_relative);
 }
 
 void update_bones_using_matrix_stack(struct bone *bone, int depth, matrix4x4f *stack) {
@@ -183,20 +184,23 @@ void evaluate_skeletal_animation_at(skeletal_animation_ref ref, float t) {
 	if (!sa->current_animation)
 		return;
 	printf("anim\n");
+	int updated = 0;
 	// for each bone in this animation
 	for (struct single_bone_animation_list *bone_anim = sa->current_animation->bone_animations; bone_anim; bone_anim = bone_anim->next) {
 		printf("looking for keyframe for %s... ", bone_anim->bone->name);
 		// find the keyframes to interpolate between (or a single border one).
 		for (struct bone_frame_list *frame = bone_anim->keyframes; frame; frame = frame->next) {
 			printf(" t=%f ... ", frame->keyframe.time);
-			if (frame->keyframe.time >= t || !frame->next) {
+// 			if (frame->keyframe.time >= t || !frame->next) {
 				evaluate_bone_animation_at(bone_anim->bone, &frame->keyframe, frame->next ? &frame->next->keyframe : 0, t);
 				printf(" found");
+				++updated;
 				break;
-			}
+// 			}
 		}
 		printf("\n");
 	}
+	printf("udpated %d bones.\n", updated);
 	// update the bone matrices recursively, makeing use of the interpolated key frame matrices computed above.
 	matrix4x4f *stack = malloc(sizeof(matrix4x4f)*32);
 	make_unit_matrix4x4f(stack);

@@ -113,6 +113,8 @@ int parse_cmdline(int argc, char **argv)
 		cmdline.objfile = true;
 	else if (string(cmdline.filename).substr(dot) == ".scene")
 		cmdline.objfile = true;
+	else if (string(cmdline.filename).substr(dot) == ".3ds")
+		cmdline.objfile = true;
 	else
 		cmdline.scenefile = true;
 	return ret;

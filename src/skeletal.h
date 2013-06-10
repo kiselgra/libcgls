@@ -15,6 +15,7 @@ define_slist(bone_list, struct bone *bone);
 
 struct bone {
 	char *name;
+	matrix4x4f rest_trafo_relative;
 	matrix4x4f rest_trafo;
 	matrix4x4f offset_trafo;
 	matrix4x4f current_trafo;

@@ -118,7 +118,7 @@ struct bone* find_bone_in_skeletal_animation(skeletal_animation_ref ref, const c
 void add_animation_to_skeleton(skeletal_animation_ref ref, struct animation_sequence *seq) {
 	struct skeletal_animation *sa = skeletal_animations+ref.id;
 	struct animation_list *old = sa->animations;
-	sa->animations = malloc(sizeof(struct animation_list*));
+	sa->animations = malloc(sizeof(struct animation_list));
 	sa->animations->animation = seq;
 	sa->animations->next = old;
 }
@@ -139,6 +139,8 @@ void start_skeletal_animation(skeletal_animation_ref ref, const char *name) {
 		fprintf(stderr, "cannot find animation %s.\n", name);
 }
 
+extern matrix4x4f tmp_root_trafo;
+
 void evaluate_bone_animation_at(struct bone *bone, struct bone_key_frame *this, struct bone_key_frame *next, float t) {
 // 	if (next) { printf("next for %s.\n", bone->name); this = next; }
 // 	else printf("no next for %s.\n", bone->name);
@@ -158,11 +160,20 @@ void evaluate_bone_animation_at(struct bone *bone, struct bone_key_frame *this, 
 	printf("\n");
 
 	// T*R*S
-	multiply_matrices4x4f(&tmp, &R, &S);
-	multiply_matrices4x4f(&bone->current_trafo, &T, &tmp);
+// 	multiply_matrices4x4f(&tmp, &R, &S);
+// 	multiply_matrices4x4f(&bone->current_trafo, &T, &tmp);
+// 	make_unit_matrix4x4f(&bone->current_trafo);
+
 // 	// S*R*T
 // 	multiply_matrices4x4f(&tmp, &R, &T);
 // 	multiply_matrices4x4f(&bone->current_trafo, &S, &tmp);
+// 	copy_matrix4x4f(&bone->current_trafo, &bone->rest_trafo_relative);
+// 	copy_matrix4x4f(&bone->current_trafo, &bone->rest_trafo_relative);
+
+// 	vec3f a = { 1, 1, 1 };
+// 	make_scale_matrix4x4f(&tmp, &a);
+// 	multiply_matrices4x4f(&bone->current_trafo, &bone->rest_trafo, &tmp);
+
 	copy_matrix4x4f(&bone->current_trafo, &bone->rest_trafo_relative);
 }
 
@@ -204,6 +215,7 @@ void evaluate_skeletal_animation_at(skeletal_animation_ref ref, float t) {
 	// update the bone matrices recursively, makeing use of the interpolated key frame matrices computed above.
 	matrix4x4f *stack = malloc(sizeof(matrix4x4f)*32);
 	make_unit_matrix4x4f(stack);
+	copy_matrix4x4f(stack, &tmp_root_trafo);
 	traverse_bone_hierarchy(sa->bones, (bone_trav_handler_t)update_bones_using_matrix_stack, 0, stack);
 	free(stack);
 }
@@ -213,8 +225,26 @@ bool bone_matrix_uniform_handler(drawelement_ref *ref, const char *uniform, int 
 		int bones = drawelement_number_of_bones(*ref);
 		struct bone **de_bones = drawelement_bones(*ref);
 		matrix4x4f *matrices = drawelement_bone_matrix_area(*ref);
+		matrix4x4f tmp, tmp2;
 		for (int i = 0; i < bones; ++i) {
+			
+// 			invert_matrix4x4f(&tmp2, &de_bones[i]->rest_trafo);
+// 			multiply_matrices4x4f(&tmp, &de_bones[i]->current_trafo, &de_bones[i]->offset_trafo);
+// 			multiply_matrices4x4f(matrices+i, &tmp2, &tmp);
+
+// 			multiply_matrices4x4f(&tmp, &de_bones[i]->rest_trafo, &de_bones[i]->offset_trafo);
+// 			invert_matrix4x4f(&tmp2, &de_bones[i]->current_trafo);
+// 			multiply_matrices4x4f(matrices+i, &tmp2, &tmp);
+
 			multiply_matrices4x4f(matrices+i, &de_bones[i]->current_trafo, &de_bones[i]->offset_trafo);
+
+// 			invert_matrix4x4f(&tmp2, &tmp_root_trafo);
+// 			multiply_matrices4x4f(&tmp, &de_bones[i]->current_trafo, &de_bones[i]->offset_trafo);
+// 			multiply_matrices4x4f(matrices+i, &tmp2, &tmp);
+
+// 			multiply_matrices4x4f(matrices+i, &de_bones[i]->offset_trafo, &de_bones[i]->current_trafo);
+// 			multiply_matrices4x4f(matrices+i, &de_bones[i]->rest_trafo, &de_bones[i]->offset_trafo);
+// 			multiply_matrices4x4f(matrices+i, &de_bones[i]->offset_trafo, &de_bones[i]->rest_trafo);
 		}
 		glUniformMatrix4fv(location, bones, GL_FALSE, (float*)matrices);
 	}

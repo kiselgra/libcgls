@@ -78,7 +78,11 @@ void print_matrix(const aiMatrix4x4 &m, int d) {
 	indent(d);	cout << m.d1 << "\t" << m.d2 << "\t" << m.d3 << "\t" << m.d4 << endl;
 }
 
+extern "C" {
+	matrix4x4f tmp_root_trafo;
+}
 bone_list* traverse_nodes(aiScene const *model_scene, aiNode *node, aiMatrix4x4 curr_trafo, int d) {
+	static bool first_bone = true;
 	indent(d);
 	aiBone *b = find_bone(model_scene, node->mName);
 	cout << node->mName.data;
@@ -88,6 +92,15 @@ bone_list* traverse_nodes(aiScene const *model_scene, aiNode *node, aiMatrix4x4 
 	print_matrix(curr_trafo, d);
 
 	curr_trafo = curr_trafo * node->mTransformation;
+	if (string(node->mName.data) == "root") {
+// 		node->mTransformation = curr_trafo;
+		first_bone = false;
+		ass_imp_mat4_to_matrix4x4f(&tmp_root_trafo, curr_trafo);
+		cout << "SETTING ROOT" << endl;
+	}
+// 	if (!b) node->mTransformation = aiMatrix4x4();
+
+
 	bone_list *ret = 0;
 	for (int c = 0; c < node->mNumChildren; ++c) {
 		bone_list *childs_bones = traverse_nodes(model_scene, node->mChildren[c], curr_trafo, d+1);
@@ -408,6 +421,9 @@ struct single_bone_animation_list*  convert_single_bone_animation(aiNodeAnim *ch
 	bone_frames->keyframes = (bone_frame_list*)malloc(sizeof(bone_frame_list));
 	bone_frames->keyframes->keyframe.time = 0;
 	bone_frames->keyframes->next = 0;
+	make_vec3f(&bone_frames->keyframes->keyframe.translation, first_trans->x, first_trans->y, first_trans->z);
+	make_quaternion4f(&bone_frames->keyframes->keyframe.rotation, first_quat->x, first_quat->y, first_quat->z, first_quat->w);
+	make_vec3f(&bone_frames->keyframes->keyframe.scale, first_scale->x, first_scale->y, first_scale->z);
 
 	cout << "frames for bone " << bone_frames->bone->name << ":\t ";
 	for (bone_frame_list *run = bone_frames->keyframes; run; run = run->next)
@@ -426,6 +442,7 @@ struct single_bone_animation_list*  convert_single_bone_animation(aiNodeAnim *ch
 	}
 	bone_frames->keyframes = rev_list;
 
+// 	/*
 	aiMatrix4x4 ScalingM;
 	aiMatrix4x4::Scaling(*first_scale, ScalingM);
 
@@ -436,6 +453,16 @@ struct single_bone_animation_list*  convert_single_bone_animation(aiNodeAnim *ch
 
 	aiMatrix4x4 trafo = TranslationM * RotationM * ScalingM;
 	ass_imp_mat4_to_matrix4x4f(&bone_frames->bone->rest_trafo_relative, trafo);
+
+
+		aiMatrix4x4 mat = aiMatrix4x4(first_quat->GetMatrix());
+		mat.a1 *= first_scale->x; mat.b1 *= first_scale->x; mat.c1 *= first_scale->x;
+		mat.a2 *= first_scale->y; mat.b2 *= first_scale->y; mat.c2 *= first_scale->y;
+		mat.a3 *= first_scale->z; mat.b3 *= first_scale->z; mat.c3 *= first_scale->z;
+		mat.a4 = first_trans->x; mat.b4 = first_trans->y; mat.c4 = first_trans->z;
+// 	ass_imp_mat4_to_matrix4x4f(&bone_frames->bone->rest_trafo_relative, mat);
+
+// 	*/
 
 	return bone_frames;
 }

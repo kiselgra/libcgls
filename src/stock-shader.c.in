@@ -765,7 +765,7 @@ void add_stock_vertex_shader_part(struct stockshader_fragments *ssf, bool use_no
 	int vertex_inputs = (bones/4) + ((bones%4==0)?0:1);
 	char *buf = 0;
 	for (int b = 0; b < vertex_inputs; ++b) {
-		asprintf(&buf, "bone_weight_%02d", b);
+		asprintf(&buf, "bone_weight_%02d", b+1);
 		stockshader_add_input(ssf, buf);
 		free(buf);
 	}

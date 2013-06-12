@@ -170,7 +170,7 @@ void show_fps(interaction_mode *m, int x, int y) {
 void advance_anim(interaction_mode *m, int x, int y) {
 	skeletal_animation_ref ar = { 0 };
 	static float time = 0;
-	time += 0.001;
+	time += 0.01;
 
 	evaluate_skeletal_animation_at(ar, time);
 }

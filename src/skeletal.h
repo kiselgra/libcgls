@@ -30,6 +30,7 @@ typedef struct {
 
 void make_quaternionf(quaternionf *q, const vec3f *v, float w);
 void make_quaternion4f(quaternionf *q, float x, float y, float z, float w);
+void copy_quaternion4f(quaternionf *to, const quaternionf *from);
 void quaternionf_to_matrix4x4f(matrix4x4f *mat, quaternionf *q);
 
 struct bone_key_frame {

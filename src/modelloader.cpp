@@ -374,9 +374,9 @@ struct single_bone_animation_list*  convert_single_bone_animation(aiNodeAnim *ch
 	std::sort(channel->mScalingKeys,  channel->mScalingKeys +channel->mNumScalingKeys);
 
 	bool first = true;
-	aiQuaternion *first_quat = 0;
-	aiVector3D *first_scale = 0;
-	aiVector3D *first_trans = 0;
+	aiQuatKey *first_quat = 0;
+	aiVectorKey *first_scale = 0;
+	aiVectorKey *first_trans = 0;
 
 	// collect animation keys of same time step into single entries
 	int pi = 0, ri = 0, si = 0;
@@ -403,24 +403,33 @@ struct single_bone_animation_list*  convert_single_bone_animation(aiNodeAnim *ch
 		make_vec3f(&curr->keyframe.translation, 0, 0, 0);
 		make_quaternion4f(&curr->keyframe.rotation, 0, 0, 0, 1);
 		make_vec3f(&curr->keyframe.scale, 1, 1, 1);
+// 		if (first) {
+// 			if (found_pos)   first_trans = found_pos;//new aiVector3D(found_pos->mValue);
+// 			else             first_trans = 0;
+// 			if (found_rot)   first_quat = found_rot;
+// 			else             first_quat = 0;
+// 			if (found_scale) first_scale = found_scale;
+// 			else             first_scale = 0;
+// 			first = false;
+// 		}
+// 		found_pos = first_trans;
+// 		found_rot = first_quat;
+// 		found_scale = first_scale;
+
+		cout << "bone " << bone_frames->bone->name << " t=" << tmin << "\t";
+		bone_frame_list *old_head = bone_frames->keyframes;
 		if (found_pos)   make_vec3f(&curr->keyframe.translation, found_pos->mValue.x, found_pos->mValue.y, found_pos->mValue.z);
+		else             copy_vec3f(&curr->keyframe.translation, &old_head->keyframe.translation);
 		if (found_rot)   make_quaternion4f(&curr->keyframe.rotation, found_rot->mValue.x, found_rot->mValue.y, found_rot->mValue.z, found_rot->mValue.w);
+		else             copy_quaternion4f(&curr->keyframe.rotation, &old_head->keyframe.rotation);
 		if (found_scale) make_vec3f(&curr->keyframe.scale, found_scale->mValue.x, found_scale->mValue.y, found_scale->mValue.z);
-		if (first) {
-			if (found_pos)   first_trans = new aiVector3D(found_pos->mValue);
-			else             first_trans = new aiVector3D(0,0,0);
-			if (found_rot)   first_quat = new aiQuaternion(found_rot->mValue);
-			else             first_quat = new aiQuaternion(0,0,0,1);
-			if (found_scale) first_scale = new aiVector3D(found_scale->mValue);
-			else             first_scale = new aiVector3D(1,1,1);
-			first = false;
-		}
+		else             copy_vec3f(&curr->keyframe.scale, &old_head->keyframe.scale);
+		cout << endl;
 		curr->keyframe.time = tmin;
 		// go forward
 		if (pi < pn && found_pos) ++pi;
 		if (ri < rn && found_rot) ++ri;
 		if (si < sn && found_scale) ++si;
-		bone_frame_list *old_head = bone_frames->keyframes;
 		bone_frames->keyframes = curr;
 		curr->next = old_head;
 	}

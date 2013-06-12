@@ -167,9 +167,18 @@ void show_fps(interaction_mode *m, int x, int y) {
 	printf("average render time: %.3f ms, %.1f fps \t(sum %f, n %d)\n", avg, 1000.0f/avg, (float)sum, valid_pos);
 }
 
+void advance_anim(interaction_mode *m, int x, int y) {
+	skeletal_animation_ref ar = { 0 };
+	static float time = 0;
+	time += 0.001;
+
+	evaluate_skeletal_animation_at(ar, time);
+}
+
 interaction_mode* make_viewer_mode() {
 	interaction_mode *m = make_interaction_mode("viewer");
 	add_function_key_to_mode(m, 'p', cgls_interaction_no_button, show_fps);
+	add_function_key_to_mode(m, ' ', cgls_interaction_no_button, advance_anim);
 	return m;
 }
 

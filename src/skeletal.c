@@ -142,79 +142,23 @@ void start_skeletal_animation(skeletal_animation_ref ref, const char *name) {
 extern matrix4x4f tmp_root_trafo;
 
 void evaluate_bone_animation_at(struct bone *bone, struct bone_key_frame *this, struct bone_key_frame *next, float t) {
-// 	if (next) { printf("next for %s.\n", bone->name); this = next; }
-// 	else printf("no next for %s.\n", bone->name);
-	// fake atm
-
-// 	printf("my trafos for bone %s n", bone->name);
-// 	printf("T' = %6.6f %6.6f %6.6f. n", this->translation.x, this->translation.y, this->translation.z);
-// 	printf("R' = %6.6f %6.6f %6.6f %6.6f. n", this->rotation.v.x, this->rotation.v.y, this->rotation.v.z, this->rotation.w);
-// 	printf("S' = %6.6f %6.6f %6.6f.\n", this->scale.x, this->scale.y, this->scale.z);
 
 	matrix4x4f T, R, S, tmp;
 	make_translation_matrix4x4f(&T, &this->translation);
 	quaternionf_to_matrix4x4f(&R, &this->rotation);
 	make_scale_matrix4x4f(&S, &this->scale);
 
-// 	printf("matrices for %s:\n", bone->name);
-// 	printf("T = \n");
-// 	print_matrix(&T, 4);
-// 	printf("R = \n");
-// 	print_matrix(&R, 4);
-// 	printf("S = \n");
-// 	print_matrix(&S, 4);
-// 	printf("\n");
-
 	// T*R*S
 	multiply_matrices4x4f(&tmp, &R, &S);
 	multiply_matrices4x4f(&bone->current_trafo, &T, &tmp);
 		
-	matrix4x4f m;
-	copy_matrix4x4f(&m, &S);
-	printf("S matrix for bone %s. n", bone->name);
-	printf("%6.6f %6.6f %6.6f %6.6f n", m.col_major[0+4*0], m.col_major[0+4*1], m.col_major[0+4*2], m.col_major[0+4*3]);
-	printf("%6.6f %6.6f %6.6f %6.6f n", m.col_major[1+4*0], m.col_major[1+4*1], m.col_major[1+4*2], m.col_major[1+4*3]);
-	printf("%6.6f %6.6f %6.6f %6.6f n", m.col_major[2+4*0], m.col_major[2+4*1], m.col_major[2+4*2], m.col_major[2+4*3]);
-	printf("%6.6f %6.6f %6.6f %6.6f n n", m.col_major[3+4*0], m.col_major[3+4*1], m.col_major[3+4*2], m.col_major[3+4*3]);
-
-	copy_matrix4x4f(&m, &R);
-	printf("R matrix for bone %s. n", bone->name);
-	printf("%6.6f %6.6f %6.6f %6.6f n", m.col_major[0+4*0], m.col_major[0+4*1], m.col_major[0+4*2], m.col_major[0+4*3]);
-	printf("%6.6f %6.6f %6.6f %6.6f n", m.col_major[1+4*0], m.col_major[1+4*1], m.col_major[1+4*2], m.col_major[1+4*3]);
-	printf("%6.6f %6.6f %6.6f %6.6f n", m.col_major[2+4*0], m.col_major[2+4*1], m.col_major[2+4*2], m.col_major[2+4*3]);
-	printf("%6.6f %6.6f %6.6f %6.6f n n", m.col_major[3+4*0], m.col_major[3+4*1], m.col_major[3+4*2], m.col_major[3+4*3]);
-
-	copy_matrix4x4f(&m, &T);
-	printf("T matrix for bone %s. n", bone->name);
-	printf("%6.6f %6.6f %6.6f %6.6f n", m.col_major[0+4*0], m.col_major[0+4*1], m.col_major[0+4*2], m.col_major[0+4*3]);
-	printf("%6.6f %6.6f %6.6f %6.6f n", m.col_major[1+4*0], m.col_major[1+4*1], m.col_major[1+4*2], m.col_major[1+4*3]);
-	printf("%6.6f %6.6f %6.6f %6.6f n", m.col_major[2+4*0], m.col_major[2+4*1], m.col_major[2+4*2], m.col_major[2+4*3]);
-	printf("%6.6f %6.6f %6.6f %6.6f n n\n", m.col_major[3+4*0], m.col_major[3+4*1], m.col_major[3+4*2], m.col_major[3+4*3]);
-
-// 
-// 	make_unit_matrix4x4f(&bone->current_trafo);
-
-// 	// S*R*T
-// 	multiply_matrices4x4f(&tmp, &R, &T);
-// 	multiply_matrices4x4f(&bone->current_trafo, &S, &tmp);
-// 	copy_matrix4x4f(&bone->current_trafo, &bone->rest_trafo_relative);
-// 	copy_matrix4x4f(&bone->current_trafo, &bone->rest_trafo_relative);
-
-// 	vec3f a = { 1, 1, 1 };
-// 	make_scale_matrix4x4f(&tmp, &a);
-// 	multiply_matrices4x4f(&bone->current_trafo, &bone->rest_trafo, &tmp);
-
 // 	copy_matrix4x4f(&bone->current_trafo, &bone->rest_trafo_relative);
 }
 
 void update_bones_using_matrix_stack(struct bone *bone, int depth, matrix4x4f *stack) {
 	matrix4x4f tmp;
-// 	multiply_matrices4x4f(stack+depth+1, &bone->current_trafo, stack+depth);
 	multiply_matrices4x4f(stack+depth+1, stack+depth, &bone->current_trafo);
 	copy_matrix4x4f(&bone->current_trafo, stack+depth+1);
-// 	printf("matrix for %s (rec)\n", bone->name);
-// 	print_matrix(&bone->current_trafo, depth+4);
-// 	printf("\n");
 	traverse_bone_hierarchy(bone->children, (bone_trav_handler_t)update_bones_using_matrix_stack, depth+1, stack);
 }
 
@@ -228,16 +172,16 @@ void evaluate_skeletal_animation_at(skeletal_animation_ref ref, float t) {
 	int updated = 0;
 	// for each bone in this animation
 	for (struct single_bone_animation_list *bone_anim = sa->current_animation->bone_animations; bone_anim; bone_anim = bone_anim->next) {
-// 		printf("looking for keyframe for %s... ", bone_anim->bone->name);
+		printf("looking for keyframe for %s... ", bone_anim->bone->name);
 		// find the keyframes to interpolate between (or a single border one).
 		for (struct bone_frame_list *frame = bone_anim->keyframes; frame; frame = frame->next) {
-// 			printf(" t=%f ... ", frame->keyframe.time);
-// 			if (frame->keyframe.time >= t || !frame->next) {
+			printf(" t=%f ... ", frame->keyframe.time);
+			if (frame->keyframe.time >= t || !frame->next) {
 				evaluate_bone_animation_at(bone_anim->bone, &frame->keyframe, frame->next ? &frame->next->keyframe : 0, t);
-// 				printf(" found");
+				printf(" found");
 				++updated;
 				break;
-// 			}
+			}
 		}
 		printf("\n");
 	}

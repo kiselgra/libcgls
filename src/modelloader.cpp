@@ -378,7 +378,6 @@ struct single_bone_animation_list*  convert_single_bone_animation(aiNodeAnim *ch
 	aiVector3D *first_scale = 0;
 	aiVector3D *first_trans = 0;
 
-	/*
 	// collect animation keys of same time step into single entries
 	int pi = 0, ri = 0, si = 0;
 	int pn = channel->mNumPositionKeys, rn = channel->mNumRotationKeys, sn = channel->mNumScalingKeys;
@@ -425,26 +424,11 @@ struct single_bone_animation_list*  convert_single_bone_animation(aiNodeAnim *ch
 		bone_frames->keyframes = curr;
 		curr->next = old_head;
 	}
-	*/
 
-	if (channel->mPositionKeys[0].mTime != channel->mRotationKeys[0].mTime ||  channel->mRotationKeys[0].mTime != channel->mScalingKeys[0].mTime) {
-		cerr << "       ! ! ! ! ! ! ! " << endl;
-		exit(0);
-	}
-	first_trans = new aiVector3D(channel->mPositionKeys[0].mValue);
-	first_quat = new aiQuaternion(channel->mRotationKeys[0].mValue);
-	first_scale = new aiVector3D(channel->mScalingKeys[0].mValue);
-	bone_frames->keyframes = (bone_frame_list*)malloc(sizeof(bone_frame_list));
-	bone_frames->keyframes->keyframe.time = 0;
-	bone_frames->keyframes->next = 0;
-	make_vec3f(&bone_frames->keyframes->keyframe.translation, first_trans->x, first_trans->y, first_trans->z);
-	make_quaternion4f(&bone_frames->keyframes->keyframe.rotation, first_quat->x, first_quat->y, first_quat->z, first_quat->w);
-	make_vec3f(&bone_frames->keyframes->keyframe.scale, first_scale->x, first_scale->y, first_scale->z);
-
-// 	cout << "frames for bone " << bone_frames->bone->name << ":\t ";
-// 	for (bone_frame_list *run = bone_frames->keyframes; run; run = run->next)
-// 		cout << run->keyframe.time << "\t";
-// 	cout << endl;
+	cout << "frames for bone " << bone_frames->bone->name << ":\t ";
+	for (bone_frame_list *run = bone_frames->keyframes; run; run = run->next)
+		cout << run->keyframe.time << "\t";
+	cout << endl;
 
 	// reverse list
 	struct bone_frame_list *rev_list = 0;
@@ -457,55 +441,6 @@ struct single_bone_animation_list*  convert_single_bone_animation(aiNodeAnim *ch
 		copy->next = prev_head;
 	}
 	bone_frames->keyframes = rev_list;
-
-// 	/*
-	aiMatrix4x4 ScalingM;
-	aiMatrix4x4::Scaling(*first_scale, ScalingM);
-
-	aiMatrix4x4 RotationM = aiMatrix4x4(first_quat->GetMatrix());
-	
-	aiMatrix4x4 TranslationM;
-	aiMatrix4x4::Translation(*first_trans, TranslationM);
-
-	aiMatrix4x4 trafo = TranslationM * RotationM * ScalingM;
-	ass_imp_mat4_to_matrix4x4f(&bone_frames->bone->rest_trafo_relative, trafo);
-
-
-// 	cout << "trafos for bone " << bone_frames->bone->name << " n";
-// 	printf("T = %6.6f %6.6f %6.6f. n", first_trans->x, first_trans->y, first_trans->z);
-// 	printf("R = %6.6f %6.6f %6.6f %6.6f. n", first_quat->x, first_quat->y, first_quat->z, first_quat->w);
-// 	printf("S = %6.6f %6.6f %6.6f.\n", first_scale->x, first_scale->y, first_scale->z);
-		
-		aiMatrix4x4 mat = aiMatrix4x4(first_quat->GetMatrix());
-		mat.a1 *= first_scale->x; mat.b1 *= first_scale->x; mat.c1 *= first_scale->x;
-		mat.a2 *= first_scale->y; mat.b2 *= first_scale->y; mat.c2 *= first_scale->y;
-		mat.a3 *= first_scale->z; mat.b3 *= first_scale->z; mat.c3 *= first_scale->z;
-		mat.a4 = first_trans->x; mat.b4 = first_trans->y; mat.c4 = first_trans->z;
-
-		mat = ScalingM;
-		printf("S matrix for bone %s. n", bone_frames->bone->name);
-		printf("%6.6f %6.6f %6.6f %6.6f n", mat.a1, mat.a2, mat.a3, mat.a4);
-		printf("%6.6f %6.6f %6.6f %6.6f n", mat.b1, mat.b2, mat.b3, mat.b4);
-		printf("%6.6f %6.6f %6.6f %6.6f n", mat.c1, mat.c2, mat.c3, mat.c4);
-		printf("%6.6f %6.6f %6.6f %6.6f n n", mat.d1, mat.d2, mat.d3, mat.d4);
-
-		mat = RotationM;
-		printf("R matrix for bone %s. n", bone_frames->bone->name);
-		printf("%6.6f %6.6f %6.6f %6.6f n", mat.a1, mat.a2, mat.a3, mat.a4);
-		printf("%6.6f %6.6f %6.6f %6.6f n", mat.b1, mat.b2, mat.b3, mat.b4);
-		printf("%6.6f %6.6f %6.6f %6.6f n", mat.c1, mat.c2, mat.c3, mat.c4);
-		printf("%6.6f %6.6f %6.6f %6.6f n n", mat.d1, mat.d2, mat.d3, mat.d4);
-
-		mat = TranslationM;
-		printf("T matrix for bone %s. n", bone_frames->bone->name);
-		printf("%6.6f %6.6f %6.6f %6.6f n", mat.a1, mat.a2, mat.a3, mat.a4);
-		printf("%6.6f %6.6f %6.6f %6.6f n", mat.b1, mat.b2, mat.b3, mat.b4);
-		printf("%6.6f %6.6f %6.6f %6.6f n", mat.c1, mat.c2, mat.c3, mat.c4);
-		printf("%6.6f %6.6f %6.6f %6.6f n n\n", mat.d1, mat.d2, mat.d3, mat.d4);
-
-// 	ass_imp_mat4_to_matrix4x4f(&bone_frames->bone->rest_trafo_relative, mat);
-
-// 	*/
 
 	return bone_frames;
 }

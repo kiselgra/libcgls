@@ -9,6 +9,7 @@
 #include <iostream>
 #include <sstream>
 #include <iomanip>
+#include <vector>
 
 #include <assimp/assimp.hpp>
 #include <assimp/aiScene.h>
@@ -89,13 +90,14 @@ bone_list* traverse_nodes(aiScene const *model_scene, aiNode *node, aiMatrix4x4 
 	if (b) cout << "(BONE)";
 	else cout << "(no bone)";
 	cout << endl;
-	print_matrix(curr_trafo, d);
+// 	print_matrix(curr_trafo, d);
 
 	curr_trafo = curr_trafo * node->mTransformation;
 	if (string(node->mName.data) == "root") {
 // 		node->mTransformation = curr_trafo;
 		first_bone = false;
 		ass_imp_mat4_to_matrix4x4f(&tmp_root_trafo, curr_trafo);
+		indent(d);
 		cout << "SETTING ROOT" << endl;
 	}
 // 	if (!b) node->mTransformation = aiMatrix4x4();
@@ -215,8 +217,8 @@ void load_model_and_create_objects_with_separate_vbos(const char *filename, cons
 		for (int i = 0; i < bones; ++i)
 			found_bones[i] = 0;
 
-// 		cout << "mesh " << i << ": " << group->mName.data << endl;
-		mesh_ref m = make_mesh((string(modelname) + "/" + (const char*)group->mName.data).c_str(), pos+norm+tc+bones);
+		cout << "mesh " << mid << ": " << group->mName.data << endl;
+		mesh_ref m = make_mesh((string(modelname) + "/" + (const char*)group->mName.data).c_str(), pos+norm+tc+(bones/4 + ((bones%4)?1:0)));
 		bind_mesh_to_gl(m);
 
 		int verts = group->mNumVertices;
@@ -236,12 +238,14 @@ void load_model_and_create_objects_with_separate_vbos(const char *filename, cons
 			int components_in_last_buffer = bones % 4;
 			int vertex_buffers = bones / 4 + (components_in_last_buffer!=0 ? 1 : 0);
 
+			cout << " V V V V " << (bones/4 + ((bones%4)?1:0)) << " V V V " << vertex_buffers << endl;
+			vector<float*> bufs;
 			for (int buf = 0; buf < vertex_buffers; ++buf) {
 				float *weights = new float[4*verts];
+				for (int i = 0; i < 4*verts; ++i)
+					weights[i] = 0;
 				for (int b = 0; b < 4; ++b) {
 					int bone_id = 4*buf + b;
-					for (int i = 0; i < verts; ++i)
-						weights[4*i+b] = 0;
 					if (bone_id >= bones)
 						continue;
 					aiBone *bone_data = group->mBones[bone_id];
@@ -252,6 +256,18 @@ void load_model_and_create_objects_with_separate_vbos(const char *filename, cons
 				}
 				ostringstream oss; oss << "bone_weights_" << setw(2) << setfill('0') << buf;
 				add_vertex_buffer_to_mesh(m, oss.str().c_str(), GL_FLOAT, verts, 4, weights, GL_STATIC_DRAW);
+				bufs.push_back(weights);
+			}
+
+			for (int v = 0; v < verts; ++v) {
+				float sum = 0;
+				for (int buf = 0; buf < bufs.size(); ++buf) {
+					for (int bone = 0; bone < 4; ++bone)
+						sum += bufs[buf][4*v + bone];
+				}
+				if (sum != 1) {
+					cout << "at " << v << ": sum = " << sum << endl;
+				}
 			}
 		}
 
@@ -425,10 +441,10 @@ struct single_bone_animation_list*  convert_single_bone_animation(aiNodeAnim *ch
 	make_quaternion4f(&bone_frames->keyframes->keyframe.rotation, first_quat->x, first_quat->y, first_quat->z, first_quat->w);
 	make_vec3f(&bone_frames->keyframes->keyframe.scale, first_scale->x, first_scale->y, first_scale->z);
 
-	cout << "frames for bone " << bone_frames->bone->name << ":\t ";
-	for (bone_frame_list *run = bone_frames->keyframes; run; run = run->next)
-		cout << run->keyframe.time << "\t";
-	cout << endl;
+// 	cout << "frames for bone " << bone_frames->bone->name << ":\t ";
+// 	for (bone_frame_list *run = bone_frames->keyframes; run; run = run->next)
+// 		cout << run->keyframe.time << "\t";
+// 	cout << endl;
 
 	// reverse list
 	struct bone_frame_list *rev_list = 0;
@@ -455,11 +471,38 @@ struct single_bone_animation_list*  convert_single_bone_animation(aiNodeAnim *ch
 	ass_imp_mat4_to_matrix4x4f(&bone_frames->bone->rest_trafo_relative, trafo);
 
 
+// 	cout << "trafos for bone " << bone_frames->bone->name << " n";
+// 	printf("T = %6.6f %6.6f %6.6f. n", first_trans->x, first_trans->y, first_trans->z);
+// 	printf("R = %6.6f %6.6f %6.6f %6.6f. n", first_quat->x, first_quat->y, first_quat->z, first_quat->w);
+// 	printf("S = %6.6f %6.6f %6.6f.\n", first_scale->x, first_scale->y, first_scale->z);
+		
 		aiMatrix4x4 mat = aiMatrix4x4(first_quat->GetMatrix());
 		mat.a1 *= first_scale->x; mat.b1 *= first_scale->x; mat.c1 *= first_scale->x;
 		mat.a2 *= first_scale->y; mat.b2 *= first_scale->y; mat.c2 *= first_scale->y;
 		mat.a3 *= first_scale->z; mat.b3 *= first_scale->z; mat.c3 *= first_scale->z;
 		mat.a4 = first_trans->x; mat.b4 = first_trans->y; mat.c4 = first_trans->z;
+
+		mat = ScalingM;
+		printf("S matrix for bone %s. n", bone_frames->bone->name);
+		printf("%6.6f %6.6f %6.6f %6.6f n", mat.a1, mat.a2, mat.a3, mat.a4);
+		printf("%6.6f %6.6f %6.6f %6.6f n", mat.b1, mat.b2, mat.b3, mat.b4);
+		printf("%6.6f %6.6f %6.6f %6.6f n", mat.c1, mat.c2, mat.c3, mat.c4);
+		printf("%6.6f %6.6f %6.6f %6.6f n n", mat.d1, mat.d2, mat.d3, mat.d4);
+
+		mat = RotationM;
+		printf("R matrix for bone %s. n", bone_frames->bone->name);
+		printf("%6.6f %6.6f %6.6f %6.6f n", mat.a1, mat.a2, mat.a3, mat.a4);
+		printf("%6.6f %6.6f %6.6f %6.6f n", mat.b1, mat.b2, mat.b3, mat.b4);
+		printf("%6.6f %6.6f %6.6f %6.6f n", mat.c1, mat.c2, mat.c3, mat.c4);
+		printf("%6.6f %6.6f %6.6f %6.6f n n", mat.d1, mat.d2, mat.d3, mat.d4);
+
+		mat = TranslationM;
+		printf("T matrix for bone %s. n", bone_frames->bone->name);
+		printf("%6.6f %6.6f %6.6f %6.6f n", mat.a1, mat.a2, mat.a3, mat.a4);
+		printf("%6.6f %6.6f %6.6f %6.6f n", mat.b1, mat.b2, mat.b3, mat.b4);
+		printf("%6.6f %6.6f %6.6f %6.6f n", mat.c1, mat.c2, mat.c3, mat.c4);
+		printf("%6.6f %6.6f %6.6f %6.6f n n\n", mat.d1, mat.d2, mat.d3, mat.d4);
+
 // 	ass_imp_mat4_to_matrix4x4f(&bone_frames->bone->rest_trafo_relative, mat);
 
 // 	*/

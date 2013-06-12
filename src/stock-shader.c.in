@@ -228,7 +228,7 @@ const char* vertex_pos_norm_tex_upto_8_bones() {
 		}shader;
 }
 
-const char* vertex_pos_norm_notex_upto_24_bones() {
+const char* vertex_pos_norm_notex_upto_24_bones() {	// THIS IS *NOT* THE ONE
 	return
 		shader{
 			#version 420 core
@@ -251,6 +251,36 @@ const char* vertex_pos_norm_notex_upto_24_bones() {
 
 			void main() {
 				mat4 bone_trafo = mat4(0);
+				if (bones > 0)	bone_trafo += bone_matrices[0] * bone_weight_01.x;
+				if (bones > 1)	bone_trafo += bone_matrices[1] * bone_weight_01.y;
+				if (bones > 2)	bone_trafo += bone_matrices[2] * bone_weight_01.z;
+				if (bones > 3)	bone_trafo += bone_matrices[3] * bone_weight_01.w;
+
+				if (bones > 4)	bone_trafo += bone_matrices[4] * bone_weight_02.x;
+				if (bones > 5)	bone_trafo += bone_matrices[5] * bone_weight_02.y;
+				if (bones > 6)	bone_trafo += bone_matrices[6] * bone_weight_02.z;
+				if (bones > 7)	bone_trafo += bone_matrices[7] * bone_weight_02.w;
+
+				if (bones > 8)	bone_trafo += bone_matrices[8] * bone_weight_03.x;
+				if (bones > 9)	bone_trafo += bone_matrices[9] * bone_weight_03.y;
+				if (bones > 10)	bone_trafo += bone_matrices[10] * bone_weight_03.z;
+				if (bones > 11)	bone_trafo += bone_matrices[11] * bone_weight_03.w;
+
+				if (bones > 12)	bone_trafo += bone_matrices[12] * bone_weight_04.x;
+				if (bones > 13)	bone_trafo += bone_matrices[13] * bone_weight_04.y;
+				if (bones > 14)	bone_trafo += bone_matrices[14] * bone_weight_04.z;
+				if (bones > 15)	bone_trafo += bone_matrices[15] * bone_weight_04.w;
+
+				if (bones > 16)	bone_trafo += bone_matrices[16] * bone_weight_05.x;
+				if (bones > 17)	bone_trafo += bone_matrices[17] * bone_weight_05.y;
+				if (bones > 18)	bone_trafo += bone_matrices[18] * bone_weight_05.z;
+				if (bones > 19)	bone_trafo += bone_matrices[19] * bone_weight_05.w;
+
+				if (bones > 20)	bone_trafo += bone_matrices[20] * bone_weight_06.x;
+				if (bones > 21)	bone_trafo += bone_matrices[21] * bone_weight_06.y;
+				if (bones > 22)	bone_trafo += bone_matrices[22] * bone_weight_06.z;
+				if (bones > 23)	bone_trafo += bone_matrices[23] * bone_weight_06.w;
+				/*
 				for (int i = 0; i < 4; ++i) {
 					bone_trafo += bone_matrices[0+i] * bone_weight_01[i];
 					bone_trafo += bone_matrices[4+i] * bone_weight_02[i];
@@ -259,6 +289,7 @@ const char* vertex_pos_norm_notex_upto_24_bones() {
 					if (i < 3) bone_trafo += bone_matrices[16+i] * bone_weight_05[i];
 // 					bone_trafo += bone_matrices[20+i] * bone_weight_06[i];
 				}
+				*/
 				pos_wc = model * bone_trafo * vec4(in_pos, 1);
 				norm_wc = mat3(model) * mat3(bone_trafo) * in_norm; // assuming model is not strange.
 				gl_Position = proj * view * pos_wc;
@@ -266,7 +297,7 @@ const char* vertex_pos_norm_notex_upto_24_bones() {
 		}shader;
 }
 
-const char* vertex_pos_norm_tex_upto_24_bones() {
+const char* vertex_pos_norm_tex_upto_24_bones() {	// THIS IS THE ONE
 	return
 		shader{
 			#version 420 core
@@ -278,7 +309,7 @@ const char* vertex_pos_norm_tex_upto_24_bones() {
 			in vec4 bone_weight_03;
 			in vec4 bone_weight_04;
 			in vec4 bone_weight_05;
-			in vec4 bone_weight_06;
+// 			in vec4 bone_weight_06;
 		
 			uniform mat4 proj;
 			uniform mat4 view;
@@ -292,14 +323,37 @@ const char* vertex_pos_norm_tex_upto_24_bones() {
 
 			void main() {
 				mat4 bone_trafo = mat4(0);
-				for (int i = 0; i < 4; ++i) {
-					if (0+i < bones)  bone_trafo += bone_matrices[0+i] * bone_weight_01[i];
-					if (4+i < bones)  bone_trafo += bone_matrices[4+i] * bone_weight_02[i];
-					if (8+i < bones)  bone_trafo += bone_matrices[8+i] * bone_weight_03[i];
-					if (12+i < bones) bone_trafo += bone_matrices[12+i] * bone_weight_04[i];
-					if (16+i < bones) bone_trafo += bone_matrices[16+i] * bone_weight_05[i];
-					if (20+i < bones) bone_trafo += bone_matrices[20+i] * bone_weight_06[i];
-				}
+				if (bones > 0)	bone_trafo += bone_matrices[0] * bone_weight_01.x;
+				if (bones > 1)	bone_trafo += bone_matrices[1] * bone_weight_01.y;
+				if (bones > 2)	bone_trafo += bone_matrices[2] * bone_weight_01.z;
+				if (bones > 3)	bone_trafo += bone_matrices[3] * bone_weight_01.w;
+
+				if (bones > 4)	bone_trafo += bone_matrices[4] * bone_weight_02.x;
+				if (bones > 5)	bone_trafo += bone_matrices[5] * bone_weight_02.y;
+				if (bones > 6)	bone_trafo += bone_matrices[6] * bone_weight_02.z;
+				if (bones > 7)	bone_trafo += bone_matrices[7] * bone_weight_02.w;
+
+				if (bones > 8)	bone_trafo += bone_matrices[8] * bone_weight_03.x;
+				if (bones > 9)	bone_trafo += bone_matrices[9] * bone_weight_03.y;
+				if (bones > 10)	bone_trafo += bone_matrices[10] * bone_weight_03.z;
+				if (bones > 11)	bone_trafo += bone_matrices[11] * bone_weight_03.w;
+
+				if (bones > 12)	bone_trafo += bone_matrices[12] * bone_weight_04.x;
+				if (bones > 13)	bone_trafo += bone_matrices[13] * bone_weight_04.y;
+				if (bones > 14)	bone_trafo += bone_matrices[14] * bone_weight_04.z;
+				if (bones > 15)	bone_trafo += bone_matrices[15] * bone_weight_04.w;
+
+				if (bones > 16)	bone_trafo += bone_matrices[16] * bone_weight_05.x;
+				if (bones > 17)	bone_trafo += bone_matrices[17] * bone_weight_05.y;
+				if (bones > 18)	bone_trafo += bone_matrices[18] * bone_weight_05.z;
+// 				if (bones > 19)	bone_trafo += bone_matrices[19] * bone_weight_05.w;
+
+// 				if (bones > 20)	bone_trafo += bone_matrices[20] * bone_weight_06.x;
+// 				if (bones > 21)	bone_trafo += bone_matrices[21] * bone_weight_06.y;
+// 				if (bones > 22)	bone_trafo += bone_matrices[22] * bone_weight_06.z;
+// 				if (bones > 23)	bone_trafo += bone_matrices[23] * bone_weight_06.w;
+				
+// 				pos_wc = model * vec4(in_pos, 1);
 				pos_wc = model * bone_trafo * vec4(in_pos, 1);
 				norm_wc = mat3(model) * mat3(bone_trafo) * in_norm; // assuming model is not strange.
 				tc = in_tc;

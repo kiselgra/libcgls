@@ -14,7 +14,7 @@
 #include <assimp/assimp.hpp>
 #include <assimp/aiScene.h>
 #include <assimp/aiPostProcess.h>
-#include <assimp/types.h>
+#include <assimp/aiTypes.h>
 
 #include "skeletal.h"
 #include "stock-shader.h"

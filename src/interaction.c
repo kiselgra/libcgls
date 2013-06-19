@@ -492,6 +492,7 @@ void interaction_bm_enter_scale_mode(interaction_mode *mode) {
 	bm->grab = false;
 	bm->rotate = false;
 	bm->scale = true;
+	bm->axis = none;
 	mode->motion_handler = interaction_bm_scale_motion;
 	add_function_key_to_mode(mode, 'x', cgls_interaction_no_modifier, interaction_bm_set_axis_to_x);
 	add_function_key_to_mode(mode, 'y', cgls_interaction_no_modifier, interaction_bm_set_axis_to_y);

@@ -39,6 +39,7 @@ struct drawelement {
 	unsigned int index_buffer_start, indices;
 	vec3f bb_min, bb_max;
 	bool has_bb;
+	bool hidden;
 };
 
 #include <libcgl/mm.h>
@@ -288,6 +289,20 @@ void render_drawelement_with(drawelement_ref ref, shader_ref shader, material_re
 struct uniform_handler_node* drawelement_uniform_handlers(drawelement_ref ref) {
 	struct drawelement *de = drawelements + ref.id;
 	return de->handler_chain;
+}
+
+/*! take a drawelement out of the standard rendering process.
+ *  \attention this does not have any effect on \ref render_drawelement but is used by the functions rendering the \ref scene.
+ *  \note this is to make special treatment of certain drawelements more straightforward.
+ */
+void hide_drawelement(drawelement_ref ref, bool hide) {
+	struct drawelement *de = drawelements + ref.id;
+	de->hidden = hide;
+}
+
+bool drawelement_hidden(drawelement_ref ref) {
+	struct drawelement *de = drawelements + ref.id;
+	return de->hidden;
 }
 
 drawelement_ref find_drawelement(const char *name) {

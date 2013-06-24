@@ -53,9 +53,13 @@ void append_drawelement_scheme_uniform_handler(drawelement_ref ref, SCM handler)
 #endif
 void pop_drawelement_uniform_handler(drawelement_ref ref);
 
+void hide_drawelement(drawelement_ref ref, bool hide);
+bool drawelement_hidden(drawelement_ref ref);
+
 void render_drawelement(drawelement_ref ref);
 drawelement_ref find_drawelement(const char *name);
 struct drawelement_list* list_drawelements();
+
 
 struct uniform_handler_node* drawelement_uniform_handlers(drawelement_ref ref);
 

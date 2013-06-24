@@ -246,17 +246,20 @@ void default_scene_renderer(scene_ref ref) {
 	if (use_single_shader_for_scene(ref)) {
 		shader_ref shader = single_shader_for_scene(ref);
 		for (drawelement_node *run = scene_drawelements(ref); run; run = run->next) {
-			uniform_setter_t extra = single_shader_extra_uniform_handler(ref);
-			if (extra)
-				prepend_drawelement_uniform_handler(run->ref, extra);
-			render_drawelement_with_shader(run->ref, shader);
-			if (extra)
-				pop_drawelement_uniform_handler(run->ref);
+			if (!drawelement_hidden(run->ref)) {
+				uniform_setter_t extra = single_shader_extra_uniform_handler(ref);
+				if (extra)
+					prepend_drawelement_uniform_handler(run->ref, extra);
+				render_drawelement_with_shader(run->ref, shader);
+				if (extra)
+					pop_drawelement_uniform_handler(run->ref);
+			}
 		}
 	}
 	else
 		for (drawelement_node *run = scene_drawelements(ref); run; run = run->next)
-			render_drawelement(run->ref);
+			if (!drawelement_hidden(run->ref))
+				render_drawelement(run->ref);
 }
 
 //! @}
@@ -401,16 +404,18 @@ void graph_scene_traverser(scene_ref ref) {
 				// binding], ...) and drawelement uniforms (object trafo)
 				bind_shader(shader);
 				for (struct drawelement_node *deno = by_mat->drawelements; deno; deno = deno->next) {
-					shader_ref old_shader = drawelement_change_shader(by_mat->drawelements->ref, shader);
-					if (uniform_setter)
-						prepend_drawelement_uniform_handler(deno->ref, uniform_setter);
-					if (drawelement_using_index_range(deno->ref))
-						bind_uniforms_and_render_indices_of_drawelement(deno->ref);
-					else
-						bind_uniforms_and_render_drawelement_nonindexed(deno->ref);
-					if (uniform_setter)
-						pop_drawelement_uniform_handler(deno->ref);
-					drawelement_change_shader(by_mat->drawelements->ref, old_shader);
+					if (!drawelement_hidden(deno->ref)) {
+						shader_ref old_shader = drawelement_change_shader(by_mat->drawelements->ref, shader);
+						if (uniform_setter)
+							prepend_drawelement_uniform_handler(deno->ref, uniform_setter);
+						if (drawelement_using_index_range(deno->ref))
+							bind_uniforms_and_render_indices_of_drawelement(deno->ref);
+						else
+							bind_uniforms_and_render_drawelement_nonindexed(deno->ref);
+						if (uniform_setter)
+							pop_drawelement_uniform_handler(deno->ref);
+						drawelement_change_shader(by_mat->drawelements->ref, old_shader);
+					}
 				}
 				unbind_shader(shader);
 			}
@@ -425,10 +430,12 @@ void graph_scene_traverser(scene_ref ref) {
 				shader = drawelement_shader(by_mat->drawelements->ref);
 				bind_shader(shader);
 				for (struct drawelement_node *deno = by_mat->drawelements; deno; deno = deno->next) {
-					if (drawelement_using_index_range(deno->ref))
-						bind_uniforms_and_render_indices_of_drawelement(deno->ref);
-					else
-						bind_uniforms_and_render_drawelement_nonindexed(deno->ref);
+					if (!drawelement_hidden(deno->ref)) {
+						if (drawelement_using_index_range(deno->ref))
+							bind_uniforms_and_render_indices_of_drawelement(deno->ref);
+						else
+							bind_uniforms_and_render_drawelement_nonindexed(deno->ref);
+					}
 				}
 				unbind_shader(shader);
 			}

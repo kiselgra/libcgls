@@ -60,6 +60,7 @@ material_ref make_material(const char *name, vec4f *amb, vec4f *diff, vec4f *spe
 	mat->k_amb = *amb;
 	mat->k_diff = *diff;
 	mat->k_spec = *spec;
+	mat->shininess = 1;
 
     mat->textures = 0;
 	mat->textures_head = mat->back = 0;

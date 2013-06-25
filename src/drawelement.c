@@ -66,6 +66,7 @@ drawelement_ref make_drawelement(const char *name, mesh_ref mr, shader_ref sr, m
 
 	de->use_index_range = false;
 	de->has_bb = false;
+	de->hidden = false;
 
 // 	printf("create drawelement %s.\n", de->name);
 	return ref;

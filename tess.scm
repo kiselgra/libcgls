@@ -42,7 +42,7 @@
 
 (define drawelements '())
 
-(define (testcall name mesh material)
+(define (testcall name mesh material bbmin bbmax)
   (let* ((shader (if (cmdline hemi)
 				     (if (material-has-textures? material)
 				         (find-shader "diffuse-hemi+tex")

@@ -168,7 +168,8 @@ const char* fragment_part_no_no_no_no(const char ***u) {
 		"shininess",
 		0
 	};
-	*u = uniforms;
+	if (settings & ignore_ambient) *u = uniforms+1;
+	else                           *u = uniforms;
 	return
 		shader{
 			#version 420 core
@@ -204,7 +205,8 @@ const char* fragment_part_no_diff_no_no(const char ***u) {
 		"diffuse_tex",
 		0
 	};
-	*u = uniforms;
+	if (settings & ignore_ambient) *u = uniforms+1;
+	else                           *u = uniforms;
 	return
 		shader{
 			#version 420 core
@@ -243,7 +245,8 @@ const char* fragment_part_no_diff_spec_no(const char ***u) {
 		"specular_tex",
 		0
 	};
-	*u = uniforms;
+	if (settings & ignore_ambient) *u = uniforms+1;
+	else                           *u = uniforms;
 	return
 		shader{
 			#version 420 core
@@ -283,7 +286,8 @@ const char* fragment_part_no_diff_no_mask(const char ***u) {
 		"mask_tex",
 		0
 	};
-	*u = uniforms;
+	if (settings & ignore_ambient) *u = uniforms+1;
+	else                           *u = uniforms;
 	return
 		shader{
 			#version 420 core
@@ -615,7 +619,7 @@ void add_stock_fragment_shader_part(struct stockshader_fragments *ssf, bool use_
 
 	add_stock_vertex_shader(ssf, use_normals, use_tc);
 
-	printf("making shader:   A:%d  D:%d  S:%d  M:%d\n", ambient_tex, diffuse_tex, specular_tex, mask_tex);
+// 	printf("making shader:   A:%d  D:%d  S:%d  M:%d\n", ambient_tex, diffuse_tex, specular_tex, mask_tex);
 
 	const char *src = 0;
 	const char **uniforms = 0;

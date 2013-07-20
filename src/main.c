@@ -7,6 +7,8 @@
 #include "light.h"
 #include "interaction.h"
 
+#include "console.h"
+
 #include "cmdline.h"
 
 #include <libcgl/libcgl.h>
@@ -43,6 +45,7 @@ bool hemi_uniform_handler(drawelement_ref *dummy, const char *uniform, int locat
 		return false;
 	return true;
 }
+console_ref console;
 
 void display() {
 // 	scene_set_traverser(the_scene, graph_scene_bulk_traverser);
@@ -91,6 +94,7 @@ void display() {
 	valid_pos = (valid_pos == samples ? samples : valid_pos+1);
 
     check_for_gl_errors("blarg");
+	render_console(console);
 
 	swap_buffers();
 }
@@ -239,6 +243,7 @@ void actual_main()
 
 	scene_set_lighting(the_scene, apply_deferred_lights);
 
+	console = make_console("bla", cmdline.res.x, cmdline.res.y, 100);
 
 	enter_glut_main_loop();
 }

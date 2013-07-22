@@ -182,42 +182,33 @@ static void update_console(console *c) {
 	unbind_texture(c->tex);
 }
 
-static cairo_t* create_cairo_context(int width, int height, int channels, cairo_surface_t** surf, unsigned char** buffer) {
-	cairo_t* cr;
+static cairo_t* create_cairo_context(int width, int height, int channels, cairo_surface_t **surf, unsigned char **buffer) {
+	cairo_t *cr;
 
 	/* create cairo-surface/context to act as OpenGL-texture source */
-	*buffer = (unsigned char*)calloc (channels * width * height, sizeof (unsigned char));
-	if (!*buffer)
-	{
-		printf ("create_cairo_context() - Couldn't allocate surface-buffer\n");
-		return NULL;
+	*buffer = (unsigned char*)calloc(channels * width * height, sizeof(unsigned char));
+	if (!*buffer) {
+		printf("create_cairo_context() - Couldn't allocate surface-buffer\n");
+		return 0;
 	}
 
-	*surf = cairo_image_surface_create_for_data (*buffer,
-			CAIRO_FORMAT_ARGB32,
-			width,
-			height,
-			channels * width);
-	if (cairo_surface_status (*surf) != CAIRO_STATUS_SUCCESS)
-	{
-		free (*buffer);
-		printf ("create_cairo_context() - Couldn't create surface\n");
-		return NULL;
+	*surf = cairo_image_surface_create_for_data(*buffer, CAIRO_FORMAT_ARGB32, width, height, channels * width);
+	if (cairo_surface_status(*surf) != CAIRO_STATUS_SUCCESS) {
+		free(*buffer);
+		printf("create_cairo_context() - Couldn't create surface\n");
+		return 0;
 	}
 
-	cr = cairo_create (*surf);
-	if (cairo_status (cr) != CAIRO_STATUS_SUCCESS)
-	{
-		free (*buffer);
-		printf ("create_cairo_context() - Couldn't create context\n");
-		return NULL;
+	cr = cairo_create(*surf);
+	if (cairo_status(cr) != CAIRO_STATUS_SUCCESS) {
+		free(*buffer);
+		printf("create_cairo_context() - Couldn't create context\n");
+		return 0;
 	}
 	
 	cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
 	cairo_set_source_rgb(cr, 0, 0, 0);
 	cairo_paint(cr);
-
-
 	return cr;
 }
 

@@ -11,6 +11,7 @@
 #include <libcgl/prepared.h>
 
 #include "stock-shader.h"
+#include "interaction.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -44,6 +45,7 @@ struct console {
 #endif
 	list<string> lines;
 	bool update_required;
+	char prefix_key;
 };
 
 #include <libcgl/mm.h>
@@ -51,6 +53,7 @@ define_mm(console, consoles, console_ref);
 #include "console.xx"
 
 static void build_shader(console *cons);
+interaction_mode *make_console_interaction_mode(console_ref ref);
 
 console_ref make_console(const char *name, int screen_w, int screen_h, int height) {
 	console_ref ref = allocate_console_ref();
@@ -65,7 +68,7 @@ console_ref make_console(const char *name, int screen_w, int screen_h, int heigh
 	console->mesh = make_quad((string("console/")+name+"/quad").c_str(), 0);
 	build_shader(console);
 	new (&console->lines) list<string>();
-	console->lines.push_back("blarg");
+	console->lines.push_back("");
 	console->update_required = true;
 
 #if LIBCGLS_HAVE_LIBCAIRO == 1
@@ -77,6 +80,9 @@ console_ref make_console(const char *name, int screen_w, int screen_h, int heigh
 	cerr << "! ! ! Creating a dummy console." << endl;
 #endif
 
+	console->prefix_key = ':';
+
+	push_interaction_mode(make_console_interaction_mode(ref));
 	return ref;
 }
 
@@ -104,12 +110,6 @@ static const char* console_fragment_shader() {
 			out vec4 out_col;
 			void main() {
 				out_col = vec4(texture(tex, tc).rgb, 1);
-// 				float r = 0;
-// 				if (tc.x < 0.1) r = 1;
-// 				if (tc.x > 0.9) r = 1;
-// 				if (tc.y > 0.9) r = 1;
-// 				if (tc.y < 0.1) r = 1;
-// 				out_col = vec4(r, 0, 0, 1);
 			}
 		}shader;
 }
@@ -146,6 +146,21 @@ void render_console(console_ref ref) {
 	unbind_mesh_from_gl(console->mesh);
 }
 
+void evaluate_console_command(console_ref ref) {
+	struct console *console = consoles + ref.id;
+	printf("eval '%s'\n", console->lines.back().c_str());
+}
+
+void console_add_char(console_ref ref, unsigned char c) {
+	struct console *console = consoles + ref.id;
+	if (c == 13) {
+		evaluate_console_command(ref);
+		console->lines.push_back("");
+	}
+	if (isprint(c))
+		console->lines.back() += c;
+	console->update_required = true;
+}
 
 #include <cairo/cairo.h>
 
@@ -153,11 +168,13 @@ void render_console(console_ref ref) {
 
 static void update_console(console *c) {
 	cairo_t *cr = c->cairo;
-	cairo_move_to(cr, 5, 20);
-	cairo_set_font_size(cr, 20);
-// 	cairo_select_font_face(cr, "DejaVu Serif", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+	cairo_set_source_rgb(cr, 0, 0, 0);
+	cairo_paint(cr);
+	cairo_move_to(cr, 5, 14);
+	cairo_set_font_size(cr, 14);
+	cairo_select_font_face(cr, "DejaVu Serif", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
 	cairo_set_source_rgb(cr, 1, 1, 1);
-	cairo_show_text(cr, c->lines.front().c_str());
+	cairo_show_text(cr, c->lines.back().c_str());
 	cairo_surface_write_to_png(c->cairo_surface, "cai.png");
 	bind_texture(c->tex, 0);
 	unsigned char *data = cairo_image_surface_get_data(c->cairo_surface);
@@ -211,5 +228,42 @@ static void update_console(console *c) {
 
 #endif
 
+
+// interaction
+
+struct console_interaction_aux {
+	console_ref console;
+};
+
+static void interaction_console_keyhandler(interaction_mode *mode, unsigned char key, int x, int y) {
+	if (key == 27) {
+		change_fallback_keyhandler_for_mode(mode, 0);
+		return;
+	}
+	if (mode->type != cgls_interaction_console)
+		return;
+	console_interaction_aux *aux = (console_interaction_aux*)mode->aux;
+	console_add_char(aux->console, key);
+	if (key == 13)
+		change_fallback_keyhandler_for_mode(mode, 0);
+}
+
+static void interaction_console_trigger(interaction_mode *mode, int x, int y) {
+	change_fallback_keyhandler_for_mode(mode, interaction_console_keyhandler);
+	console_interaction_aux *aux = (console_interaction_aux*)mode->aux;
+	struct console *console = consoles + aux->console.id;
+	console_add_char(aux->console, console->prefix_key);
+}
+
+interaction_mode *make_console_interaction_mode(console_ref ref) {
+	struct console *console = consoles+ref.id;
+	interaction_mode *mode = make_interaction_mode((string("interaction for console ")+console->name).c_str());
+	mode->type = cgls_interaction_console;
+	mode->aux = malloc(sizeof(console_interaction_aux));
+	((console_interaction_aux*)(mode->aux))->console = ref;
+	add_function_key_to_mode(mode, console->prefix_key, cgls_interaction_no_modifier, interaction_console_trigger);
+
+	return mode;
+}
 
 

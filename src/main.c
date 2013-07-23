@@ -243,7 +243,8 @@ void actual_main()
 
 	scene_set_lighting(the_scene, apply_deferred_lights);
 
-	console = make_console("bla", cmdline.res.x, cmdline.res.y, 100);
+// 	console = make_console("bla", cmdline.res.x, cmdline.res.y, 1);
+	console = make_vi_console("bla", cmdline.res.x, cmdline.res.y);
 
 	enter_glut_main_loop();
 }

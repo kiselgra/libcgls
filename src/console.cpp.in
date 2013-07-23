@@ -30,6 +30,10 @@ static cairo_t* create_cairo_context(int width, int height, int channels, cairo_
 
 using namespace std;
 
+// 
+// basic console
+// 
+
 
 struct console {
 	char *name;
@@ -45,7 +49,12 @@ struct console {
 #endif
 	list<string> lines;
 	bool update_required;
+	bool visible;
 	char prefix_key;
+	int font_size;
+	console_command_handler_t command_handler;
+	unsigned int aux_type;
+	void *aux;
 };
 
 #include <libcgl/mm.h>
@@ -55,26 +64,31 @@ define_mm(console, consoles, console_ref);
 static void build_shader(console *cons);
 interaction_mode *make_console_interaction_mode(console_ref ref);
 
-console_ref make_console(const char *name, int screen_w, int screen_h, int height) {
+console_ref make_console(const char *name, int screen_w, int screen_h, int lines) {
 	console_ref ref = allocate_console_ref();
 	struct console *console = consoles+ref.id;
 
 	console->name = strdup(name);
 	console->screen_w = screen_w;
 	console->screen_h = screen_h;
-	console->height = height;
+	console->font_size = 14;
+	console->height = console->font_size+4;
 	tex_params_t p = default_fbo_tex_params();
-	console->tex = make_empty_texture((string("console/")+name).c_str(), screen_w, height, GL_TEXTURE_2D, GL_RGBA8, GL_UNSIGNED_BYTE, GL_RGBA, &p);
+	console->tex = make_empty_texture((string("console/")+name).c_str(), screen_w, console->height, GL_TEXTURE_2D, GL_RGBA8, GL_UNSIGNED_BYTE, GL_RGBA, &p);
 	console->mesh = make_quad((string("console/")+name+"/quad").c_str(), 0);
 	build_shader(console);
 	new (&console->lines) list<string>();
 	console->lines.push_back("");
 	console->update_required = true;
+	console->visible = false;
+	console->command_handler = 0;
+	console->aux = 0;
+	console->aux_type = 0;
 
 #if LIBCGLS_HAVE_LIBCAIRO == 1
 	console->cairo_surface = 0;
 	console->cairo_surface_data = 0;
-	console->cairo = create_cairo_context(screen_w, height, 4, &console->cairo_surface, &console->cairo_surface_data);
+	console->cairo = create_cairo_context(screen_w, console->height, 4, &console->cairo_surface, &console->cairo_surface_data);
 #else
 	cerr << "! ! ! You are trying to create the console '" << name << "' but cairo support was not compiled in." << endl;
 	cerr << "! ! ! Creating a dummy console." << endl;
@@ -131,10 +145,13 @@ static void update_console(console *c);
 
 void render_console(console_ref ref) {
 	struct console *console = consoles + ref.id;
+	if (!console->visible)
+		return;
 	if (console->update_required) {
 		update_console(console);
 		console->update_required = false;
 	}
+	glDisable(GL_DEPTH_TEST);
 	bind_mesh_to_gl(console->mesh);
 	bind_shader(console->shader);
 	glUniform1f(0, console->height / (float)console->screen_h);
@@ -144,19 +161,30 @@ void render_console(console_ref ref) {
 	unbind_texture(console->tex);
 	unbind_shader(console->shader);
 	unbind_mesh_from_gl(console->mesh);
+	glEnable(GL_DEPTH_TEST);
 }
 
-void evaluate_console_command(console_ref ref) {
+bool evaluate_console_command(console_ref ref) {
 	struct console *console = consoles + ref.id;
-	printf("eval '%s'\n", console->lines.back().c_str());
+	char *response = 0;
+	if (console->command_handler) {
+		response = console->command_handler(ref, console->lines.back().c_str());
+	}
+	else
+		response = strdup("no command handler attached to this console!");
+	if (response)
+		console->lines.push_back(response);
+	else {
+		console->lines.push_back("");
+		console->visible = false;
+	}
+	console->update_required = true;
+	free(response);
+	return response != 0;
 }
 
 void console_add_char(console_ref ref, unsigned char c) {
 	struct console *console = consoles + ref.id;
-	if (c == 13) {
-		evaluate_console_command(ref);
-		console->lines.push_back("");
-	}
 	if (isprint(c))
 		console->lines.back() += c;
 	console->update_required = true;
@@ -170,8 +198,8 @@ static void update_console(console *c) {
 	cairo_t *cr = c->cairo;
 	cairo_set_source_rgb(cr, 0, 0, 0);
 	cairo_paint(cr);
-	cairo_move_to(cr, 5, 14);
-	cairo_set_font_size(cr, 14);
+	cairo_move_to(cr, 5, c->font_size);
+	cairo_set_font_size(cr, c->font_size);
 	cairo_select_font_face(cr, "DejaVu Serif", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
 	cairo_set_source_rgb(cr, 1, 1, 1);
 	cairo_show_text(cr, c->lines.back().c_str());
@@ -219,12 +247,31 @@ static void update_console(console *c) {
 
 #endif
 
-
+// 
 // interaction
+// 
 
 struct console_interaction_aux {
 	console_ref console;
 };
+
+static void interaction_console_clear_response(interaction_mode *mode, int x, int y);
+static void interaction_console_trigger(interaction_mode *mode, int x, int y);
+
+static void interaction_console_clear_response_prefix(interaction_mode *mode, int x, int y) {
+	interaction_console_clear_response(mode, x, y);
+	interaction_console_trigger(mode, x, y);
+}
+
+static void interaction_console_clear_response(interaction_mode *mode, int x, int y) {
+	console_interaction_aux *aux = (console_interaction_aux*)mode->aux;
+	struct console *console = consoles + aux->console.id;
+	console->lines.push_back("");
+	console->update_required = true;
+	console->visible = false;
+	add_function_key_to_mode(mode, 27, cgls_interaction_no_modifier, 0);
+	add_function_key_to_mode(mode, console->prefix_key, cgls_interaction_no_modifier, 0);
+}
 
 static void interaction_console_keyhandler(interaction_mode *mode, unsigned char key, int x, int y) {
 	if (key == 27) {
@@ -234,9 +281,16 @@ static void interaction_console_keyhandler(interaction_mode *mode, unsigned char
 	if (mode->type != cgls_interaction_console)
 		return;
 	console_interaction_aux *aux = (console_interaction_aux*)mode->aux;
-	console_add_char(aux->console, key);
-	if (key == 13)
+	if (key == 13) {
 		change_fallback_keyhandler_for_mode(mode, 0);
+		if (evaluate_console_command(aux->console))	{ // true if there is a response.
+			add_function_key_to_mode(mode, 27, cgls_interaction_no_modifier, interaction_console_clear_response);
+			struct console *console = consoles + aux->console.id;
+			add_function_key_to_mode(mode, console->prefix_key, cgls_interaction_no_modifier, interaction_console_clear_response_prefix);
+		}
+	}
+	else
+		console_add_char(aux->console, key);
 }
 
 static void interaction_console_trigger(interaction_mode *mode, int x, int y) {
@@ -244,6 +298,7 @@ static void interaction_console_trigger(interaction_mode *mode, int x, int y) {
 	console_interaction_aux *aux = (console_interaction_aux*)mode->aux;
 	struct console *console = consoles + aux->console.id;
 	console_add_char(aux->console, console->prefix_key);
+	console->visible = true;
 }
 
 interaction_mode *make_console_interaction_mode(console_ref ref) {
@@ -257,4 +312,41 @@ interaction_mode *make_console_interaction_mode(console_ref ref) {
 	return mode;
 }
 
+// 
+// vi console
+// 
+
+struct vi_command {
+	const char *name;
+	vi_command_t c;
+	SCM scm;
+};
+
+define_slist(vi_commands, vi_command command);
+
+struct vi_console {
+	vi_commands commands;
+};
+
+char* vi_command_handler(console_ref ref, const char *line) {
+	struct console *console = consoles + ref.id;
+	if (console->aux_type != console_t_vi || console->aux == 0)
+		return strdup("something strange happend to this console, I expected it to be vi-style...");
+	return strdup("vi handler");
+}
+
+void add_vi_console_command(console_ref ref, const char *name, vi_command_t handler) {
+}
+
+void add_vi_console_command_scm(console_ref ref, const char *name, SCM handler) {
+}
+
+console_ref make_vi_console(const char *name, int screen_w, int screen_h) {
+	console_ref ref = make_console(name, screen_w, screen_h, 1);
+	struct console *console = consoles + ref.id;
+	console->command_handler = vi_command_handler;
+	console->aux = new vi_console;
+	console->aux_type = console_t_vi;
+	return ref;
+}
 

@@ -187,6 +187,8 @@ void console_add_char(console_ref ref, unsigned char c) {
 	struct console *console = consoles + ref.id;
 	if (isprint(c))
 		console->lines.back() += c;
+	else if (c == '\b' && console->lines.back().length() > 1)
+		console->lines.back() = console->lines.back().substr(0, console->lines.back().length()-1);
 	console->update_required = true;
 }
 
@@ -350,8 +352,13 @@ char* vi_command_handler(console_ref ref, const char *line) {
 			if (strcmp(run->command.name, tokens[0]) == 0) {
 				if (run->command.c)
 					response = run->command.c(ref, tokens.size(), &tokens[0]);
-// 				else
-// 					response = run->command.c(ref, tokens.size(), &tokens[0]);
+				else {
+					SCM l = SCM_EOL;
+					for (int i = 0; i < tokens.size(); ++i)
+						l = scm_cons(scm_from_locale_string(tokens[i]), l);
+					SCM r = scm_call_2(run->command.scm, scm_from_int(ref.id), l);
+					response = scm_to_locale_string(r);
+				}
 				found = true;
 				break;
 			}
@@ -403,6 +410,8 @@ void add_vi_console_command_scm(console_ref ref, const char *name, SCM handler) 
 
 static char* vi_command_echo(console_ref ref, int argc, char **argv) {
 	int len = 0;
+	if (argc <= 2)
+		return strdup("");
 	for (int i = 1; i < argc; ++i)
 		len += strlen(argv[i]);
 	len += argc-2;
@@ -430,6 +439,8 @@ console_ref make_vi_console(const char *name, int screen_w, int screen_h) {
 	vi->commands = 0;
 	add_vi_console_command(ref, "echo", vi_command_echo);
 	add_vi_console_command(ref, "help", vi_command_default_help);
+	scm_c_eval_string("(define (vi-command-default-scm-help console args) (format #f \"this is also a really lame ass emacs-style console, you can register commands by supplying a guile/scheme procedure. Maybe you could be interested in the scheme console, too?\"))");
+	add_vi_console_command_scm(ref, "help-scm", scm_c_eval_string("vi-command-default-scm-help"));
 	return ref;
 }
 

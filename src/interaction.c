@@ -563,7 +563,10 @@ static struct mode_node *modes = 0;
 static void interaction_base_keyhandler(unsigned char key, int x, int y) {
 	int glut_modifiers = glutGetModifiers();
 	unsigned int modifiers = 0;
-	if (glut_modifiers & GLUT_ACTIVE_SHIFT)   modifiers += cgls_interaction_shift;
+	if (glut_modifiers & GLUT_ACTIVE_SHIFT) {
+		if (isalpha(key))
+			modifiers += cgls_interaction_shift;
+	}
 	if (glut_modifiers & GLUT_ACTIVE_CTRL)	  modifiers += cgls_interaction_control;
 	if (glut_modifiers & GLUT_ACTIVE_ALT)     modifiers += cgls_interaction_alt;
 

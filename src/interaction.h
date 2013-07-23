@@ -56,13 +56,16 @@ enum {
 	cgls_invalid_interaction_mode = 0,
 	cgls_interaction_mode_cgl = 1,
 	cgls_interaction_mode_cgls = 2,
-	cgls_interaction_mode_blender = 3
+	cgls_interaction_mode_blender = 3,
+	cgls_interaction_console = 4,
 };
 
 // the mode interface itself
 interaction_mode* make_interaction_mode(const char *name);
 void add_function_key_to_mode(interaction_mode *mode, unsigned char key, unsigned int modifiers, interaction_key_function_t call);
 void add_mouse_function_to_mode(interaction_mode *mode, int buttons, int states, unsigned int modifiers, interaction_mouse_function_t call);
+void change_fallback_keyhandler_for_mode(interaction_mode *mode, interaction_keyhandler_t handler);
+void change_fallback_mouse_handler_for_mode(interaction_mode *mode, void (*handler)(interaction_mode *, int, int, int, int));
 
 // mode handling
 void initialize_interaction();

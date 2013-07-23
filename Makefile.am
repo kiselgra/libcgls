@@ -29,3 +29,5 @@ shader_DATA = tsm.shader poster.shader
 schemedir = $(pkgdatadir)
 shaderdir = $(pkgdatadir)
 EXTRA_DIST = $(scheme_DATA)
+
+ACLOCAL_AMFLAGS = -I m4

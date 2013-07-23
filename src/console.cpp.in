@@ -270,7 +270,8 @@ static void interaction_console_clear_response(interaction_mode *mode, int x, in
 	console->update_required = true;
 	console->visible = false;
 	add_function_key_to_mode(mode, 27, cgls_interaction_no_modifier, 0);
-	add_function_key_to_mode(mode, console->prefix_key, cgls_interaction_no_modifier, 0);
+// 	add_function_key_to_mode(mode, console->prefix_key, cgls_interaction_no_modifier, 0);
+	add_function_key_to_mode(mode, 13, cgls_interaction_no_modifier, 0);
 }
 
 static void interaction_console_keyhandler(interaction_mode *mode, unsigned char key, int x, int y) {
@@ -285,6 +286,7 @@ static void interaction_console_keyhandler(interaction_mode *mode, unsigned char
 		change_fallback_keyhandler_for_mode(mode, 0);
 		if (evaluate_console_command(aux->console))	{ // true if there is a response.
 			add_function_key_to_mode(mode, 27, cgls_interaction_no_modifier, interaction_console_clear_response);
+			add_function_key_to_mode(mode, 13, cgls_interaction_no_modifier, interaction_console_clear_response);
 			struct console *console = consoles + aux->console.id;
 			add_function_key_to_mode(mode, console->prefix_key, cgls_interaction_no_modifier, interaction_console_clear_response_prefix);
 		}
@@ -325,28 +327,109 @@ struct vi_command {
 define_slist(vi_commands, vi_command command);
 
 struct vi_console {
-	vi_commands commands;
+	vi_commands *commands;
 };
 
 char* vi_command_handler(console_ref ref, const char *line) {
 	struct console *console = consoles + ref.id;
 	if (console->aux_type != console_t_vi || console->aux == 0)
 		return strdup("something strange happend to this console, I expected it to be vi-style...");
-	return strdup("vi handler");
+	struct vi_console *vi_console = (struct vi_console*)console->aux;
+	char *strtok_save = 0;
+	char *base = strdup(line+1);
+	char *curr = base, *tmp = base;
+	std::vector<char*> tokens;
+	while ((curr = strtok_r(tmp, "\t ", &strtok_save)) != 0) {
+		tmp = 0;
+		tokens.push_back(strdup(curr));
+	}
+	char *response = 0;
+	bool found = false;
+	if (tokens.size())
+		for (vi_commands *run = vi_console->commands; run; run = run->next)
+			if (strcmp(run->command.name, tokens[0]) == 0) {
+				if (run->command.c)
+					response = run->command.c(ref, tokens.size(), &tokens[0]);
+// 				else
+// 					response = run->command.c(ref, tokens.size(), &tokens[0]);
+				found = true;
+				break;
+			}
+	if (!found)
+		response = strdup("command not found.");
+	for (int i = 0; i < tokens.size(); ++i)
+		free(tokens[i]);
+	free(base);
+	return response;
 }
 
+//! replaces an old command of the same name.
+static void insert_vi_command_into_chain(console_ref ref, vi_command cmd) {
+	struct console *console = consoles + ref.id;
+	if (console->aux_type != console_t_vi || console->aux == 0) {
+		fprintf(stderr, "cannot insert vi command into non vi console.\n");
+		return;
+	}
+	struct vi_console *vi_console = (struct vi_console*)console->aux;
+	for (vi_commands *run = vi_console->commands; run; run = run->next)
+		if (strcmp(run->command.name, cmd.name) == 0) {
+			run->command.c = cmd.c;
+			run->command.scm = cmd.scm;
+			return;
+		}
+	vi_commands *newcmd = (vi_commands*)malloc(sizeof(vi_commands));
+	newcmd->command = cmd;
+	newcmd->next = vi_console->commands;
+	vi_console->commands = newcmd;
+}
+
+//! duplicates the command name
 void add_vi_console_command(console_ref ref, const char *name, vi_command_t handler) {
+	vi_command cmd;
+	cmd.name = strdup(name);
+	cmd.c = handler;
+	cmd.scm = 0;
+	insert_vi_command_into_chain(ref, cmd);
 }
 
+//! duplicates the command name
 void add_vi_console_command_scm(console_ref ref, const char *name, SCM handler) {
+	vi_command cmd;
+	cmd.name = strdup(name);
+	cmd.scm = handler;
+	cmd.c = 0;
+	insert_vi_command_into_chain(ref, cmd);
+}
+
+static char* vi_command_echo(console_ref ref, int argc, char **argv) {
+	int len = 0;
+	for (int i = 1; i < argc; ++i)
+		len += strlen(argv[i]);
+	len += argc-2;
+	char *response = (char*)malloc(len);
+	*response = 0;
+	for (int i = 1; i < argc; ++i) {
+		strcat(response, argv[i]);
+		if (i != argc-1)
+			strcat(response, " ");
+	}
+	return response;
+}
+
+static char* vi_command_default_help(console_ref ref, int argc, char **argv) {
+	return strdup("this is just a lame ass vi-style console interaction -- don't expect too much ;)");
 }
 
 console_ref make_vi_console(const char *name, int screen_w, int screen_h) {
 	console_ref ref = make_console(name, screen_w, screen_h, 1);
 	struct console *console = consoles + ref.id;
+	vi_console *vi = new vi_console;
 	console->command_handler = vi_command_handler;
-	console->aux = new vi_console;
+	console->aux = vi;
 	console->aux_type = console_t_vi;
+	vi->commands = 0;
+	add_vi_console_command(ref, "echo", vi_command_echo);
+	add_vi_console_command(ref, "help", vi_command_default_help);
 	return ref;
 }
 

@@ -16,7 +16,7 @@
   (set! x-res w)
   (set! y-res h))
 
-(load "default.shader")
+(load-shader-file "default.shader")
 
 (let ((home (getenv "HOME")))
   (append-image-path (string-append home "/render-data/images"))

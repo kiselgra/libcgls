@@ -1,5 +1,5 @@
 lib_LTLIBRARIES = libcgls.la
-noinst_PROGRAMS = viewer-cgls #tsm
+bin_PROGRAMS = viewer-cgls #tsm
 
 BUILT_SOURCES = drawelement.xx scene.xx material.xx picking.xx light.xx
 BUILT_SOURCES += objloader.x cmdline.x material.x drawelement.x scene.x

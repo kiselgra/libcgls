@@ -468,6 +468,13 @@ SCM_DEFINE(s_de_change_shader, "change-drawelement-shader", 2, 0, 0, (SCM de_ref
 	return scm_from_int(old.id);
 }
 
+SCM_DEFINE(s_de_hide, "hide-drawelement", 2, 0, 0, (SCM de_ref, SCM yes), "") {
+    drawelement_ref de = { scm_to_int(de_ref) };
+    bool hide = scm_is_true(yes);
+	hide_drawelement(de, hide);
+	return yes;
+}
+
 SCM_DEFINE(s_TMP_mem_barr, "memory-barrier!!", 0, 0, 0, (), "") {
     glMemoryBarrier(GL_ALL_BARRIER_BITS);
     return SCM_BOOL_T;

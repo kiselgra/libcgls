@@ -151,12 +151,14 @@ void register_scheme_functions_for_material();
 void register_scheme_functions_for_cmdline();
 void register_scheme_functions_for_drawelement();
 void register_scheme_functions_for_scene();
+void register_scheme_functions_for_console();
 static void register_scheme_functions() {
 	register_scheme_functions_for_cgls_objloader();
 	register_scheme_functions_for_material();
 	register_scheme_functions_for_cmdline();
 	register_scheme_functions_for_drawelement();
 	register_scheme_functions_for_scene();
+	register_scheme_functions_for_console();
 }
 #endif
 

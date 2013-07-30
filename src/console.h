@@ -5,6 +5,8 @@
 #include <libcgl/scheme.h>
 #endif
 
+#include "interaction.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -28,6 +30,9 @@ enum { console_t_vi = 1 };
 typedef char* (*vi_command_t)(console_ref ref, int argc, char **argv);
 
 console_ref make_vi_console(const char *name, int screen_w, int screen_h);
+
+console_ref find_console(const char *name);
+interaction_mode* console_interaction_mode(console_ref ref);
 
 void add_vi_console_command_scm(console_ref ref, const char *name, SCM handler);
 

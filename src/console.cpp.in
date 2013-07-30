@@ -53,6 +53,7 @@ struct console {
 	char prefix_key;
 	int font_size;
 	console_command_handler_t command_handler;
+	interaction_mode *interaction;
 	unsigned int aux_type;
 	void *aux;
 };
@@ -64,6 +65,9 @@ define_mm(console, consoles, console_ref);
 static void build_shader(console *cons);
 interaction_mode *make_console_interaction_mode(console_ref ref);
 
+/*! \brief create a new on-screen console.
+ * 	\note we push the console interaction mode. if this is not what you want, just pop it off the stack afterwards, and reinsert later using \ref console_interaction_mode.
+ */
 console_ref make_console(const char *name, int screen_w, int screen_h, int lines) {
 	console_ref ref = allocate_console_ref();
 	struct console *console = consoles+ref.id;
@@ -96,8 +100,25 @@ console_ref make_console(const char *name, int screen_w, int screen_h, int lines
 
 	console->prefix_key = ':';
 
-	push_interaction_mode(make_console_interaction_mode(ref));
+	console->interaction = make_console_interaction_mode(ref);
+	push_interaction_mode(console->interaction);
 	return ref;
+}
+
+console_ref find_console(const char *name) {
+	console_ref ref = { -1 };
+	if (strlen(name) == 0) return ref;
+    for (int i = 0; i < next_console_index; ++i) {
+        if (strcmp(consoles[i].name, name) == 0) {
+			ref.id = i;
+			return ref;
+		}
+	}
+	return ref;
+}
+
+interaction_mode* console_interaction_mode(console_ref ref) {
+	return consoles[ref.id].interaction;
 }
 
 static const char* console_vertex_shader() {
@@ -356,6 +377,7 @@ char* vi_command_handler(console_ref ref, const char *line) {
 					SCM l = SCM_EOL;
 					for (int i = 0; i < tokens.size(); ++i)
 						l = scm_cons(scm_from_locale_string(tokens[i]), l);
+					l = scm_reverse(l);
 					SCM r = scm_call_2(run->command.scm, scm_from_int(ref.id), l);
 					response = scm_to_locale_string(r);
 				}
@@ -443,4 +465,33 @@ console_ref make_vi_console(const char *name, int screen_w, int screen_h) {
 	add_vi_console_command_scm(ref, "help-scm", scm_c_eval_string("vi-command-default-scm-help"));
 	return ref;
 }
+
+#ifdef WITH_GUILE
+
+extern "C" {
+
+SCM_DEFINE(s_find_console, "find-console", 1, 0, 0, (SCM name), "") {
+    char *n = scm_to_locale_string(name);
+    console_ref ref = find_console(n);
+    free(n);
+    return scm_from_int(ref.id);
+}
+
+SCM_DEFINE(s_add_console_cmd, "add-vi-console-command", 3, 0, 0, (SCM console, SCM name, SCM proc), "") {
+	console_ref ref = { scm_to_int(console) };
+    char *n = scm_to_locale_string(name);
+	add_vi_console_command_scm(ref, n, proc);
+	free(n);
+	return SCM_BOOL_T;
+}
+
+void register_scheme_functions_for_console() {
+#ifndef SCM_MAGIC_SNARFER
+#include "console.x"
+#endif
+}
+
+}
+
+#endif
 

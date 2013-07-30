@@ -2,10 +2,10 @@ lib_LTLIBRARIES = libcgls.la
 bin_PROGRAMS = viewer-cgls #tsm
 
 BUILT_SOURCES = drawelement.xx scene.xx material.xx picking.xx light.xx console.xx
-BUILT_SOURCES += objloader.x cmdline.x material.x drawelement.x scene.x
+BUILT_SOURCES += objloader.x cmdline.x material.x drawelement.x scene.x console.x
 BUILT_SOURCES += stock-shader.c picking.c console.cpp
 
-EXTRA_DIST = stock-shader.c.in picking.c.in
+EXTRA_DIST = stock-shader.c.in picking.c.in console.cpp.in
 
 # libconfigfiles_la_SOURCES = grammar.yy  lexer.ll  parser.h  token.h lexer.h config_creator.h configfile.h configfile.cpp
 libcgls_la_SOURCES = 	\

@@ -21,6 +21,8 @@ struct scene {
 	struct light_list *lights;
 	bool show_light_representations;
 
+	drawelement_ref skybox;
+
     unsigned int aux_type;
 	void *aux;
 };
@@ -163,6 +165,14 @@ void scene_rendering_of_light_representations(scene_ref ref, bool on) {
 	scene->show_light_representations = on;
 }
 
+drawelement_ref scene_skybox(scene_ref ref) {
+	return scenes[ref.id].skybox;
+}
+
+void set_scene_skybox(scene_ref ref, drawelement_ref de) {
+	scenes[ref.id].skybox = de;
+}
+
 /*! \brief Render the scene.
  *
  * 	Traversal.
@@ -210,6 +220,22 @@ void render_scene_deferred(scene_ref ref, framebuffer_ref gbuffer) {
 	if (scene->show_light_representations)
 		for (struct light_list *run = scene->lights; run; run = run->next)
 			render_light_representation(run->ref);
+
+	if (valid_drawelement_ref(scene->skybox)) {
+		float near = camera_near(current_camera()),
+			  far = camera_far(current_camera()),
+			  aspect = camera_aspect(current_camera()),
+			  fovy = camera_fovy(current_camera());
+		change_projection_of_cam(current_camera(), fovy, aspect, near, 1e10);
+		recompute_gl_matrices_of_cam(current_camera());
+		int depthfunc = 0;
+		glGetIntegerv(GL_DEPTH_FUNC, &depthfunc);
+		glDepthFunc(GL_LEQUAL);
+		render_drawelement(scene->skybox);
+		glDepthFunc(depthfunc);
+		change_projection_of_cam(current_camera(), fovy, aspect, near, far);
+		recompute_gl_matrices_of_cam(current_camera());
+	}
 }
 
 //!	\copydoc render_scene

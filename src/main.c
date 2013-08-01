@@ -6,7 +6,7 @@
 #include "picking.h"
 #include "light.h"
 #include "interaction.h"
-
+#include "sky.h"
 #include "console.h"
 
 #include "cmdline.h"
@@ -247,6 +247,9 @@ void actual_main()
 
 // 	console = make_console("bla", cmdline.res.x, cmdline.res.y, 1);
 	console = make_vi_console("bla", cmdline.res.x, cmdline.res.y);
+
+	drawelement_ref sky = make_skybox_with_hemispherical_mapping("sky", "cgskies-0319-free.jpg");
+	set_scene_skybox(the_scene, sky);
 
 	enter_glut_main_loop();
 }

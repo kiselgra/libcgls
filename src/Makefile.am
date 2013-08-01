@@ -3,9 +3,9 @@ bin_PROGRAMS = viewer-cgls #tsm
 
 BUILT_SOURCES = drawelement.xx scene.xx material.xx picking.xx light.xx console.xx
 BUILT_SOURCES += objloader.x cmdline.x material.x drawelement.x scene.x console.x
-BUILT_SOURCES += stock-shader.c picking.c console.cpp
+BUILT_SOURCES += stock-shader.c picking.c console.cpp sky.c
 
-EXTRA_DIST = stock-shader.c.in picking.c.in console.cpp.in
+EXTRA_DIST = stock-shader.c.in picking.c.in console.cpp.in sky.c.in
 
 # libconfigfiles_la_SOURCES = grammar.yy  lexer.ll  parser.h  token.h lexer.h config_creator.h configfile.h configfile.cpp
 libcgls_la_SOURCES = 	\
@@ -20,6 +20,7 @@ libcgls_la_SOURCES = 	\
 						objloader.c objloader.h \
 						picking.c picking.h \
 						scene.c scene.h \
+						sky.c sky.h \
 						stock-shader.c \
 						uniforms.c uniforms.h
 
@@ -71,6 +72,9 @@ stock-shader.c: stock-shader.c.in
 
 picking.c: picking.c.in
 	awk -f shaderhack.awk picking.c.in > picking.c
+
+sky.c: sky.c.in
+	awk -f shaderhack.awk sky.c.in > sky.c
 
 console.cpp: console.cpp.in
 	awk -f shaderhack.awk console.cpp.in > console.cpp

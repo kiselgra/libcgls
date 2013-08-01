@@ -73,6 +73,9 @@ void add_light_to_scene(scene_ref ref, light_ref light);
 bool scene_render_light_representations(scene_ref ref);
 void scene_rendering_of_light_representations(scene_ref ref, bool on);
 
+void set_scene_skybox(scene_ref ref, drawelement_ref de);
+drawelement_ref scene_skybox(scene_ref ref);
+
 void render_scene(scene_ref ref);
 void render_scene_deferred(scene_ref ref, framebuffer_ref gbuffer);
 void render_scene_to_buffer(scene_ref ref, framebuffer_ref target);

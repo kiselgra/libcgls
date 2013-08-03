@@ -34,6 +34,7 @@ static const char* skybox_fragment_shader_hemi() {
 				float phi = (pi + atan(dir.x,dir.z)) / (2.0*pi);
 				float h = (dir.y+1.0)/2.0;
 				out_col = texture(tex, vec2(phi,h));
+// 				out_col = vec4(phi,h,0,1);
 				gl_FragDepth = 1;
 			}
 		}shader;
@@ -70,6 +71,8 @@ drawelement_ref make_skybox_with_hemispherical_mapping(const char *dename, const
 	prepend_drawelement_uniform_handler(de, (uniform_setter_t)default_material_uniform_handler);
 
 	tex_params_t p = default_tex_params();
+// 	p.wrap_s = GL_CLAMP_TO_EDGE;
+	p.wrap_t = GL_CLAMP_TO_EDGE;
 	texture_ref tex = make_texture(dename, filename, GL_TEXTURE_2D, &p);
 	material_add_texture_as(material, tex, "tex");
 

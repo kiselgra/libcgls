@@ -282,10 +282,25 @@ void default_scene_renderer(scene_ref ref) {
 			}
 		}
 	}
-	else
+	else {
 		for (drawelement_node *run = scene_drawelements(ref); run; run = run->next)
-			if (!drawelement_hidden(run->ref))
-				render_drawelement(run->ref);
+			if (!drawelement_hidden(run->ref)) {
+#if CGLS_DRAWELEMENT_BB_VIS == 1
+				if (!drawelement_shows_bounding_box(run->ref)) {
+#endif
+					vec3f min, max;
+					bounding_box_of_drawelement(run->ref, &min, &max);
+					if (!drawelement_has_bounding_box(run->ref) || aabb_in_camera_frustum(current_camera(), &min, &max)) {
+						render_drawelement(run->ref);
+					}
+#if CGLS_DRAWELEMENT_BB_VIS == 1
+				}
+				else {
+					render_drawelement_box(run->ref);
+				}
+#endif
+			}
+	}
 }
 
 //! @}
@@ -447,7 +462,7 @@ void graph_scene_traverser(scene_ref ref) {
 			}
 			unbind_mesh_from_gl(by_mesh->mesh);
 		}
-	else
+	else {
 		for (struct by_mesh *by_mesh = gs->meshes; by_mesh; by_mesh = by_mesh->next) {
 			bind_mesh_to_gl(by_mesh->mesh);
 			for (struct by_material *by_mat = by_mesh->materials; by_mat; by_mat = by_mat->next) {
@@ -456,17 +471,30 @@ void graph_scene_traverser(scene_ref ref) {
 				shader = drawelement_shader(by_mat->drawelements->ref);
 				bind_shader(shader);
 				for (struct drawelement_node *deno = by_mat->drawelements; deno; deno = deno->next) {
+#if CGLS_DRAWELEMENT_BB_VIS == 1
+					if (!drawelement_shows_bounding_box(deno->ref)) {
+#endif
 					if (!drawelement_hidden(deno->ref)) {
 						if (drawelement_using_index_range(deno->ref))
 							bind_uniforms_and_render_indices_of_drawelement(deno->ref);
 						else
 							bind_uniforms_and_render_drawelement_nonindexed(deno->ref);
 					}
+#if CGLS_DRAWELEMENT_BB_VIS == 1
+					}
+#endif
 				}
 				unbind_shader(shader);
 			}
 			unbind_mesh_from_gl(by_mesh->mesh);
 		}
+	}
+#if CGLS_DRAWELEMENT_BB_VIS == 1
+		for (drawelement_node *run = scene_drawelements(ref); run; run = run->next)
+			if (drawelement_shows_bounding_box(run->ref))
+				if (!drawelement_hidden(run->ref))
+					render_drawelement_box(run->ref);
+#endif
 	glDisable(GL_CULL_FACE);
 }
 

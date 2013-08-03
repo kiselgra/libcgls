@@ -26,8 +26,8 @@
 (defmacro cmdline (x)
   `(query-cmdline ',x))
 
-;(define use-graph #f)
-(define use-graph #t)
+(define use-graph #f)
+;(define use-graph #t)
 
 (define the-scene (if use-graph (make-graph-scene "default")
                                 (make-scene "default")))

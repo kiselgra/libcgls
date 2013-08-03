@@ -6,6 +6,8 @@
 
 #include <libcgl/libcgl.h>
 
+#define CGLS_DRAWELEMENT_BB_VIS 1
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -60,6 +62,11 @@ void render_drawelement(drawelement_ref ref);
 drawelement_ref find_drawelement(const char *name);
 struct drawelement_list* list_drawelements();
 
+#if CGLS_DRAWELEMENT_BB_VIS == 1
+void drawelement_show_bounding_box(drawelement_ref ref, bool yes);
+bool drawelement_shows_bounding_box(drawelement_ref ref);
+void render_drawelement_box(drawelement_ref ref);
+#endif
 
 struct uniform_handler_node* drawelement_uniform_handlers(drawelement_ref ref);
 

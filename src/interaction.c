@@ -281,6 +281,7 @@ void interaction_bm_deselect_key(interaction_mode *mode, int x, int y) {
 	add_function_key_to_mode(mode, 'a', cgls_interaction_no_modifier, 0);
 	add_function_key_to_mode(mode, 'h', cgls_interaction_no_modifier, 0);
 	add_function_key_to_mode(mode, 'h', cgls_interaction_alt, 0);
+	add_function_key_to_mode(mode, 'b', cgls_interaction_no_modifier, 0);
 	if (valid_drawelement_ref(bm->selected_de))
 		info_line("deselected %s.", drawelement_name(bm->selected_de));
 	bm->selected_de.id = -1;
@@ -298,6 +299,15 @@ void interaction_bm_unhide_key(interaction_mode *mode, int x, int y) {
 		hide_drawelement(run->ref, false);
 }
 
+void interaction_bm_toggle_bb(interaction_mode *mode, int x, int y) {
+#ifdef CGLS_DRAWELEMENT_BB_VIS
+	struct blendermode_aux *bm = mode->aux;
+	if (valid_drawelement_ref(bm->selected_de))
+		if (drawelement_has_bounding_box(bm->selected_de))
+			drawelement_show_bounding_box(bm->selected_de, !drawelement_shows_bounding_box(bm->selected_de));
+#endif
+}
+
 void interaction_bm_mouse(interaction_mode *mode, int button, int state, int x, int y) {
 	struct blendermode_aux *bm = mode->aux;
 	if (state == cgls_interaction_button_down) {
@@ -312,6 +322,7 @@ void interaction_bm_mouse(interaction_mode *mode, int button, int state, int x, 
 			add_function_key_to_mode(mode, 'a', cgls_interaction_no_modifier, interaction_bm_deselect_key);
 			add_function_key_to_mode(mode, 'h', cgls_interaction_no_modifier, interaction_bm_hide_key);
 			add_function_key_to_mode(mode, 'h', cgls_interaction_alt, interaction_bm_unhide_key);
+			add_function_key_to_mode(mode, 'b', cgls_interaction_no_modifier, interaction_bm_toggle_bb);
 			info_line("selected drawelement %s.", drawelement_name(bm->selected_de));
 		}
 		else {

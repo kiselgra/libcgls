@@ -115,7 +115,7 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 		else            mat = fallback_material;
 
 		vec3f bbmi; vec3f *bb_min = &bbmi; *bb_min = v[0];
-		vec3f bbma; vec3f *bb_max = &bbmi; *bb_max = v[0];
+		vec3f bbma; vec3f *bb_max = &bbma; *bb_max = v[0];
 		for (int i = 0; i < verts; ++i) {
 			if (v[i].x < bb_min->x) bb_min->x = v[i].x;
 			if (v[i].y < bb_min->y) bb_min->y = v[i].y;

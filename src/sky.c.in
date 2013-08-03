@@ -2,6 +2,10 @@
 #include "drawelement.h"
 #include "stock-shader.h"
 
+
+
+// spherical sky projection
+
 static const char* skybox_vertex_shader() {
 	return
 		shader{
@@ -20,7 +24,7 @@ static const char* skybox_vertex_shader() {
 		}shader;
 }
 
-static const char* skybox_fragment_shader_hemi() {
+static const char* skybox_fragment_shader_spherical() {
 	return
 		shader{
 			#version 430 core
@@ -45,7 +49,7 @@ static shader_ref build_shader(const char *shadername) {
 	struct stockshader_fragments ssf;
 	init_stockshader_fragments(&ssf);
 	stockshader_add_vsource(&ssf, skybox_vertex_shader());
-	stockshader_add_fsource(&ssf, skybox_fragment_shader_hemi());
+	stockshader_add_fsource(&ssf, skybox_fragment_shader_spherical());
 	stockshader_add_input(&ssf, "in_pos");
 	stockshader_add_input(&ssf, "in_norm");
 	stockshader_add_input(&ssf, "in_tc");
@@ -61,7 +65,7 @@ static shader_ref build_shader(const char *shadername) {
 }
 
 
-drawelement_ref make_skybox_with_hemispherical_mapping(const char *dename, const char *filename) {
+drawelement_ref make_skybox_with_spherical_mapping(const char *dename, const char *filename) {
 	mesh_ref box = make_cube(dename, 0);
 	vec3f w = { 1, 1, 1 };
 	material_ref material = make_material3f(dename, &w, &w, &w);
@@ -78,3 +82,7 @@ drawelement_ref make_skybox_with_hemispherical_mapping(const char *dename, const
 
 	return de;
 }
+
+
+
+

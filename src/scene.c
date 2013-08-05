@@ -283,14 +283,20 @@ void default_scene_renderer(scene_ref ref) {
 		}
 	}
 	else {
+		frustum_culling_t data;
+		populate_frustum_culling_info(current_camera(), &data);
+		int all = 0, c = 0;
 		for (drawelement_node *run = scene_drawelements(ref); run; run = run->next)
 			if (!drawelement_hidden(run->ref)) {
+				all++;
 #if CGLS_DRAWELEMENT_BB_VIS == 1
 				if (!drawelement_shows_bounding_box(run->ref)) {
 #endif
 					vec3f min, max;
 					bounding_box_of_drawelement(run->ref, &min, &max);
-					if (!drawelement_has_bounding_box(run->ref) || aabb_in_camera_frustum(current_camera(), &min, &max)) {
+// 					if (!drawelement_has_bounding_box(run->ref) || aabb_in_camera_frustum(current_camera(), &min, &max)) {
+					if (!drawelement_has_bounding_box(run->ref) || aabb_in_frustum(&data, &min, &max)) {
+						c++;
 						render_drawelement(run->ref);
 					}
 #if CGLS_DRAWELEMENT_BB_VIS == 1
@@ -300,6 +306,7 @@ void default_scene_renderer(scene_ref ref) {
 				}
 #endif
 			}
+		printf("rendered %d of %d\n", c, all);
 	}
 }
 

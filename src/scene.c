@@ -64,6 +64,7 @@ scene_ref make_scene(const char *name) { // no pun intended.
 	scene->lights = 0;
 	scene->apply_lights = 0;
 	scene->show_light_representations = true;
+	scene->skybox.id = -1;
 
 	return ref;
 }
@@ -294,7 +295,6 @@ void default_scene_renderer(scene_ref ref) {
 #endif
 					vec3f min, max;
 					bounding_box_of_drawelement(run->ref, &min, &max);
-// 					if (!drawelement_has_bounding_box(run->ref) || aabb_in_camera_frustum(current_camera(), &min, &max)) {
 					if (!drawelement_has_bounding_box(run->ref) || aabb_in_frustum(&data, &min, &max)) {
 						c++;
 						render_drawelement(run->ref);
@@ -306,7 +306,7 @@ void default_scene_renderer(scene_ref ref) {
 				}
 #endif
 			}
-		printf("rendered %d of %d\n", c, all);
+// 		printf("rendered %d of %d\n", c, all);
 	}
 }
 
@@ -470,6 +470,9 @@ void graph_scene_traverser(scene_ref ref) {
 			unbind_mesh_from_gl(by_mesh->mesh);
 		}
 	else {
+		frustum_culling_t data;
+		populate_frustum_culling_info(current_camera(), &data);
+		int a = 0, c = 0;
 		for (struct by_mesh *by_mesh = gs->meshes; by_mesh; by_mesh = by_mesh->next) {
 			bind_mesh_to_gl(by_mesh->mesh);
 			for (struct by_material *by_mat = by_mesh->materials; by_mat; by_mat = by_mat->next) {
@@ -481,11 +484,19 @@ void graph_scene_traverser(scene_ref ref) {
 #if CGLS_DRAWELEMENT_BB_VIS == 1
 					if (!drawelement_shows_bounding_box(deno->ref)) {
 #endif
+						a++;
 					if (!drawelement_hidden(deno->ref)) {
-						if (drawelement_using_index_range(deno->ref))
-							bind_uniforms_and_render_indices_of_drawelement(deno->ref);
-						else
-							bind_uniforms_and_render_drawelement_nonindexed(deno->ref);
+						/*
+						vec3f min, max;
+						bounding_box_of_drawelement(deno->ref, &min, &max);
+						if (!drawelement_has_bounding_box(deno->ref) || aabb_in_frustum(&data, &min, &max)) {
+							c++;
+							*/
+							if (drawelement_using_index_range(deno->ref))
+								bind_uniforms_and_render_indices_of_drawelement(deno->ref);
+							else
+								bind_uniforms_and_render_drawelement_nonindexed(deno->ref);
+// 						}
 					}
 #if CGLS_DRAWELEMENT_BB_VIS == 1
 					}
@@ -495,6 +506,7 @@ void graph_scene_traverser(scene_ref ref) {
 			}
 			unbind_mesh_from_gl(by_mesh->mesh);
 		}
+// 		printf("graph scene %d / %d\n", c, a);
 	}
 #if CGLS_DRAWELEMENT_BB_VIS == 1
 		for (drawelement_node *run = scene_drawelements(ref); run; run = run->next)

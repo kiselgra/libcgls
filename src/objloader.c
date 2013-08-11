@@ -52,12 +52,15 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
                                                         void (*make_drawelem)(const char*, mesh_ref, material_ref, vec3f *bbmin, vec3f *bbmax), material_ref fallback_material) {
 	obj_data objdata;
 	const char *modelname = object_name ? object_name : filename;
+	time_t start = clock();
 	
 	char *dirname_tmp = strdup(filename);
 	prepend_image_path(dirname(dirname_tmp));
 	free(dirname_tmp);
 
 	load_objfile(modelname, filename, &objdata, false, false);
+
+	time_t mid = clock();
 
 	// convert the materials
 	// note: the material names are already prefixed with the model's base name.
@@ -149,6 +152,11 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 		}
 	}	// }}}
 
+	time_t end = clock();
+
+	printf("load: %d\n", (int)((mid-start)/CLOCKS_PER_SEC));
+	printf("post: %d\n", (int)((end-mid)/CLOCKS_PER_SEC));
+
 	pop_image_path_front();
 }
 
@@ -220,9 +228,13 @@ static void load_objfile_and_create_objects_with_single_vbo_general(
 	prepend_image_path(dirname(dirname_tmp));
 	free(dirname_tmp);
 
+	time_t start = clock();
+
 	bool collapse_materials = true;
 	load_objfile(modelname, filename, &objdata, true, collapse_materials);
 	
+	time_t mid = clock();
+
 	// convert the materials
 	// note: the material names are already prefixed with the model's base name.
 	for (int i = 0; i < objdata.number_of_materials; ++i) {
@@ -306,6 +318,12 @@ static void load_objfile_and_create_objects_with_single_vbo_general(
 			if (objdata.vertex_data[i].z > bb_max->z) bb_max->z = objdata.vertex_data[i].z;
 		}
 	}
+	time_t end = clock();
+
+	printf("OBJ TIMINGS:\n");
+	printf("load: %d\n", (int)((mid-start)/CLOCKS_PER_SEC));
+	printf("post: %d\n", (int)((end-mid)/CLOCKS_PER_SEC));
+
 
 	pop_image_path_front();
 }

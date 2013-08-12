@@ -131,11 +131,11 @@ bone_list* traverse_nodes(aiScene const *model_scene, aiNode *node, aiMatrix4x4 
 	return ret;
 }
 
-skeletal_animation_ref generate_skeletal_anim(aiScene const* model_scene) {
+skeletal_animation_ref generate_skeletal_anim(aiScene const* model_scene, const char *name) {
 	aiNode *root = model_scene->mRootNode;
 	aiMatrix4x4 curr_trafo;
 	bone_list *bones = traverse_nodes(model_scene, root, curr_trafo, 0);
-	skeletal_animation_ref ref = make_skeletal_animation("test", bones);
+	skeletal_animation_ref ref = make_skeletal_animation(name, bones);
 	return ref;
 }
 
@@ -205,7 +205,7 @@ void load_model_and_create_objects_with_separate_vbos(const char *filename, cons
 
 	vec3f model_bbmi, model_bbma;
 
-	skeletal_animation_ref anim = generate_skeletal_anim(model_scene);
+	skeletal_animation_ref anim = generate_skeletal_anim(model_scene, object_name);
 
 	for (int mid = 0; mid < model_scene->mNumMeshes; ++mid) {
 		aiMesh *group = model_scene->mMeshes[mid];

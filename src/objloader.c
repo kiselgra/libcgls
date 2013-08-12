@@ -396,8 +396,10 @@ void register_scheme_functions_for_cgls_objloader() {
 #include "objloader.x"
 #endif
 	scm_c_eval_string("(define (load-objfile-and-create-objects-with-single-vbo filename objname callback fallback-mat)\
+						 (format #t \"~a ~a ~a ~a #f\" filename objname callback fallback-mat)\
 	                     (load-objfile-and-create-objects-with-single-vbo-general filename objname callback fallback-mat #f))");
 	scm_c_eval_string("(define (load-objfile-and-create-objects-with-single-vbo-keeping-cpu-data filename objname callback fallback-mat)\
+						 (format #t \"~a ~a ~a ~a #t\" filename objname callback fallback-mat)\
 	                     (load-objfile-and-create-objects-with-single-vbo-general filename objname callback fallback-mat #t))");
 }
 

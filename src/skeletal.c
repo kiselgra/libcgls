@@ -6,7 +6,6 @@ void make_translation_matrix4x4f(matrix4x4f *mat, vec3f *transl); // defined in 
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <sys/time.h>
 
 #include "drawelement.h"
 
@@ -23,146 +22,6 @@ struct skeletal_animation {
 #include <libcgl/mm.h>
 define_mm(skeletal_animation, skeletal_animations, skeletal_animation_ref);
 #include "skeletal.xx"
-
-void make_quaternionf(quaternionf *q, const vec3f *v, float w) {
-	q->v.x = v->x;
-	q->v.y = v->y;
-	q->v.z = v->z;
-	q->w = w;
-}
-
-void make_quaternion4f(quaternionf *q, float x, float y, float z, float w) {
-	q->v.x = x;
-	q->v.y = y;
-	q->v.z = z;
-	q->w = w;
-}
-
-void copy_quaternion4f(quaternionf *to, const quaternionf *from) {
-	to->v.x = from->v.x;
-	to->v.y = from->v.y;
-	to->v.z = from->v.z;
-	to->w = from->w;
-}
-
-//! t \in [0,1]
-void lerp_vec3f(vec3f *to, const vec3f *a, const vec3f *b, float t) {
-	sub_components_vec3f(to, b, a);
-	mul_vec3f_by_scalar(to, to, t);
-	add_components_vec3f(to, a, to);
-}
-
-float dot_quaternionf(const quaternionf *a, const quaternionf *b) {
-	return dot_vec3f(&a->v, &b->v) + a->w*b->w;
-}
-
-void add_components_quaternionf(quaternionf *to, const quaternionf *a, const quaternionf *b) {
-	add_components_vec3f(&to->v, &a->v, &b->v);
-	to->w = a->w + b->w;
-}
-
-void mul_components_quaternionf(quaternionf *to, const quaternionf *a, const quaternionf *b) {
-	mul_components_vec3f(&to->v, &a->v, &b->v);
-	to->w = a->w * b->w;
-}
-
-void sub_components_quaternionf(quaternionf *to, const quaternionf *a, const quaternionf *b) {
-	sub_components_vec3f(&to->v, &a->v, &b->v);
-	to->w = a->w - b->w;
-}
-
-void mul_quaternionf_by_scalar(quaternionf *to, const quaternionf *a, float s) {
-	mul_vec3f_by_scalar(&to->v, &a->v, s);
-	to->w = a->w * s;
-}
-
-//! not what you would usually want to do
-void lerp_quaterionf(quaternionf *to, const quaternionf *a, const quaternionf *b, float t) {
-	sub_components_quaternionf(to, b, a);
-	mul_quaternionf_by_scalar(to, to, t);
-	add_components_quaternionf(to, a, to);
-}
-
-
-//! t \in [0,1]
-void slerp_quaterionf(quaternionf *to, const quaternionf *p, const quaternionf *q, float t) {
-	quaternionf tmp_p, tmp_q;
-	float cos_phi = dot_quaternionf(p, q);
-	// printf("quaternion dot of %6.6f %6.6f %6.6f %6.6f\n", p->v.x, p->v.y, p->v.z, p->w);
-	// printf("            with  %6.6f %6.6f %6.6f %6.6f\n", q->v.x, q->v.y, q->v.z, q->w);
-	// printf("    ----------->  %6.6f.\n", cos_phi);
-	if (cos_phi < 0) {
-		tmp_q.v.x = -q->v.x;
-		tmp_q.v.y = -q->v.y;
-		tmp_q.v.z = -q->v.z;
-		tmp_q.w = -q->w;
-		cos_phi = -cos_phi;
-	}
-	else
-		copy_quaternion4f(&tmp_q, q);
-
-	if (cos_phi >= 0.999999) {
-		lerp_quaterionf(to, p, q, t);
-	}
-	else {
-		float phi = acosf(cos_phi);
-		float sin_phi = sinf(phi);
-		float w_0 = sin((1-t) * phi) / sin_phi;
-		float w_1 = sin(t*phi) / sin_phi;
-		mul_quaternionf_by_scalar(&tmp_p, p, w_0);
-		mul_quaternionf_by_scalar(&tmp_q, &tmp_q, w_1);
-		add_components_quaternionf(to, &tmp_p, &tmp_q);
-	}
-}
-
-#ifdef blublub
-inline void aiQuaternion::Interpolate( aiQuaternion& pOut, const aiQuaternion& pStart, const aiQuaternion& pEnd, float pFactor)
-{
-	// calc cosine theta
-	float cosom = pStart.x * pEnd.x + pStart.y * pEnd.y + pStart.z * pEnd.z + pStart.w * pEnd.w;
-
-	// adjust signs (if necessary)
-	aiQuaternion end = pEnd;
-	if( cosom < 0.0f)
-	{
-		cosom = -cosom;
-		end.x = -end.x;   // Reverse all signs
-		end.y = -end.y;
-		end.z = -end.z;
-		end.w = -end.w;
-	} 
-
-	// Calculate coefficients
-	float sclp, sclq;
-	if( (1.0f - cosom) > 0.0001f) // 0.0001 -> some epsillon
-	{
-		// Standard case (slerp)
-		float omega, sinom;
-		omega = acos( cosom); // extract theta from dot product's cos theta
-		sinom = sin( omega);
-		sclp  = sin( (1.0f - pFactor) * omega) / sinom;
-		sclq  = sin( pFactor * omega) / sinom;
-	} else
-	{
-		// Very close, do linear interp (because it's faster)
-		sclp = 1.0f - pFactor;
-		sclq = pFactor;
-	}
-
-	pOut.x = sclp * pStart.x + sclq * end.x;
-	pOut.y = sclp * pStart.y + sclq * end.y;
-	pOut.z = sclp * pStart.z + sclq * end.z;
-	pOut.w = sclp * pStart.w + sclq * end.w;
-}
-#endif
-
-void print_matrix(const matrix4x4f *m, int d) {
-	for (int i = 0; i < d; ++i) printf(" ");	printf("%6.6f %6.6f %6.6f %6.6f\n", m->col_major[0], m->col_major[4], m->col_major[8], m->col_major[12]);
-	for (int i = 0; i < d; ++i) printf(" ");	printf("%6.6f %6.6f %6.6f %6.6f\n", m->col_major[1], m->col_major[5], m->col_major[9], m->col_major[13]);
-	for (int i = 0; i < d; ++i) printf(" ");	printf("%6.6f %6.6f %6.6f %6.6f\n", m->col_major[2], m->col_major[6], m->col_major[10], m->col_major[14]);
-	for (int i = 0; i < d; ++i) printf(" ");	printf("%6.6f %6.6f %6.6f %6.6f\n", m->col_major[3], m->col_major[7], m->col_major[11], m->col_major[15]);
-}
-
 
 typedef bool (*bone_trav_handler_t)(struct bone *bone, int depth, void *data);
 bool traverse_bone_hierarchy(struct bone_list *list, bone_trav_handler_t handler, int depth, void *data);
@@ -275,14 +134,6 @@ void start_skeletal_animation(skeletal_animation_ref ref, const char *name) {
 		fprintf(stderr, "cannot find animation %s.\n", name);
 }
 
-animation_time_t animation_time_stamp() {
-	double stamp;
-	struct timeval tv;
-	gettimeofday(&tv, 0);
-	stamp = tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0;
-	return stamp;
-}
-
 skeletal_animation_ref find_skeletal_animation(const char *name) {
 	skeletal_animation_ref ref = { -1 };
 	if (strlen(name) == 0) return ref;
@@ -293,6 +144,20 @@ skeletal_animation_ref find_skeletal_animation(const char *name) {
 		}
 	}
 	return ref;
+}
+
+struct skeletal_animation_list* list_skeletal_animations() {
+	if (next_skeletal_animation_index == 0)
+		return 0;
+	struct skeletal_animation_list *head = malloc(sizeof(struct skeletal_animation_list));
+	struct skeletal_animation_list *run = head;
+	run->ref.id = 0;
+	for (int i = 1; i < next_skeletal_animation_index; ++i) {
+		run = run->next = malloc(sizeof(struct skeletal_animation_list));
+		run->ref.id = i;
+	}
+	run->next = 0;
+	return head;
 }
 
 void change_animation_speed(skeletal_animation_ref ref, float factor) {
@@ -449,3 +314,23 @@ void quaternionf_to_matrix4x4f(matrix4x4f *mat, quaternionf *q) {
 	mat->col_major[12] = mat->col_major[13] = mat->col_major[14] = 0;
 	mat->col_major[15] = 1;
 }
+
+// SCM
+
+#ifdef WITH_GUILE
+
+SCM_DEFINE(s_list_anims, "list-skeletal-animations", 0, 0, 0, (), "") {
+    SCM list = scm_list_1(scm_from_locale_string(skeletal_animations[0].name));
+    for (int i = 1; i < next_skeletal_animation_index; ++i)
+        list = scm_cons(scm_from_locale_string(skeletal_animations[i].name), list);
+    return list;
+}
+
+SCM_DEFINE(s_change_anim_speed, "change-speed-of-skeletal-animation", 2, 0, 0, (SCM anim, SCM factor), "") {
+    skeletal_animation_ref ref = { scm_to_int(anim) };
+	change_animation_speed(ref, scm_to_double(factor));
+	return SCM_BOOL_T;
+}
+
+#endif
+

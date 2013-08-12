@@ -4,6 +4,7 @@
 #include <libmcm/matrix.h>
 
 #include "c-utils.h"
+#include "animation.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -22,16 +23,6 @@ struct bone {
 	struct bone_list *children;
 	int local_id;
 };
-
-typedef struct {
-	vec3f v;
-	float w;
-} quaternionf;
-
-void make_quaternionf(quaternionf *q, const vec3f *v, float w);
-void make_quaternion4f(quaternionf *q, float x, float y, float z, float w);
-void copy_quaternion4f(quaternionf *to, const quaternionf *from);
-void quaternionf_to_matrix4x4f(matrix4x4f *mat, quaternionf *q);
 
 struct bone_key_frame {
 	float time;
@@ -59,15 +50,17 @@ skeletal_animation_ref make_skeletal_animation(const char *name, struct bone_lis
 struct bone* find_bone_in_skeletal_animation(skeletal_animation_ref ref, const char *bone_name);
 void add_animation_to_skeleton(skeletal_animation_ref ref, struct animation_sequence *seq);
 
-typedef double animation_time_t;
 void start_skeletal_animation(skeletal_animation_ref ref, const char *name);
-animation_time_t animation_time_stamp();
 void evaluate_skeletal_animation_at(skeletal_animation_ref ref, animation_time_t t);
 float animation_speed(skeletal_animation_ref ref, float factor);
 void change_animation_speed(skeletal_animation_ref ref, float factor);
 
 bool valid_skeletal_animation_ref(skeletal_animation_ref ref);
 skeletal_animation_ref find_skeletal_animation(const char *name);
+
+define_slist(skeletal_animation_list, skeletal_animation_ref ref);
+struct skeletal_animation_list* list_skeletal_animations();
+
 
 #ifdef __cplusplus
 }

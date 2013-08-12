@@ -1,7 +1,7 @@
 lib_LTLIBRARIES = libcgls.la
 bin_PROGRAMS = viewer-cgls #tsm
 
-BUILT_SOURCES = drawelement.xx scene.xx material.xx picking.xx light.xx console.xx skeletal.xx
+BUILT_SOURCES = drawelement.xx scene.xx material.xx picking.xx light.xx console.xx skeletal.xx path.xx
 BUILT_SOURCES += objloader.x cmdline.x material.x drawelement.x scene.x console.x modelloader-scm.x
 BUILT_SOURCES += stock-shader.c picking.c console.cpp sky.c
 
@@ -9,6 +9,7 @@ EXTRA_DIST = stock-shader.c.in picking.c.in console.cpp.in sky.c.in
 
 # libconfigfiles_la_SOURCES = grammar.yy  lexer.ll  parser.h  token.h lexer.h config_creator.h configfile.h configfile.cpp
 libcgls_la_SOURCES = 	\
+						animation.c animation.h \
 						basename.h \
 						c-utils.c c-utils.h \
 						cgls-config.h \
@@ -19,6 +20,7 @@ libcgls_la_SOURCES = 	\
 						material.c material.h \
 						modelloader.cpp modelloader-scm.c modelloader.h \
 						objloader.c objloader.h \
+						path.c path.h \
 						picking.c picking.h \
 						scene.c scene.h \
 						skeletal.c skeletal.h \
@@ -38,7 +40,7 @@ viewer_cgls_SOURCES = $(libcgls_la_SOURCES) \
 # AM_LFLAGS = -P__lex_prefix__ -o lex.yy.c
 
 library_includedir = $(includedir)/$(PACKAGE)-$(VERSION)
-library_include_HEADERS = drawelement.h objloader.h scene.h c-utils.h basename.h material.h picking.h stock-shader.h uniforms.h cgls.h light.h interaction.h console.h cgls-config.h
+library_include_HEADERS = drawelement.h objloader.h scene.h c-utils.h basename.h material.h picking.h stock-shader.h uniforms.h cgls.h light.h interaction.h console.h cgls-config.h skeletal.h path.h animation.h
 
 # setting c++ flags:
 # AM_CXXFLAGS = -Wall -ansi -pedantic -ggdb -pg

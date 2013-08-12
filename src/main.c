@@ -59,6 +59,10 @@ void display() {
 		evaluate_skeletal_animation_at(animations->ref, curr_time);
 	}
 
+	for (struct path_animation_list *animations = list_path_animations(); animations; animations = animations->next) {
+		evaluate_path_animation_at(animations->ref, curr_time);
+	}
+
 // 	scene_set_traverser(the_scene, graph_scene_bulk_traverser);
 // 	glDisable(GL_DEBUG_OUTPUT);
 
@@ -278,6 +282,19 @@ void actual_main()
 	drawelement_ref sky = make_skybox_with_spherical_mapping("sky", "cgskies-0319-free.jpg");
 	set_scene_skybox(the_scene, sky);
 
+// 	path_animation_ref pa = make_path_animation("blub", 1);
+// 	drawelement_ref flag = find_drawelement("/home/kiselgra/render-data/models/sponza.obj/sponza_04");
+// 	make_drawelement_part_of_path_animation(flag, pa);
+// 	shader_ref newshader = make_stock_shader(0, flag, 0, true);
+// 	drawelement_change_shader(flag, newshader);
+
+	path_animation_ref pa = make_path_animation("blub", 1);
+	drawelement_ref girl = find_drawelement("/home/kiselgra/models/simple-girl/simple_girl2.6.dae/");
+	make_drawelement_part_of_path_animation(girl, pa);
+	shader_ref newshader = make_stock_shader(0, girl, 0, true);
+	drawelement_change_shader(girl, newshader);
+	
+	
 	enter_glut_main_loop();
 }
 

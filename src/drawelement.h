@@ -4,6 +4,7 @@
 #include "material.h"
 #include "uniforms.h"
 #include "skeletal.h"
+#include "path.h"
 
 #include <libcgl/libcgl.h>
 
@@ -79,6 +80,9 @@ skeletal_animation_ref drawelement_skeletal_animation(drawelement_ref ref);
 void make_drawelement_part_of_skeletal_animation(drawelement_ref ref, skeletal_animation_ref sa);
 matrix4x4f* drawelement_bone_matrix_area(drawelement_ref ref);
 
+void make_drawelement_part_of_path_animation(drawelement_ref ref, path_animation_ref pa);
+bool drawelement_with_path(drawelement_ref ref);
+path_animation_ref drawelement_path_animation(drawelement_ref ref);
 
 bool bone_matrix_uniform_handler(drawelement_ref *ref, const char *uniform, int location);
 

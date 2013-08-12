@@ -156,6 +156,29 @@ const char* vertex_pos_norm_notex() {
 		}shader;
 }
 
+const char* vertex_pos_norm_notex_path() {
+	return
+		shader{
+			#version 420 core
+			in vec3 in_pos;
+			in vec3 in_norm;
+	
+			uniform mat4 proj;
+			uniform mat4 view;
+			uniform mat4 model;
+			uniform mat4 path;
+			
+			out vec4 pos_wc;
+			out vec3 norm_wc;
+
+			void main() {
+				pos_wc = path * model * vec4(in_pos, 1.0);
+				norm_wc = (path * model * vec4(in_norm,0.0)).xyz; // assuming model is not strange.
+				gl_Position = proj * view * pos_wc;
+			}
+		}shader;
+}
+
 const char* vertex_pos_norm_tex() {
 	return
 		shader{
@@ -175,6 +198,32 @@ const char* vertex_pos_norm_tex() {
 			void main() {
 				pos_wc = model * vec4(in_pos, 1.0);
 				norm_wc = (model * vec4(in_norm,0.0)).xyz; // assuming model is not strange.
+				tc = in_tc;
+				gl_Position = proj * view * pos_wc;
+			}
+		}shader;
+}
+
+const char* vertex_pos_norm_tex_path() {
+	return
+		shader{
+			#version 420 core
+			in vec3 in_pos;
+			in vec3 in_norm;
+			in vec2 in_tc;
+	
+			uniform mat4 proj;
+			uniform mat4 view;
+			uniform mat4 model;
+			uniform mat4 path;
+			
+			out vec4 pos_wc;
+			out vec3 norm_wc;
+			out vec2 tc;
+
+			void main() {
+				pos_wc = path * model * vec4(in_pos, 1.0);
+				norm_wc = (path * model * vec4(in_norm,0.0)).xyz; // assuming model is not strange.
 				tc = in_tc;
 				gl_Position = proj * view * pos_wc;
 			}
@@ -356,6 +405,72 @@ const char* vertex_pos_norm_tex_upto_24_bones() {	// THIS IS THE ONE
 // 				pos_wc = model * vec4(in_pos, 1);
 				pos_wc = model * bone_trafo * vec4(in_pos, 1);
 				norm_wc = mat3(model) * mat3(bone_trafo) * in_norm; // assuming model is not strange.
+				tc = in_tc;
+				gl_Position = proj * view * pos_wc;
+			}
+		}shader;
+}
+
+const char* vertex_pos_norm_tex_upto_24_bones_path() {	// THIS IS THE ONE, too
+	return
+		shader{
+			#version 420 core
+			in vec3 in_pos;
+			in vec3 in_norm;
+			in vec2 in_tc;
+			in vec4 bone_weight_01;
+			in vec4 bone_weight_02;
+			in vec4 bone_weight_03;
+			in vec4 bone_weight_04;
+			in vec4 bone_weight_05;
+// 			in vec4 bone_weight_06;
+		
+			uniform mat4 proj;
+			uniform mat4 view;
+			uniform mat4 model;
+			uniform mat4 path;
+			uniform mat4 bone_matrices[24];
+			uniform int bones;
+			
+			out vec4 pos_wc;
+			out vec3 norm_wc;
+			out vec2 tc;
+
+			void main() {
+				mat4 bone_trafo = mat4(0);
+				if (bones > 0)	bone_trafo += bone_matrices[0] * bone_weight_01.x;
+				if (bones > 1)	bone_trafo += bone_matrices[1] * bone_weight_01.y;
+				if (bones > 2)	bone_trafo += bone_matrices[2] * bone_weight_01.z;
+				if (bones > 3)	bone_trafo += bone_matrices[3] * bone_weight_01.w;
+
+				if (bones > 4)	bone_trafo += bone_matrices[4] * bone_weight_02.x;
+				if (bones > 5)	bone_trafo += bone_matrices[5] * bone_weight_02.y;
+				if (bones > 6)	bone_trafo += bone_matrices[6] * bone_weight_02.z;
+				if (bones > 7)	bone_trafo += bone_matrices[7] * bone_weight_02.w;
+
+				if (bones > 8)	bone_trafo += bone_matrices[8] * bone_weight_03.x;
+				if (bones > 9)	bone_trafo += bone_matrices[9] * bone_weight_03.y;
+				if (bones > 10)	bone_trafo += bone_matrices[10] * bone_weight_03.z;
+				if (bones > 11)	bone_trafo += bone_matrices[11] * bone_weight_03.w;
+
+				if (bones > 12)	bone_trafo += bone_matrices[12] * bone_weight_04.x;
+				if (bones > 13)	bone_trafo += bone_matrices[13] * bone_weight_04.y;
+				if (bones > 14)	bone_trafo += bone_matrices[14] * bone_weight_04.z;
+				if (bones > 15)	bone_trafo += bone_matrices[15] * bone_weight_04.w;
+
+				if (bones > 16)	bone_trafo += bone_matrices[16] * bone_weight_05.x;
+				if (bones > 17)	bone_trafo += bone_matrices[17] * bone_weight_05.y;
+				if (bones > 18)	bone_trafo += bone_matrices[18] * bone_weight_05.z;
+// 				if (bones > 19)	bone_trafo += bone_matrices[19] * bone_weight_05.w;
+
+// 				if (bones > 20)	bone_trafo += bone_matrices[20] * bone_weight_06.x;
+// 				if (bones > 21)	bone_trafo += bone_matrices[21] * bone_weight_06.y;
+// 				if (bones > 22)	bone_trafo += bone_matrices[22] * bone_weight_06.z;
+// 				if (bones > 23)	bone_trafo += bone_matrices[23] * bone_weight_06.w;
+				
+// 				pos_wc = model * vec4(in_pos, 1);
+				pos_wc = path * model * bone_trafo * vec4(in_pos, 1);
+				norm_wc = mat3(path * model) * mat3(bone_trafo) * in_norm; // assuming model is not strange.
 				tc = in_tc;
 				gl_Position = proj * view * pos_wc;
 			}
@@ -804,23 +919,39 @@ void apply_to_bound_gbuffer(shader_ref shader) {
  * 	@{
  */
 
-void add_stock_vertex_shader_part(struct stockshader_fragments *ssf, bool use_normals, bool use_texcoords, int bones) {
+void add_stock_vertex_shader_part(struct stockshader_fragments *ssf, bool use_normals, bool use_texcoords, int bones, bool path) {
 	const char *src = 0;
-	if      ( use_normals && !use_texcoords) { if (bones == 0)       src = vertex_pos_norm_notex();
-                                               else if (bones <= 8)  src = vertex_pos_norm_notex_upto_8_bones();
-                                               else if (bones <= 24) src = vertex_pos_norm_notex_upto_24_bones();
-											   else { fprintf(stderr, "tooo many bones!\n"); exit(1); }
+	if (!path) {
+		if      ( use_normals && !use_texcoords) { if (bones == 0)       src = vertex_pos_norm_notex();
+												   else if (bones <= 8)  src = vertex_pos_norm_notex_upto_8_bones();
+												   else if (bones <= 24) src = vertex_pos_norm_notex_upto_24_bones();
+												   else { fprintf(stderr, "tooo many bones!\n"); exit(1); }
+		}
+		else if ( use_normals &&  use_texcoords) { if (bones == 0)       src = vertex_pos_norm_tex();
+												   else if (bones <= 8)  src = vertex_pos_norm_tex_upto_8_bones();
+												   else if (bones <= 24) src = vertex_pos_norm_tex_upto_24_bones();
+												   else { fprintf(stderr, "tooo many bones!\n"); exit(1); }
+		}
 	}
-	else if ( use_normals &&  use_texcoords) { if (bones == 0)       src = vertex_pos_norm_tex();
-                                               else if (bones <= 8)  src = vertex_pos_norm_tex_upto_8_bones();
-                                               else if (bones <= 24) src = vertex_pos_norm_tex_upto_24_bones();
-											   else { fprintf(stderr, "tooo many bones!\n"); exit(1); }
+	else {
+		if      ( use_normals && !use_texcoords) { if (bones == 0)       src = vertex_pos_norm_notex_path();
+// 												   else if (bones <= 8)  src = vertex_pos_norm_notex_upto_8_bones_path();
+// 												   else if (bones <= 24) src = vertex_pos_norm_notex_upto_24_bones_path();
+												   else { fprintf(stderr, "tooo many bones!\n"); exit(1); }
+		}
+		else if ( use_normals &&  use_texcoords) { if (bones == 0)       src = vertex_pos_norm_tex_path();
+// 												   else if (bones <= 8)  src = vertex_pos_norm_tex_upto_8_bones_path();
+												   else if (bones <= 24) src = vertex_pos_norm_tex_upto_24_bones_path();
+												   else { fprintf(stderr, "tooo many bones!\n"); exit(1); }
+		}
 	}
 
 	if (bones) {
 		stockshader_add_uniform(ssf, "bone_matrices");
 		stockshader_add_uniform(ssf, "bones");
 	}
+	if (path)
+		stockshader_add_uniform(ssf, "path");
 
 	stockshader_add_input(ssf, "in_pos");
 	if (use_normals) stockshader_add_input(ssf, "in_norm");
@@ -913,7 +1044,7 @@ struct stockshader_fragments* make_stock_shader_fragments(drawelement_ref de, st
 			break;
 		}
 			
-	add_stock_vertex_shader_part(ssf, true, tc, drawelement_number_of_bones(de));
+	add_stock_vertex_shader_part(ssf, true, tc, drawelement_number_of_bones(de), drawelement_with_path(de));
 
 	return ssf;
 }

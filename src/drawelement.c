@@ -51,6 +51,7 @@ struct drawelement {
 	struct bone **bones;
 	matrix4x4f *bone_matrix_area;
 	skeletal_animation_ref skeletal_animation;
+	path_animation_ref path_animation;
 	bool hidden;
 };
 
@@ -83,6 +84,8 @@ drawelement_ref make_drawelement(const char *name, mesh_ref mr, shader_ref sr, m
 	de->bones = 0;
 	de->skeletal_animation.id = -1;
 	de->bone_matrix_area = 0;
+	
+	de->path_animation.id = -1;
 
 	de->hidden = false;
 #if CGLS_DRAWELEMENT_BB_VIS == 1
@@ -232,6 +235,8 @@ bool default_matrix_uniform_handler(drawelement_ref *ref, const char *uniform, i
 		glUniformMatrix4fv(location, 1, GL_FALSE, gl_normal_matrix_for_view_of(current_camera())->col_major);
 	else if (str_eq(uniform, "model"))
 		glUniformMatrix4fv(location, 1, GL_FALSE, drawelement_trafo(*ref)->col_major);
+	else if (str_eq(uniform, "path"))
+		glUniformMatrix4fv(location, 1, GL_FALSE, path_matrix_of_animation(drawelement_path_animation(*ref))->col_major);
 	else
 		return false;
 	return true;
@@ -423,6 +428,19 @@ skeletal_animation_ref drawelement_skeletal_animation(drawelement_ref ref) {
 matrix4x4f* drawelement_bone_matrix_area(drawelement_ref ref) {
 	return drawelements[ref.id].bone_matrix_area;
 }
+
+void make_drawelement_part_of_path_animation(drawelement_ref ref, path_animation_ref pa) {
+	drawelements[ref.id].path_animation = pa;
+}
+
+bool drawelement_with_path(drawelement_ref ref) {
+	return valid_path_animation_ref(drawelements[ref.id].path_animation);
+}
+
+path_animation_ref drawelement_path_animation(drawelement_ref ref) {
+	return drawelements[ref.id].path_animation;
+}
+
 
 //! @}
 

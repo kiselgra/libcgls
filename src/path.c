@@ -2,6 +2,10 @@
 
 #include <libmcm/matrix.h>
 
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
 typedef struct {
 	vec3f pos;
 	float time;
@@ -14,23 +18,21 @@ struct path_animation {
 	int nodes;
 	path_node *node;
 	int nodes_set;
-	drawelement_ref de;
-	matrix4x4f original_de_trafo;
+	matrix4x4f trafo;
 };
 
 #include <libcgl/mm.h>
 define_mm(path_animation, path_animations, path_animation_ref);
 #include "path.xx"
 
-path_animation_ref make_path_animation(const char *name, int nodes, drawelement_ref de) {
+path_animation_ref make_path_animation(const char *name, int nodes) {
 	path_animation_ref ref = allocate_path_animation_ref();
 	struct path_animation *pa = path_animations + ref.id;
 	pa->name = strdup(name);
 	pa->nodes = nodes;
 	pa->node = malloc(sizeof(path_node)*nodes);
 	pa->nodes_set = 0;
-	pa->de = de;
-	copy_matrix4x4f(&pa->original_de_trafo, drawelement_trafo(de));
+	make_unit_matrix4x4f(&pa->trafo);
 
 	return ref;
 }
@@ -73,5 +75,14 @@ struct path_animation_list* list_path_animations() {
 }
 
 void start_path_animation(path_animation_ref ref) {
+}
+
+matrix4x4f* path_matrix_of_animation(path_animation_ref ref) {
+	return &path_animations[ref.id].trafo;
+}
+
+void evaluate_path_animation_at(path_animation_ref ref, animation_time_t time) {
+	matrix4x4f *mat = path_matrix_of_animation(ref);
+	mat->col_major[14] += 0.01;
 }
 

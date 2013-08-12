@@ -19,6 +19,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/time.h>
+#include <unistd.h>
 
 scene_ref the_scene;
 #define samples 128
@@ -48,6 +50,16 @@ bool hemi_uniform_handler(drawelement_ref *dummy, const char *uniform, int locat
 console_ref console;
 
 void display() {
+	skeletal_animation_ref ar = find_skeletal_animation("test");
+	static struct timeval tv;
+	double curr_time;
+	curr_time = animation_time_stamp();
+
+	if (valid_skeletal_animation_ref(ar)) {
+		change_animation_speed(ar, 0.5);
+		evaluate_skeletal_animation_at(ar, curr_time);
+	}
+
 // 	scene_set_traverser(the_scene, graph_scene_bulk_traverser);
 // 	glDisable(GL_DEBUG_OUTPUT);
 

@@ -46,6 +46,7 @@ define_slist(single_bone_animation_list, struct bone *bone; struct bone_frame_li
 struct animation_sequence {
 	char *name;
 	struct single_bone_animation_list *bone_animations;
+	float last_time_step;
 };
 
 define_slist(animation_list, struct animation_sequence *animation);
@@ -58,8 +59,15 @@ skeletal_animation_ref make_skeletal_animation(const char *name, struct bone_lis
 struct bone* find_bone_in_skeletal_animation(skeletal_animation_ref ref, const char *bone_name);
 void add_animation_to_skeleton(skeletal_animation_ref ref, struct animation_sequence *seq);
 
+typedef double animation_time_t;
 void start_skeletal_animation(skeletal_animation_ref ref, const char *name);
-void evaluate_skeletal_animation_at(skeletal_animation_ref ref, float t);
+animation_time_t animation_time_stamp();
+void evaluate_skeletal_animation_at(skeletal_animation_ref ref, animation_time_t t);
+float animation_speed(skeletal_animation_ref ref, float factor);
+void change_animation_speed(skeletal_animation_ref ref, float factor);
+
+bool valid_skeletal_animation_ref(skeletal_animation_ref ref);
+skeletal_animation_ref find_skeletal_animation(const char *name);
 
 #ifdef __cplusplus
 }

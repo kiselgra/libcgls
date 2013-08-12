@@ -6,6 +6,7 @@ void make_translation_matrix4x4f(matrix4x4f *mat, vec3f *transl); // defined in 
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/time.h>
 
 #include "drawelement.h"
 
@@ -15,6 +16,8 @@ struct skeletal_animation {
 	struct bone **all_bones;
 	struct animation_list *animations;
 	struct animation_sequence *current_animation;
+	animation_time_t current_animation_start_time;
+	float animation_speed;
 };
 
 #include <libcgl/mm.h>
@@ -85,9 +88,9 @@ void lerp_quaterionf(quaternionf *to, const quaternionf *a, const quaternionf *b
 void slerp_quaterionf(quaternionf *to, const quaternionf *p, const quaternionf *q, float t) {
 	quaternionf tmp_p, tmp_q;
 	float cos_phi = dot_quaternionf(p, q);
-	printf("quaternion dot of %6.6f %6.6f %6.6f %6.6f\n", p->v.x, p->v.y, p->v.z, p->w);
-	printf("            with  %6.6f %6.6f %6.6f %6.6f\n", q->v.x, q->v.y, q->v.z, q->w);
-	printf("    ----------->  %6.6f.\n", cos_phi);
+	// printf("quaternion dot of %6.6f %6.6f %6.6f %6.6f\n", p->v.x, p->v.y, p->v.z, p->w);
+	// printf("            with  %6.6f %6.6f %6.6f %6.6f\n", q->v.x, q->v.y, q->v.z, q->w);
+	// printf("    ----------->  %6.6f.\n", cos_phi);
 	if (cos_phi < 0) {
 		tmp_q.v.x = -q->v.x;
 		tmp_q.v.y = -q->v.y;
@@ -99,7 +102,6 @@ void slerp_quaterionf(quaternionf *to, const quaternionf *p, const quaternionf *
 		copy_quaternion4f(&tmp_q, q);
 
 	if (cos_phi >= 0.999999) {
-		printf("LERP\n");
 		lerp_quaterionf(to, p, q, t);
 	}
 	else {
@@ -188,6 +190,8 @@ skeletal_animation_ref make_skeletal_animation(const char *name, struct bone_lis
 
 	sa->animations = 0;
 	sa->current_animation = 0;
+	sa->current_animation_start_time = 0;
+	sa->animation_speed = 1;
 	
 	return ref;
 }
@@ -240,6 +244,18 @@ void add_animation_to_skeleton(skeletal_animation_ref ref, struct animation_sequ
 	sa->animations = malloc(sizeof(struct animation_list));
 	sa->animations->animation = seq;
 	sa->animations->next = old;
+	// normalize animation time to start at 0.
+	float start = FLT_MAX, end = -FLT_MAX;
+	for (struct single_bone_animation_list *bone = seq->bone_animations; bone; bone = bone->next)
+		for (struct bone_frame_list *frame = bone->keyframes; frame; frame = frame->next) {
+			if (frame->keyframe.time < start) start = frame->keyframe.time;
+			if (frame->keyframe.time > end) end = frame->keyframe.time;
+		}
+	for (struct single_bone_animation_list *bone = seq->bone_animations; bone; bone = bone->next)
+		for (struct bone_frame_list *frame = bone->keyframes; frame; frame = frame->next)
+			frame->keyframe.time -= start;
+	// store last time step to wrap animations.
+	seq->last_time_step = end-start;
 }
 
 struct animation_sequence* find_animation_in_skeletal_animation(skeletal_animation_ref ref, const char *name) {
@@ -254,8 +270,39 @@ struct animation_sequence* find_animation_in_skeletal_animation(skeletal_animati
 void start_skeletal_animation(skeletal_animation_ref ref, const char *name) {
 	struct skeletal_animation *sa = skeletal_animations+ref.id;
 	sa->current_animation = find_animation_in_skeletal_animation(ref, name);
+	sa->current_animation_start_time = animation_time_stamp();
 	if (!sa->current_animation && name)
 		fprintf(stderr, "cannot find animation %s.\n", name);
+}
+
+animation_time_t animation_time_stamp() {
+	double stamp;
+	struct timeval tv;
+	gettimeofday(&tv, 0);
+	stamp = tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0;
+	return stamp;
+}
+
+skeletal_animation_ref find_skeletal_animation(const char *name) {
+	skeletal_animation_ref ref = { -1 };
+	if (strlen(name) == 0) return ref;
+    for (int i = 0; i < next_skeletal_animation_index; ++i) {
+        if (strcmp(skeletal_animations[i].name, name) == 0) {
+			ref.id = i;
+			return ref;
+		}
+	}
+	return ref;
+}
+
+void change_animation_speed(skeletal_animation_ref ref, float factor) {
+	struct skeletal_animation *sa = skeletal_animations+ref.id;
+	sa->animation_speed = factor;
+}
+
+float animation_speed(skeletal_animation_ref ref, float factor) {
+	struct skeletal_animation *sa = skeletal_animations+ref.id;
+	return sa->animation_speed;
 }
 
 extern matrix4x4f tmp_root_trafo;
@@ -275,7 +322,7 @@ void evaluate_bone_animation_at(struct bone *bone, struct bone_key_frame *this, 
 		float t = (time - this->time) / (next->time - this->time);
 		if (t < 0) t = 0;
 		if (t > 1) t = 1;
-		printf("interpolation t:   prev-time=%6.6f   next-time=%6.6f   time=%6.6f   --> t = %6.6f.\n", this->time, next->time, time, t);
+		// printf("interpolation t:   prev-time=%6.6f   next-time=%6.6f   time=%6.6f   --> t = %6.6f.\n", this->time, next->time, time, t);
 		lerp_vec3f(&translation, &this->translation, &next->translation, t);
 		copy_quaternion4f(&rotation, &this->rotation);
 		slerp_quaterionf(&rotation, &this->rotation, &/*!!*/next->rotation, t);
@@ -306,33 +353,36 @@ void update_bones_using_matrix_stack(struct bone *bone, int depth, matrix4x4f *s
 	traverse_bone_hierarchy(bone->children, (bone_trav_handler_t)update_bones_using_matrix_stack, depth+1, stack);
 }
 
-//! does nothing if no animation sequence is active (not even complain).
-void evaluate_skeletal_animation_at(skeletal_animation_ref ref, float t) {
-	printf("eval %f\n", t);
+/*! does nothing if no animation sequence is active (not even complain).
+ *  \c time is supposed to be obtained via \ref animation_time_stamp().
+ */
+void evaluate_skeletal_animation_at(skeletal_animation_ref ref, animation_time_t t) {
 	struct skeletal_animation *sa = skeletal_animations+ref.id;
 	if (!sa->current_animation)
 		return;
-	printf("anim\n");
+	t -= sa->current_animation_start_time;
+	t /= 1000;
+	t *= sa->animation_speed;
+	while (t > sa->current_animation->last_time_step) {
+		t -= sa->current_animation->last_time_step;
+		sa->current_animation_start_time += sa->current_animation->last_time_step * 1000 / sa->animation_speed;
+	}
+	// printf("eval %f\n", t);
 	int updated = 0;
 	// for each bone in this animation
 	for (struct single_bone_animation_list *bone_anim = sa->current_animation->bone_animations; bone_anim; bone_anim = bone_anim->next) {
-// 		printf("looking for keyframe for %s... ", bone_anim->bone->name);
 		// find the keyframes to interpolate between (or a single border one).
 		struct bone_frame_list *prev =  bone_anim->keyframes;
 		for (struct bone_frame_list *frame = bone_anim->keyframes; frame; frame = frame->next) {
-// 			printf(" t=%f ... ", frame->keyframe.time);
 			if (frame->keyframe.time >= t || !frame->next) {
-// 				evaluate_bone_animation_at(bone_anim->bone, &frame->keyframe, frame->next ? &frame->next->keyframe : 0, t);
 				evaluate_bone_animation_at(bone_anim->bone, &prev->keyframe, &frame->keyframe, t);
-// 				printf(" found");
 				++updated;
 				break;
 			}
 			prev = frame;
 		}
-// 		printf("\n");
 	}
-	printf("udpated %d bones.\n", updated);
+	// printf("udpated %d bones.\n", updated);
 	// update the bone matrices recursively, makeing use of the interpolated key frame matrices computed above.
 	matrix4x4f *stack = malloc(sizeof(matrix4x4f)*32);
 	make_unit_matrix4x4f(stack);

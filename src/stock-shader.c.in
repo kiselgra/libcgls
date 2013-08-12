@@ -370,7 +370,8 @@ const char* fragment_part_no_no_no_no(const char ***u) {
 		"shininess",
 		0
 	};
-	*u = uniforms;
+	if (settings & ignore_ambient) *u = uniforms+1;
+	else                           *u = uniforms;
 	return
 		shader{
 			#version 420 core
@@ -406,7 +407,8 @@ const char* fragment_part_no_diff_no_no(const char ***u) {
 		"diffuse_tex",
 		0
 	};
-	*u = uniforms;
+	if (settings & ignore_ambient) *u = uniforms+1;
+	else                           *u = uniforms;
 	return
 		shader{
 			#version 420 core
@@ -445,7 +447,8 @@ const char* fragment_part_no_diff_spec_no(const char ***u) {
 		"specular_tex",
 		0
 	};
-	*u = uniforms;
+	if (settings & ignore_ambient) *u = uniforms+1;
+	else                           *u = uniforms;
 	return
 		shader{
 			#version 420 core
@@ -485,7 +488,8 @@ const char* fragment_part_no_diff_no_mask(const char ***u) {
 		"mask_tex",
 		0
 	};
-	*u = uniforms;
+	if (settings & ignore_ambient) *u = uniforms+1;
+	else                           *u = uniforms;
 	return
 		shader{
 			#version 420 core
@@ -728,6 +732,12 @@ const char* stock_effect_spot() {
 						spot_factor *= 1.0 - smoothstep(cutoff * .7, cutoff, angle);
 						vec3 diffuse = texture(gbuffer_diffuse, tc).rgb;
 						out_col.rgb += spot_factor * ndotl * diffuse * light_col;
+
+						vec3 v = -normalize(pos_ec);
+						vec4 specular = texture(gbuffer_specular, tc);
+						vec3 h = normalize(l+v);
+						float i = pow(clamp(dot(h, n), 0, 1), specular.a);
+						out_col.rgb += vec3(specular.rgb * spot_factor * i);
 					}
 				}
 			}

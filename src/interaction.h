@@ -24,6 +24,7 @@ typedef struct cgls_interaction_mode {
 	interaction_keyhandler_t fallback_keyhandler;
 	void (*fallback_mouse_handler)(interaction_mode *, int, int, int, int);
 	interaction_motion_function_t motion_handler;
+	unsigned int type;
 	void *aux;
 } interaction_mode;
 
@@ -51,10 +52,20 @@ enum {
 		//!< handlers can be used with up/down/u+d/00 (well, 00 makes no sense, but it is simpler to handle it this way)
 };
 
+enum {
+	cgls_invalid_interaction_mode = 0,
+	cgls_interaction_mode_cgl = 1,
+	cgls_interaction_mode_cgls = 2,
+	cgls_interaction_mode_blender = 3,
+	cgls_interaction_console = 4,
+};
+
 // the mode interface itself
 interaction_mode* make_interaction_mode(const char *name);
 void add_function_key_to_mode(interaction_mode *mode, unsigned char key, unsigned int modifiers, interaction_key_function_t call);
 void add_mouse_function_to_mode(interaction_mode *mode, int buttons, int states, unsigned int modifiers, interaction_mouse_function_t call);
+void change_fallback_keyhandler_for_mode(interaction_mode *mode, interaction_keyhandler_t handler);
+void change_fallback_mouse_handler_for_mode(interaction_mode *mode, void (*handler)(interaction_mode *, int, int, int, int));
 
 // mode handling
 void initialize_interaction();
@@ -70,6 +81,9 @@ interaction_mode* make_blender_style_interaction_mode(scene_ref scene, picking_b
 void interaction_increase_move_factor(interaction_mode *mode, int x, int y);
 void interaction_decrease_move_factor(interaction_mode *mode, int x, int y);
 void interaction_print_camera_lookat(interaction_mode *mode, int x, int y);
+
+// mode functions useful from other modes.
+drawelement_ref blender_mode_selected_drawelement(interaction_mode *mode);
 
 // mode info printing
 typedef void (*info_line_printer_t)(const char *fmt, va_list ap);

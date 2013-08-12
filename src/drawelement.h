@@ -7,6 +7,8 @@
 
 #include <libcgl/libcgl.h>
 
+#define CGLS_DRAWELEMENT_BB_VIS 1
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -44,6 +46,8 @@ void render_drawelement_with(drawelement_ref ref, shader_ref shader, material_re
 void bind_uniforms_and_render_indices_of_drawelement(drawelement_ref ref);
 void bind_uniforms_and_render_drawelement_nonindexed(drawelement_ref ref);
 bool drawelement_using_index_range(drawelement_ref ref);
+unsigned int drawelement_index_range_start(drawelement_ref ref);
+unsigned int drawelement_index_range_len(drawelement_ref ref);
 
 void prepend_drawelement_uniform_handler(drawelement_ref ref, uniform_setter_t handler);
 void append_drawelement_uniform_handler(drawelement_ref ref, uniform_setter_t handler);
@@ -52,9 +56,18 @@ void append_drawelement_scheme_uniform_handler(drawelement_ref ref, SCM handler)
 #endif
 void pop_drawelement_uniform_handler(drawelement_ref ref);
 
+void hide_drawelement(drawelement_ref ref, bool hide);
+bool drawelement_hidden(drawelement_ref ref);
+
 void render_drawelement(drawelement_ref ref);
 drawelement_ref find_drawelement(const char *name);
 struct drawelement_list* list_drawelements();
+
+#if CGLS_DRAWELEMENT_BB_VIS == 1
+void drawelement_show_bounding_box(drawelement_ref ref, bool yes);
+bool drawelement_shows_bounding_box(drawelement_ref ref);
+void render_drawelement_box(drawelement_ref ref);
+#endif
 
 struct uniform_handler_node* drawelement_uniform_handlers(drawelement_ref ref);
 

@@ -21,6 +21,8 @@ struct scene {
 	struct light_list *lights;
 	bool show_light_representations;
 
+	drawelement_ref skybox;
+
     unsigned int aux_type;
 	void *aux;
 };
@@ -62,6 +64,7 @@ scene_ref make_scene(const char *name) { // no pun intended.
 	scene->lights = 0;
 	scene->apply_lights = 0;
 	scene->show_light_representations = true;
+	scene->skybox.id = -1;
 
 	return ref;
 }
@@ -163,6 +166,14 @@ void scene_rendering_of_light_representations(scene_ref ref, bool on) {
 	scene->show_light_representations = on;
 }
 
+drawelement_ref scene_skybox(scene_ref ref) {
+	return scenes[ref.id].skybox;
+}
+
+void set_scene_skybox(scene_ref ref, drawelement_ref de) {
+	scenes[ref.id].skybox = de;
+}
+
 /*! \brief Render the scene.
  *
  * 	Traversal.
@@ -210,6 +221,22 @@ void render_scene_deferred(scene_ref ref, framebuffer_ref gbuffer) {
 	if (scene->show_light_representations)
 		for (struct light_list *run = scene->lights; run; run = run->next)
 			render_light_representation(run->ref);
+
+	if (valid_drawelement_ref(scene->skybox)) {
+		float near = camera_near(current_camera()),
+			  far = camera_far(current_camera()),
+			  aspect = camera_aspect(current_camera()),
+			  fovy = camera_fovy(current_camera());
+		change_projection_of_cam(current_camera(), fovy, aspect, near, 1e10);
+		recompute_gl_matrices_of_cam(current_camera());
+		int depthfunc = 0;
+		glGetIntegerv(GL_DEPTH_FUNC, &depthfunc);
+		glDepthFunc(GL_LEQUAL);
+		render_drawelement(scene->skybox);
+		glDepthFunc(depthfunc);
+		change_projection_of_cam(current_camera(), fovy, aspect, near, far);
+		recompute_gl_matrices_of_cam(current_camera());
+	}
 }
 
 //!	\copydoc render_scene
@@ -246,17 +273,41 @@ void default_scene_renderer(scene_ref ref) {
 	if (use_single_shader_for_scene(ref)) {
 		shader_ref shader = single_shader_for_scene(ref);
 		for (drawelement_node *run = scene_drawelements(ref); run; run = run->next) {
-			uniform_setter_t extra = single_shader_extra_uniform_handler(ref);
-			if (extra)
-				prepend_drawelement_uniform_handler(run->ref, extra);
-			render_drawelement_with_shader(run->ref, shader);
-			if (extra)
-				pop_drawelement_uniform_handler(run->ref);
+			if (!drawelement_hidden(run->ref)) {
+				uniform_setter_t extra = single_shader_extra_uniform_handler(ref);
+				if (extra)
+					prepend_drawelement_uniform_handler(run->ref, extra);
+				render_drawelement_with_shader(run->ref, shader);
+				if (extra)
+					pop_drawelement_uniform_handler(run->ref);
+			}
 		}
 	}
-	else
+	else {
+		frustum_culling_t data;
+		populate_frustum_culling_info(current_camera(), &data);
+		int all = 0, c = 0;
 		for (drawelement_node *run = scene_drawelements(ref); run; run = run->next)
-			render_drawelement(run->ref);
+			if (!drawelement_hidden(run->ref)) {
+				all++;
+#if CGLS_DRAWELEMENT_BB_VIS == 1
+				if (!drawelement_shows_bounding_box(run->ref)) {
+#endif
+					vec3f min, max;
+					bounding_box_of_drawelement(run->ref, &min, &max);
+					if (!drawelement_has_bounding_box(run->ref) || aabb_in_frustum(&data, &min, &max)) {
+						c++;
+						render_drawelement(run->ref);
+					}
+#if CGLS_DRAWELEMENT_BB_VIS == 1
+				}
+				else {
+					render_drawelement_box(run->ref);
+				}
+#endif
+			}
+// 		printf("rendered %d of %d\n", c, all);
+	}
 }
 
 //! @}
@@ -403,22 +454,27 @@ void graph_scene_traverser(scene_ref ref) {
 				// binding], ...) and drawelement uniforms (object trafo)
 				bind_shader(shader);
 				for (struct drawelement_node *deno = by_mat->drawelements; deno; deno = deno->next) {
-					shader_ref old_shader = drawelement_change_shader(by_mat->drawelements->ref, shader);
-					if (uniform_setter)
-						prepend_drawelement_uniform_handler(deno->ref, uniform_setter);
-					if (drawelement_using_index_range(deno->ref))
-						bind_uniforms_and_render_indices_of_drawelement(deno->ref);
-					else
-						bind_uniforms_and_render_drawelement_nonindexed(deno->ref);
-					if (uniform_setter)
-						pop_drawelement_uniform_handler(deno->ref);
-					drawelement_change_shader(by_mat->drawelements->ref, old_shader);
+					if (!drawelement_hidden(deno->ref)) {
+						shader_ref old_shader = drawelement_change_shader(by_mat->drawelements->ref, shader);
+						if (uniform_setter)
+							prepend_drawelement_uniform_handler(deno->ref, uniform_setter);
+						if (drawelement_using_index_range(deno->ref))
+							bind_uniforms_and_render_indices_of_drawelement(deno->ref);
+						else
+							bind_uniforms_and_render_drawelement_nonindexed(deno->ref);
+						if (uniform_setter)
+							pop_drawelement_uniform_handler(deno->ref);
+						drawelement_change_shader(by_mat->drawelements->ref, old_shader);
+					}
 				}
 				unbind_shader(shader);
 			}
 			unbind_mesh_from_gl(by_mesh->mesh);
 		}
-	else
+	else {
+		frustum_culling_t data;
+		populate_frustum_culling_info(current_camera(), &data);
+		int a = 0, c = 0;
 		for (struct by_mesh *by_mesh = gs->meshes; by_mesh; by_mesh = by_mesh->next) {
 			bind_mesh_to_gl(by_mesh->mesh);
 			for (struct by_material *by_mat = by_mesh->materials; by_mat; by_mat = by_mat->next) {
@@ -427,15 +483,39 @@ void graph_scene_traverser(scene_ref ref) {
 				shader = drawelement_shader(by_mat->drawelements->ref);
 				bind_shader(shader);
 				for (struct drawelement_node *deno = by_mat->drawelements; deno; deno = deno->next) {
-					if (drawelement_using_index_range(deno->ref))
-						bind_uniforms_and_render_indices_of_drawelement(deno->ref);
-					else
-						bind_uniforms_and_render_drawelement_nonindexed(deno->ref);
+#if CGLS_DRAWELEMENT_BB_VIS == 1
+					if (!drawelement_shows_bounding_box(deno->ref)) {
+#endif
+						a++;
+					if (!drawelement_hidden(deno->ref)) {
+						/*
+						vec3f min, max;
+						bounding_box_of_drawelement(deno->ref, &min, &max);
+						if (!drawelement_has_bounding_box(deno->ref) || aabb_in_frustum(&data, &min, &max)) {
+							c++;
+							*/
+							if (drawelement_using_index_range(deno->ref))
+								bind_uniforms_and_render_indices_of_drawelement(deno->ref);
+							else
+								bind_uniforms_and_render_drawelement_nonindexed(deno->ref);
+// 						}
+					}
+#if CGLS_DRAWELEMENT_BB_VIS == 1
+					}
+#endif
 				}
 				unbind_shader(shader);
 			}
 			unbind_mesh_from_gl(by_mesh->mesh);
 		}
+// 		printf("graph scene %d / %d\n", c, a);
+	}
+#if CGLS_DRAWELEMENT_BB_VIS == 1
+		for (drawelement_node *run = scene_drawelements(ref); run; run = run->next)
+			if (drawelement_shows_bounding_box(run->ref))
+				if (!drawelement_hidden(run->ref))
+					render_drawelement_box(run->ref);
+#endif
 	glDisable(GL_CULL_FACE);
 }
 

@@ -5,11 +5,14 @@ AC_INIT([libcgls], [0.0.1])
 AM_INIT_AUTOMAKE
 
 #AM_SILENT_RULES([yes])
+AC_CONFIG_MACRO_DIR([m4])
 
 # name one of your source files here
 AC_CONFIG_SRCDIR([src/main.c])
 AC_CONFIG_HEADER([config.h])
 AC_CONFIG_FILES(Makefile src/Makefile doc/Makefile doc/doxyfile doc/doxygen_mainpage.h libcgls.pc)
+
+AX_PREFIX_CONFIG_H(src/cgls-config.h)
 
 # Checks for programs.
 AC_PROG_CXX
@@ -28,6 +31,8 @@ AC_PROG_LIBTOOL
 AC_CHECK_LIB([mcm], [main])
 #AC_CHECK_LIB([cgl], [main])
 AC_CHECK_LIB([glut], [main])
+
+AC_CHECK_LIB([cairo], [main])
 
 PKG_CHECK_MODULES(CGL, libcgl)
 AC_SUBST(CGL_CFLAGS)

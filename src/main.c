@@ -6,6 +6,8 @@
 #include "picking.h"
 #include "light.h"
 #include "interaction.h"
+#include "sky.h"
+#include "console.h"
 
 #include "cmdline.h"
 
@@ -43,6 +45,7 @@ bool hemi_uniform_handler(drawelement_ref *dummy, const char *uniform, int locat
 		return false;
 	return true;
 }
+console_ref console;
 
 void display() {
 // 	scene_set_traverser(the_scene, graph_scene_bulk_traverser);
@@ -91,6 +94,7 @@ void display() {
 	valid_pos = (valid_pos == samples ? samples : valid_pos+1);
 
     check_for_gl_errors("display");
+	render_console(console);
 
 	swap_buffers();
 }
@@ -149,6 +153,7 @@ void register_scheme_functions_for_cmdline();
 void register_scheme_functions_for_drawelement();
 void register_scheme_functions_for_scene();
 void register_scheme_functions_for_cgls_modelloader();
+void register_scheme_functions_for_console();
 static void register_scheme_functions() {
 	register_scheme_functions_for_cgls_objloader();
 	register_scheme_functions_for_material();
@@ -156,6 +161,7 @@ static void register_scheme_functions() {
 	register_scheme_functions_for_drawelement();
 	register_scheme_functions_for_scene();
 	register_scheme_functions_for_cgls_modelloader();
+	register_scheme_functions_for_console();
 }
 #endif
 
@@ -231,15 +237,9 @@ void actual_main()
 // 	add_light_to_scene(the_scene, hms);
 	
 	{
-		vec3f up = { 0, 0, 1 };
+		vec3f up = { 0, 1, 0 };
 		light_ref hemi = make_hemispherical_light("hemi", gbuffer, &up);
-		change_light_color3f(hemi, 1.9, 1.9, 1.9);
-		add_light_to_scene(the_scene, hemi);
-	}
-	{
-		vec3f up = { 0, 0, -1 };
-		light_ref hemi = make_hemispherical_light("hemi2", gbuffer, &up);
-		change_light_color3f(hemi, 1.9, 1.9, 1.9);
+		change_light_color3f(hemi, .9, .9, .9);
 		add_light_to_scene(the_scene, hemi);
 	}
 
@@ -261,6 +261,11 @@ void actual_main()
 
 	scene_set_lighting(the_scene, apply_deferred_lights);
 
+// 	console = make_console("bla", cmdline.res.x, cmdline.res.y, 1);
+	console = make_vi_console("bla", cmdline.res.x, cmdline.res.y);
+
+	drawelement_ref sky = make_skybox_with_spherical_mapping("sky", "cgskies-0319-free.jpg");
+	set_scene_skybox(the_scene, sky);
 
 	enter_glut_main_loop();
 }

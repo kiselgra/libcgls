@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include <ctype.h>
 
 float cgls_interaction_scale = 1;
 
@@ -22,6 +23,7 @@ interaction_mode* make_interaction_mode(const char *name) {
 	mode->fallback_keyhandler = 0;
 	mode->fallback_mouse_handler = 0;
 	mode->motion_handler = 0;
+	mode->type = cgls_invalid_interaction_mode;
 	mode->aux = 0;
 	return mode;
 }
@@ -132,6 +134,7 @@ void interaction_cgl_motion_handler(interaction_mode *mode, int x, int y) {
 
 interaction_mode* make_default_cgl_interaction_mode() {
 	interaction_mode *mode = make_interaction_mode("cgl-default");
+	mode->type = cgls_interaction_mode_cgl;
 	change_fallback_keyhandler_for_mode(mode, interaction_cgl_keyboard_handler);
 	change_fallback_mouse_handler_for_mode(mode, interaction_cgl_mouse_handler);
 	change_motion_handler_for_mode(mode, interaction_cgl_motion_handler);
@@ -194,6 +197,7 @@ void interaction_pop_camera(interaction_mode *mode, int x, int y) {
 
 interaction_mode* make_default_cgls_interaction_mode() {
 	interaction_mode *mode = make_interaction_mode("cgls-default");
+	mode->type = cgls_interaction_mode_cgls;
 	add_function_key_to_mode(mode, 'c', cgls_interaction_no_modifier, interaction_print_camera_lookat);
 	add_function_key_to_mode(mode, '+', cgls_interaction_no_modifier, interaction_increase_move_factor);
 	add_function_key_to_mode(mode, '-', cgls_interaction_no_modifier, interaction_decrease_move_factor);
@@ -275,10 +279,33 @@ void interaction_bm_deselect_key(interaction_mode *mode, int x, int y) {
 	add_function_key_to_mode(mode, 's', cgls_interaction_no_modifier, 0);
 	add_function_key_to_mode(mode, 'o', cgls_interaction_no_modifier, 0);
 	add_function_key_to_mode(mode, 'a', cgls_interaction_no_modifier, 0);
+	add_function_key_to_mode(mode, 'h', cgls_interaction_no_modifier, 0);
+	add_function_key_to_mode(mode, 'h', cgls_interaction_alt, 0);
+	add_function_key_to_mode(mode, 'b', cgls_interaction_no_modifier, 0);
 	if (valid_drawelement_ref(bm->selected_de))
 		info_line("deselected %s.", drawelement_name(bm->selected_de));
 	bm->selected_de.id = -1;
 	interaction_bm_leave_grs_mode(mode);
+}
+
+void interaction_bm_hide_key(interaction_mode *mode, int x, int y) {
+	struct blendermode_aux *bm = mode->aux;
+	if (valid_drawelement_ref(bm->selected_de))
+		hide_drawelement(bm->selected_de, !drawelement_hidden(bm->selected_de));
+}
+
+void interaction_bm_unhide_key(interaction_mode *mode, int x, int y) {
+	for (struct drawelement_list *run = list_drawelements(); run; run = run->next)
+		hide_drawelement(run->ref, false);
+}
+
+void interaction_bm_toggle_bb(interaction_mode *mode, int x, int y) {
+#ifdef CGLS_DRAWELEMENT_BB_VIS
+	struct blendermode_aux *bm = mode->aux;
+	if (valid_drawelement_ref(bm->selected_de))
+		if (drawelement_has_bounding_box(bm->selected_de))
+			drawelement_show_bounding_box(bm->selected_de, !drawelement_shows_bounding_box(bm->selected_de));
+#endif
 }
 
 void interaction_bm_mouse(interaction_mode *mode, int button, int state, int x, int y) {
@@ -293,6 +320,9 @@ void interaction_bm_mouse(interaction_mode *mode, int button, int state, int x, 
 			add_function_key_to_mode(mode, 's', cgls_interaction_no_modifier, interaction_bm_scale_key);
 			add_function_key_to_mode(mode, 'o', cgls_interaction_no_modifier, interaction_bm_light_switch);
 			add_function_key_to_mode(mode, 'a', cgls_interaction_no_modifier, interaction_bm_deselect_key);
+			add_function_key_to_mode(mode, 'h', cgls_interaction_no_modifier, interaction_bm_hide_key);
+			add_function_key_to_mode(mode, 'h', cgls_interaction_alt, interaction_bm_unhide_key);
+			add_function_key_to_mode(mode, 'b', cgls_interaction_no_modifier, interaction_bm_toggle_bb);
 			info_line("selected drawelement %s.", drawelement_name(bm->selected_de));
 		}
 		else {
@@ -489,6 +519,7 @@ void interaction_bm_enter_scale_mode(interaction_mode *mode) {
 	bm->grab = false;
 	bm->rotate = false;
 	bm->scale = true;
+	bm->axis = none;
 	mode->motion_handler = interaction_bm_scale_motion;
 	add_function_key_to_mode(mode, 'x', cgls_interaction_no_modifier, interaction_bm_set_axis_to_x);
 	add_function_key_to_mode(mode, 'y', cgls_interaction_no_modifier, interaction_bm_set_axis_to_y);
@@ -511,6 +542,7 @@ void interaction_bm_leave_grs_mode(interaction_mode *mode) {
 
 interaction_mode* make_blender_style_interaction_mode(scene_ref scene, picking_buffer_ref pickingbuffer) {
 	interaction_mode *mode = make_interaction_mode("blender mode");
+	mode->type = cgls_interaction_mode_blender;
 	struct blendermode_aux *aux = mode->aux = malloc(sizeof(struct blendermode_aux));
 	aux->scene = scene;
 	aux->picking = pickingbuffer;
@@ -522,9 +554,17 @@ interaction_mode* make_blender_style_interaction_mode(scene_ref scene, picking_b
 
 	add_mouse_function_to_mode(mode, cgls_interaction_right_button, cgls_interaction_button_down, cgls_interaction_no_modifier, interaction_bm_mouse);
 
-
 	return mode;
 }
+
+drawelement_ref blender_mode_selected_drawelement(interaction_mode *mode) {
+	if (mode->type != cgls_interaction_mode_blender) {
+		drawelement_ref ret = { -1 };
+		return ret;
+	}
+	return ((struct blendermode_aux*)mode->aux)->selected_de;
+}
+
 //! @}
 
 // actual mode management
@@ -535,7 +575,10 @@ static struct mode_node *modes = 0;
 static void interaction_base_keyhandler(unsigned char key, int x, int y) {
 	int glut_modifiers = glutGetModifiers();
 	unsigned int modifiers = 0;
-	if (glut_modifiers & GLUT_ACTIVE_SHIFT)   modifiers += cgls_interaction_shift;
+	if (glut_modifiers & GLUT_ACTIVE_SHIFT) {
+		if (isalpha(key))
+			modifiers += cgls_interaction_shift;
+	}
 	if (glut_modifiers & GLUT_ACTIVE_CTRL)	  modifiers += cgls_interaction_control;
 	if (glut_modifiers & GLUT_ACTIVE_ALT)     modifiers += cgls_interaction_alt;
 

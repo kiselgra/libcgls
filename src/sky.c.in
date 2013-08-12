@@ -1,0 +1,88 @@
+#line 2 "sky.c.in"
+#include "drawelement.h"
+#include "stock-shader.h"
+
+
+
+// spherical sky projection
+
+static const char* skybox_vertex_shader() {
+	return
+		shader{
+			#version 430 core
+			in vec3 in_pos;
+			in vec3 in_norm;
+			in vec2 in_tc;
+			uniform mat4 proj, view, model;
+			out vec2 tc;
+			out vec3 boxdir;
+			void main() {
+				tc = in_tc;
+				boxdir = in_pos;
+				gl_Position = proj * view * model * vec4(in_pos*10000., 1);
+			}
+		}shader;
+}
+
+static const char* skybox_fragment_shader_spherical() {
+	return
+		shader{
+			#version 430 core
+			in vec2 tc;
+			in vec3 boxdir;
+			out vec4 out_col;
+			uniform sampler2D tex;
+			const float pi = 3.1415927;
+			void main() {
+				vec3 dir = normalize(boxdir);
+				float phi = (pi + atan(dir.x,dir.z)) / (2.0*pi);
+				float h = (dir.y+1.0)/2.0;
+				out_col = texture(tex, vec2(phi,h));
+// 				out_col = vec4(phi,h,0,1);
+				gl_FragDepth = 1;
+			}
+		}shader;
+}
+
+static shader_ref build_shader(const char *shadername) {
+	// why do i use stock-shader stuff here?
+	struct stockshader_fragments ssf;
+	init_stockshader_fragments(&ssf);
+	stockshader_add_vsource(&ssf, skybox_vertex_shader());
+	stockshader_add_fsource(&ssf, skybox_fragment_shader_spherical());
+	stockshader_add_input(&ssf, "in_pos");
+	stockshader_add_input(&ssf, "in_norm");
+	stockshader_add_input(&ssf, "in_tc");
+	stockshader_add_uniform(&ssf, "model");
+	stockshader_add_uniform(&ssf, "view");
+	stockshader_add_uniform(&ssf, "proj");
+	stockshader_add_uniform(&ssf, "tex");
+	shader_ref shader = make_shader(shadername, 3);
+	populate_shader_with_fragments(shader, &ssf);
+	compile_and_link_shader_showing_log_on_error(shader);
+	free_stockshader_fragments(&ssf);
+	return shader;
+}
+
+
+drawelement_ref make_skybox_with_spherical_mapping(const char *dename, const char *filename) {
+	mesh_ref box = make_cube(dename, 0);
+	vec3f w = { 1, 1, 1 };
+	material_ref material = make_material3f(dename, &w, &w, &w);
+	shader_ref shader = build_shader(dename);
+	drawelement_ref de = make_drawelement(dename, box, shader, material);
+	prepend_drawelement_uniform_handler(de, (uniform_setter_t)default_matrix_uniform_handler);
+	prepend_drawelement_uniform_handler(de, (uniform_setter_t)default_material_uniform_handler);
+
+	tex_params_t p = default_tex_params();
+// 	p.wrap_s = GL_CLAMP_TO_EDGE;
+	p.wrap_t = GL_CLAMP_TO_EDGE;
+	texture_ref tex = make_texture(dename, filename, GL_TEXTURE_2D, &p);
+	material_add_texture_as(material, tex, "tex");
+
+	return de;
+}
+
+
+
+

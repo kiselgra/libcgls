@@ -160,12 +160,12 @@ struct skeletal_animation_list* list_skeletal_animations() {
 	return head;
 }
 
-void change_animation_speed(skeletal_animation_ref ref, float factor) {
+void change_skeletal_animation_speed(skeletal_animation_ref ref, float factor) {
 	struct skeletal_animation *sa = skeletal_animations+ref.id;
 	sa->animation_speed = factor;
 }
 
-float animation_speed(skeletal_animation_ref ref, float factor) {
+float animation_skeletal_speed(skeletal_animation_ref ref, float factor) {
 	struct skeletal_animation *sa = skeletal_animations+ref.id;
 	return sa->animation_speed;
 }
@@ -328,7 +328,7 @@ SCM_DEFINE(s_list_anims, "list-skeletal-animations", 0, 0, 0, (), "") {
 
 SCM_DEFINE(s_change_anim_speed, "change-speed-of-skeletal-animation", 2, 0, 0, (SCM anim, SCM factor), "") {
     skeletal_animation_ref ref = { scm_to_int(anim) };
-	change_animation_speed(ref, scm_to_double(factor));
+	change_skeletal_animation_speed(ref, scm_to_double(factor));
 	return SCM_BOOL_T;
 }
 

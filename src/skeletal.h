@@ -52,8 +52,8 @@ void add_animation_to_skeleton(skeletal_animation_ref ref, struct animation_sequ
 
 void start_skeletal_animation(skeletal_animation_ref ref, const char *name);
 void evaluate_skeletal_animation_at(skeletal_animation_ref ref, animation_time_t t);
-float animation_speed(skeletal_animation_ref ref, float factor);
-void change_animation_speed(skeletal_animation_ref ref, float factor);
+float skeletal_animation_speed(skeletal_animation_ref ref, float factor);
+void change_skeletal_animation_speed(skeletal_animation_ref ref, float factor);
 
 bool valid_skeletal_animation_ref(skeletal_animation_ref ref);
 skeletal_animation_ref find_skeletal_animation(const char *name);

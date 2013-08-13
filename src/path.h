@@ -14,6 +14,10 @@ typedef struct {
 path_animation_ref make_path_animation(const char *name, int nodes);
 void add_node_to_path_animation(path_animation_ref ref, vec3f *p, float t);
 matrix4x4f* path_matrix_of_animation(path_animation_ref ref);
+
+void start_path_animation(path_animation_ref ref);
+void change_path_animation_speed(path_animation_ref ref, float factor);
+float path_animation_speed(path_animation_ref ref, float factor);
 void evaluate_path_animation_at(path_animation_ref ref, animation_time_t time);
 
 define_slist(path_animation_list, path_animation_ref ref);

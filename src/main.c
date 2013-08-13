@@ -55,7 +55,7 @@ void display() {
 	curr_time = animation_time_stamp();
 
 	for (struct skeletal_animation_list *animations = list_skeletal_animations(); animations; animations = animations->next) {
-		change_animation_speed(animations->ref, 0.5);
+		change_skeletal_animation_speed(animations->ref, 0.5);
 		evaluate_skeletal_animation_at(animations->ref, curr_time);
 	}
 
@@ -288,12 +288,30 @@ void actual_main()
 // 	shader_ref newshader = make_stock_shader(0, flag, 0, true);
 // 	drawelement_change_shader(flag, newshader);
 
-	path_animation_ref pa = make_path_animation("blub", 1);
-	drawelement_ref girl = find_drawelement("/home/kiselgra/models/simple-girl/simple_girl2.6.dae/");
-	make_drawelement_part_of_path_animation(girl, pa);
-	shader_ref newshader = make_stock_shader(0, girl, 0, true);
-	drawelement_change_shader(girl, newshader);
+// 	path_animation_ref pa = make_path_animation("blub", 1);
+// 	drawelement_ref girl = find_drawelement("/home/kiselgra/models/simple-girl/simple_girl2.6.dae/");
+// 	make_drawelement_part_of_path_animation(girl, pa);
+// 	shader_ref newshader = make_stock_shader(0, girl, 0, true);
+// 	drawelement_change_shader(girl, newshader);
 	
+	path_animation_ref pa = make_path_animation("blub", 5);
+	drawelement_ref de = find_drawelement("/home/kiselgra/render-data/models/sponza.obj/sponza_375");
+	make_drawelement_part_of_path_animation(de, pa);
+	shader_ref newshader = make_stock_shader(0, de, 0, true);
+	drawelement_change_shader(de, newshader);
+	vec3f verts[] = { { 0, 0, 0 },
+	                  { -1200, 0, 0 },
+	                  { -1500, 0, 400 },
+	                  { -400, 0, 700 },
+	                  { 0, 0, 0 } };
+	float times[] = { 0, 10, 20, 30, 40 };
+	add_node_to_path_animation(pa, verts+0, times[0]);
+	add_node_to_path_animation(pa, verts+1, times[1]);
+	add_node_to_path_animation(pa, verts+2, times[2]);
+	add_node_to_path_animation(pa, verts+3, times[3]);
+	add_node_to_path_animation(pa, verts+4, times[4]);
+	start_path_animation(pa);
+
 	
 	enter_glut_main_loop();
 }

@@ -345,7 +345,7 @@ void default_scene_renderer(scene_ref ref) {
 //! internal \ref graph_scene structure. \ingroup graph_scene
 struct by_material {
     material_ref mat;
-    struct drawelement_node *drawelements;
+    drawelement_node *drawelements;
     struct by_material *next;
 };
 
@@ -428,7 +428,7 @@ void graph_scene_drawelement_inserter(scene_ref ref, drawelement_ref de) {
 		mat = new_entry;
 	}
 	// now it's there, anyway; add drawelement
-	struct drawelement_node *deno = malloc(sizeof(struct drawelement_node));
+	drawelement_node *deno = malloc(sizeof(drawelement_node));
 	deno->next = mat->drawelements;
 	mat->drawelements = deno;
 	deno->ref = de;
@@ -472,7 +472,7 @@ void graph_scene_traverser(scene_ref ref) {
 				// we'd have to separate material uniforms (textures [incl.
 				// binding], ...) and drawelement uniforms (object trafo)
 				bind_shader(shader);
-				for (struct drawelement_node *deno = by_mat->drawelements; deno; deno = deno->next) {
+				for (drawelement_node *deno = by_mat->drawelements; deno; deno = deno->next) {
 					if (!drawelement_hidden(deno->ref)) {
 						shader_ref old_shader = drawelement_change_shader(by_mat->drawelements->ref, shader);
 						if (uniform_setter)
@@ -501,7 +501,7 @@ void graph_scene_traverser(scene_ref ref) {
 				// binding], ...) and drawelement uniforms (object trafo)
 				shader = drawelement_shader(by_mat->drawelements->ref);
 				bind_shader(shader);
-				for (struct drawelement_node *deno = by_mat->drawelements; deno; deno = deno->next) {
+				for (drawelement_node *deno = by_mat->drawelements; deno; deno = deno->next) {
 #if CGLS_DRAWELEMENT_BB_VIS == 1
 					if (!drawelement_shows_bounding_box(deno->ref)) {
 #endif
@@ -679,17 +679,21 @@ single_material_pass_ref make_single_material_pass(const char *name, const char 
 	return ref;
 }
 
-void render_single_material_pass(single_material_pass_ref ref) {
-	struct single_material_pass *smp = material_passes + ref.id;
+void render_single_material_pass(single_material_pass_ref refx) {
+	struct single_material_pass *smp = material_passes + refx.id;
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
+	
+	printf("material pass %s:\n", smp->name);
 
+// /*
 	for (struct smp_by_mesh *bm = smp->by_mesh; bm; bm = bm->next) {
 		bind_mesh_to_gl(bm->mesh);
 		for (struct smp_by_shader *bs = bm->by_shader; bs; bs = bs->next) {
 			bind_shader(bs->shader);
 
 			for (struct drawelement_list *run = bs->des; run; run = run->next) {
+				printf("   - %s\n", drawelement_name(run->ref));
 				if (!drawelement_hidden(run->ref)) {
 					shader_ref old_shader = drawelement_change_shader(run->ref, bs->shader);
 					if (smp->extra_handler)
@@ -708,6 +712,43 @@ void render_single_material_pass(single_material_pass_ref ref) {
 		}
 		unbind_mesh_from_gl(bm->mesh);
 	}
+// 	*/
+	
+	/*
+	scene_ref ref = { 0 };
+	graph_scene_or_return(ref);
+	struct graph_scene_aux *gs = scene_aux(ref);
+	bool use_single_shader = use_single_shader_for_scene(ref);
+	shader_ref shader = single_shader_for_scene(ref);
+	uniform_setter_t uniform_setter = single_shader_extra_uniform_handler(ref);
+
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
+	for (struct by_mesh *by_mesh = gs->meshes; by_mesh; by_mesh = by_mesh->next) {
+		bind_mesh_to_gl(by_mesh->mesh);
+		for (struct by_material *by_mat = by_mesh->materials; by_mat; by_mat = by_mat->next) {
+			// we'd have to separate material uniforms (textures [incl.
+			// binding], ...) and drawelement uniforms (object trafo)
+			bind_shader(shader);
+			for (drawelement_node *deno = by_mat->drawelements; deno; deno = deno->next) {
+				if (!drawelement_hidden(deno->ref)) {
+					shader_ref old_shader = drawelement_change_shader(by_mat->drawelements->ref, shader);
+					if (smp->extra_handler)
+						prepend_drawelement_uniform_handler(deno->ref, smp->extra_handler);
+					if (drawelement_using_index_range(deno->ref))
+						bind_uniforms_and_render_indices_of_drawelement(deno->ref);
+					else
+						bind_uniforms_and_render_drawelement_nonindexed(deno->ref);
+					if (smp->extra_handler)
+						pop_drawelement_uniform_handler(deno->ref);
+					drawelement_change_shader(by_mat->drawelements->ref, old_shader);
+				}
+			}
+			unbind_shader(shader);
+		}
+		unbind_mesh_from_gl(by_mesh->mesh);
+	}
+	*/
 
 }
 	
@@ -848,7 +889,7 @@ SCM_DEFINE(s_scene_add_drawelement, "add-drawelement-to-scene", 2, 0, 0, (SCM sc
 
 SCM_DEFINE(s_scene_drawelements, "drawelement-of-scene", 1, 0, 0, (SCM scene), "") {
 	scene_ref s = { scm_to_int(scene) };
-	struct drawelement_node *node = scene_drawelements(s);
+	drawelement_node *node = scene_drawelements(s);
 	SCM list = scm_list_1(scm_from_int(node->ref.id));
 	while (node->next) {
 		node = node->next;
@@ -897,7 +938,7 @@ SCM_DEFINE(s_scene_stats, "scene-stats", 0, 0, 0, (), "") {
             j = 0;
             for (struct by_material *by_mat = by_mesh->materials; by_mat; by_mat = by_mat->next) {
                 m = 0;
-                for (struct drawelement_node *deno = by_mat->drawelements; deno; deno = deno->next)
+                for (drawelement_node *deno = by_mat->drawelements; deno; deno = deno->next)
                     ++m, ++de;
                 printf("    material %d contains %d drawelements.\n", j++, m);
             }

@@ -49,10 +49,11 @@ typedef void (*scene_light_application_t)(struct light_list *);
 
 enum { scene_type_default = 0, scene_type_graph = 1 };
 
-typedef struct drawelement_node {
-	struct drawelement_node *next;
-	drawelement_ref ref;
-} drawelement_node;
+// typedef struct drawelement_node {
+// 	struct drawelement_node *next;
+// 	drawelement_ref ref;
+// } drawelement_node;
+typedef struct drawelement_list drawelement_node;
 
 
 scene_ref make_scene(const char *name);

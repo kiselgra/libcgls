@@ -589,6 +589,23 @@ SCM_DEFINE(s_de_hide, "hide-drawelement", 2, 0, 0, (SCM de_ref, SCM yes), "") {
 	return yes;
 }
 
+SCM_DEFINE(s_make_drawelement_part_of_pa, "make-drawelement-part-of-path-animation", 2, 0, 0, (SCM de, SCM pa), "") {
+	drawelement_ref de_ref = { scm_to_int(de) };
+	path_animation_ref pa_ref = { scm_to_int(pa) };
+	make_drawelement_part_of_path_animation(de_ref, pa_ref);
+	return SCM_BOOL_T;
+}
+
+SCM_DEFINE(s_de_with_path, "drawelement-has-path", 1, 0, 0, (SCM de), "") {
+	drawelement_ref de_ref = { scm_to_int(de) };
+	return scm_from_bool(drawelement_with_path(de_ref));
+}
+
+SCM_DEFINE(s_de_path_anim, "drawelement-path", 1, 0, 0, (SCM de), "") {
+	drawelement_ref de_ref = { scm_to_int(de) };
+	return scm_from_int(drawelement_path_animation(de_ref).id);
+}
+
 SCM_DEFINE(s_TMP_mem_barr, "memory-barrier!!", 0, 0, 0, (), "") {
     glMemoryBarrier(GL_ALL_BARRIER_BITS);
     return SCM_BOOL_T;

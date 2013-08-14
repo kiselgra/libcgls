@@ -1267,4 +1267,30 @@ drawelement_ref make_stock_gbuffer_default_drawelement_with_shader(framebuffer_r
 
 	return de;
 }
-	
+
+#ifdef WITH_GUILE
+
+#include <libcgl/scheme.h>
+
+SCM_DEFINE(s_make_stock_shader, "make-stock-shader", 3, 0, 0, (SCM name, SCM de, SCM consider_mat), "") {
+    char *n = 0;
+	if (scm_is_true(name)) {
+		n = scm_to_locale_string(name);
+		if (strlen(n) == 0) {
+			free(n);
+			n = 0;
+		}
+	}
+	drawelement_ref ref = { scm_to_int(de) };
+	bool consider_material = scm_to_bool(consider_mat);
+	shader_ref ret = make_stock_shader(n, ref, 0, consider_mat); // we cannot handle stockshader fragments from scheme.
+	free(n);
+	return scm_from_int(ret.id);
+}
+
+void register_scheme_functions_for_stock_shader() {
+#include "stock-shader.x"
+}
+
+#endif
+

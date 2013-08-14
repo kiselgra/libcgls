@@ -319,6 +319,7 @@ void quaternionf_to_matrix4x4f(matrix4x4f *mat, quaternionf *q) {
 
 #ifdef WITH_GUILE
 
+
 SCM_DEFINE(s_list_anims, "list-skeletal-animations", 0, 0, 0, (), "") {
     SCM list = scm_list_1(scm_from_locale_string(skeletal_animations[0].name));
     for (int i = 1; i < next_skeletal_animation_index; ++i)
@@ -331,6 +332,11 @@ SCM_DEFINE(s_change_anim_speed, "change-speed-of-skeletal-animation", 2, 0, 0, (
 	change_skeletal_animation_speed(ref, scm_to_double(factor));
 	return SCM_BOOL_T;
 }
+
+void register_scheme_functions_for_skeletal_animation() {
+#include "skeletal.x"
+}
+
 
 #endif
 

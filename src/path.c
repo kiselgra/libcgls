@@ -1,6 +1,7 @@
 #include "path.h"
 
 #include <libmcm/matrix.h>
+#include <libmcm/camera-matrices.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -8,6 +9,7 @@
 
 typedef struct {
 	vec3f pos;
+	vec3f up;
 	float time;
 } path_node;
 
@@ -21,6 +23,7 @@ struct path_animation {
 	matrix4x4f trafo;
 	animation_time_t animation_start_time;
 	float animation_speed;
+	bool track_direction;
 };
 
 #include <libcgl/mm.h>
@@ -36,18 +39,23 @@ path_animation_ref make_path_animation(const char *name, int nodes) {
 	pa->nodes_set = 0;
 	pa->animation_start_time = 0;
 	pa->animation_speed = 1;
+	pa->track_direction = true;
 	make_unit_matrix4x4f(&pa->trafo);
 
 	return ref;
 }
 
-void add_node_to_path_animation(path_animation_ref ref, vec3f *p, float t) {
+void add_node_to_path_animation(path_animation_ref ref, vec3f *p, vec3f *up, float t) {
 	struct path_animation *pa = path_animations + ref.id;
 	if (pa->nodes_set == pa->nodes) {
 		fprintf(stderr, "The path animation '%s' is already full. Cannot add further nodes.\n", pa->name);
 		return;
 	}
 	pa->node[pa->nodes_set].pos = *p;
+	if (up)
+		pa->node[pa->nodes_set].up = *up;
+	else
+		pa->track_direction = false;
 	pa->node[pa->nodes_set].time = t;
 	pa->nodes_set++;
 }
@@ -97,80 +105,129 @@ matrix4x4f* path_matrix_of_animation(path_animation_ref ref) {
 	return &path_animations[ref.id].trafo;
 }
 
+static void find_nodes_for_path_animation(struct path_animation *pa, float time, int *next, int *prev) {
+	*next = -1;
+	for (int i = 0; i < pa->nodes; ++i)
+		if (pa->node[i].time > time) {
+			*next = i;
+			break;
+		}
+	if (*next > 0) *prev = *next-1;
+}
+
+static void assign_hermite_points(struct path_animation *pa, vec3f *p_minus_1, vec3f *p0, vec3f *p1, vec3f *p_plus_2, int next, int prev) {
+	*p0 = pa->node[prev].pos;
+	*p1 = pa->node[next].pos;
+	*p_minus_1 = *p0;
+	if (prev > 0) *p_minus_1 = pa->node[prev-1].pos;
+	*p_plus_2 = *p1;
+	if (next < pa->nodes-1) *p_plus_2 = pa->node[next+1].pos;
+}
+
 void evaluate_path_animation_at(path_animation_ref ref, animation_time_t time) {
 	struct path_animation *pa = path_animations + ref.id;
 	matrix4x4f *mat = path_matrix_of_animation(ref);
 	
 	time -= pa->animation_start_time;
-	printf("t1 = %f\n", time);
 	time /= 1000;
 	time *= pa->animation_speed;
-	printf("t2 = %f\n", time);
 
-	int next = -1, prev = 0;
-	for (int i = 0; i < pa->nodes; ++i) {
-		printf("i = %d, t = %f\n", i, pa->node[i].time);
-		if (pa->node[i].time > time) {
-			next = i;
-			break;
-		}
+	if (time > pa->node[pa->nodes-1].time) {
+		time -= pa->node[pa->nodes-1].time;
+		pa->animation_start_time += pa->node[pa->nodes-1].time * 1000 / pa->animation_speed;
 	}
-	if (next > 0) prev = next-1;
-	if (next < 0) return;
+	int next = -1, prev = 0;
+	find_nodes_for_path_animation(pa, time, &next, &prev);
+	if (next < 0) 
+		return;
 
-	/*
-	// linear interpolation
-	float alpha = (time - pa->node[prev].time) / (pa->node[next].time - pa->node[prev].time);
-	printf("p = %d, n = %d, a = %f\n", prev, next, alpha);
-	vec3f p = pa->node[prev].pos;
-	vec3f q = pa->node[next].pos;
-	mul_vec3f_by_scalar(&p, &p, (1-alpha));
-	mul_vec3f_by_scalar(&q, &q, alpha);
-	add_components_vec3f(&p, &p, &q);
-	*/
-
-	// hermite interpolation
+	// interpolation parameter
 	float t = (time - pa->node[prev].time) / (pa->node[next].time - pa->node[prev].time);
-	float t2 = t*t;
-	float t3 = t2*t;
-	float h00 = 2*t3 - 3*t2 + 1;
-	float h10 = -2*t3 + 3*t2;
-	float h01 = t3 - 2*t2 + t;
-	float h11 = t3 - t2;
 
 	// positions
-	vec3f p0 = pa->node[prev].pos;
-	vec3f p1 = pa->node[next].pos;
-	vec3f p_minus_one = p0;
-	if (prev > 0) p_minus_one = pa->node[prev-1].pos;
-	vec3f p_plus_2 = p1;
-	if (next < pa->nodes-1) p_plus_2 = pa->node[next+1].pos;
-	
-	// tangents
-	vec3f m0, m1;
-	// m0
-	sub_components_vec3f(&p_minus_one, &p0, &p_minus_one);
-	sub_components_vec3f(&m0, &p1, &p0);
-	add_components_vec3f(&m0, &m0, &p_minus_one);
-	div_vec3f_by_scalar(&m0, &m0, 2);
-	// m1
-	sub_components_vec3f(&p_plus_2, &p_plus_2, &p1);
-	sub_components_vec3f(&m1, &p1, &p0);
-	add_components_vec3f(&m1, &m1, &p_plus_2);
-	div_vec3f_by_scalar(&m1, &m1, 2);
+	vec3f p0, p1, p_minus_1, p_plus_2;
+	assign_hermite_points(pa, &p_minus_1, &p0, &p1, &p_plus_2, next, prev);
 
-	// combination
+	// interpolate position
 	vec3f p;
-	mul_vec3f_by_scalar(&p0, &p0, h00);
-	mul_vec3f_by_scalar(&p1, &p1, h10);
-	mul_vec3f_by_scalar(&m0, &m0, h01);
-	mul_vec3f_by_scalar(&m1, &m1, h11);
-	add_components_vec3f(&p, &p0, &p1);
-	add_components_vec3f(&p, &p, &m0);
-	add_components_vec3f(&p, &p, &m1);
+	hermite_interpolation(&p, &p_minus_1, &p0, &p1, &p_plus_2, t);
+	
+	if (pa->track_direction) {
+		// interpolate slightly advanced position to obtain difference
+		time += (pa->node[next].time - pa->node[prev].time)/16;
+		float t = (time - pa->node[prev].time) / (pa->node[next].time - pa->node[prev].time);
 
-	mat->col_major[12] = p.x;
-	mat->col_major[13] = p.y;
-	mat->col_major[14] = p.z;
+		next = -1, prev = 0;
+		find_nodes_for_path_animation(pa, time, &next, &prev);
+
+		vec3f q;
+		hermite_interpolation(&q, &p_minus_1, &p0, &p1, &p_plus_2, t);
+
+		vec3f dir;
+		sub_components_vec3f(&dir, &q, &p);
+		normalize_vec3f(&dir);
+
+		vec3f unit = { 0,0,-1 };
+		float cos_alpha = dot_vec3f(&unit, &dir);
+		float alpha = -acosf(cos_alpha);
+		if (dir.x < 0)
+			alpha = 2 * M_PI - alpha;
+
+		vec3f axis = { 0, 1, 0 };
+		make_rotation_matrix4x4f(mat, &axis, alpha);
+
+		mat->col_major[12] = p.x;
+		mat->col_major[13] = p.y;
+		mat->col_major[14] = p.z;
+	}
+	else {
+		mat->col_major[12] = p.x;
+		mat->col_major[13] = p.y;
+		mat->col_major[14] = p.z;
+	}
 }
+
+#ifdef WITH_GUILE
+
+#include <libcgl/scheme.h>
+
+SCM_DEFINE(s_make_path_anim, "make-path-animation", 2, 0, 0, (SCM name, SCM nodes), "") {
+    char *n = scm_to_locale_string(name);
+    int i = scm_to_int(nodes);
+    path_animation_ref ref = make_path_animation(n, i);
+    free(n);
+	return scm_from_int(ref.id);
+}
+
+SCM_DEFINE(s_find_path_anim, "find-path-animation", 1, 0, 0, (SCM name), "") {
+    char *n = scm_to_locale_string(name);
+    path_animation_ref ref = find_path_animation(n);
+    free(n);
+	return scm_from_int(ref.id);
+}
+
+SCM_DEFINE(s_add_node_to_pa, "add-node-to-path-animation", 4, 0, 0, (SCM pa, SCM pos, SCM up, SCM t), "") {
+	path_animation_ref ref = { scm_to_int(pa) };
+	vec3f p = scm_vec_to_vec3f(pos);
+	vec3f uv, *u = 0;
+	if (scm_is_pair(up)) {
+		uv = scm_vec_to_vec3f(up);
+		u = &uv;
+	}
+	float time = scm_to_double(t);
+	add_node_to_path_animation(ref, &p, u, time);
+	return scm_from_bool(path_animations[ref.id].nodes_set < path_animations[ref.id].nodes);
+}
+
+SCM_DEFINE(s_start_pa, "start-path-animation", 1, 0, 0, (SCM pa), "") {
+	path_animation_ref ref = { scm_to_int(pa) };
+	start_path_animation(ref);
+	return SCM_BOOL_T;
+}
+
+void register_scheme_functions_for_path_animation() {
+#include "path.x"
+}
+
+#endif
 

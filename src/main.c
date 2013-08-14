@@ -10,6 +10,7 @@
 #include "console.h"
 
 #include "cmdline.h"
+#include "cgls.h"
 
 #include <libcgl/libcgl.h>
 #include <libcgl/wall-time.h>
@@ -160,26 +161,6 @@ void adjust_view(const vec3f *bb_min, const vec3f *bb_max, vec3f *cam_pos, float
 	cgl_cam_move_factor = *distance / 20.0f;
 }
 
-// TODO this whole thing should go to some standard libcgls place...
-#ifdef WITH_GUILE
-void register_scheme_functions_for_cgls_objloader();
-void register_scheme_functions_for_material();
-void register_scheme_functions_for_cmdline();
-void register_scheme_functions_for_drawelement();
-void register_scheme_functions_for_scene();
-void register_scheme_functions_for_cgls_modelloader();
-void register_scheme_functions_for_console();
-static void register_scheme_functions() {
-	register_scheme_functions_for_cgls_objloader();
-	register_scheme_functions_for_material();
-	register_scheme_functions_for_cmdline();
-	register_scheme_functions_for_drawelement();
-	register_scheme_functions_for_scene();
-	register_scheme_functions_for_cgls_modelloader();
-	register_scheme_functions_for_console();
-}
-#endif
-
 void show_fps(interaction_mode *m, int x, int y) {
 	double sum = 0;
 	for (int i = 0; i < valid_pos; ++i)
@@ -220,7 +201,9 @@ void actual_main()
 	push_interaction_mode(make_default_cgls_interaction_mode());
 	push_interaction_mode(make_viewer_mode());
 
-	register_scheme_functions();
+	register_cgls_scheme_functions();
+	void register_scheme_functions_for_cmdline();
+	register_scheme_functions_for_cmdline();
 
     gbuffer = make_stock_deferred_buffer("gbuffer", cmdline.res.x, cmdline.res.y, GL_RGBA8, GL_RGBA8, GL_RGBA16F, GL_RGBA32F, GL_DEPTH_COMPONENT24);
 
@@ -305,11 +288,12 @@ void actual_main()
 	                  { -400, 0, 700 },
 	                  { 0, 0, 0 } };
 	float times[] = { 0, 10, 20, 30, 40 };
-	add_node_to_path_animation(pa, verts+0, times[0]);
-	add_node_to_path_animation(pa, verts+1, times[1]);
-	add_node_to_path_animation(pa, verts+2, times[2]);
-	add_node_to_path_animation(pa, verts+3, times[3]);
-	add_node_to_path_animation(pa, verts+4, times[4]);
+	vec3f up = { 0, 1, 0 };
+	add_node_to_path_animation(pa, verts+0, &up, times[0]);
+	add_node_to_path_animation(pa, verts+1, &up, times[1]);
+	add_node_to_path_animation(pa, verts+2, &up, times[2]);
+	add_node_to_path_animation(pa, verts+3, &up, times[3]);
+	add_node_to_path_animation(pa, verts+4, &up, times[4]);
 	start_path_animation(pa);
 
 	

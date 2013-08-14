@@ -2,7 +2,7 @@ lib_LTLIBRARIES = libcgls.la
 bin_PROGRAMS = viewer-cgls #tsm
 
 BUILT_SOURCES = drawelement.xx scene.xx material.xx picking.xx light.xx console.xx skeletal.xx path.xx
-BUILT_SOURCES += objloader.x cmdline.x material.x drawelement.x scene.x console.x modelloader-scm.x
+BUILT_SOURCES += objloader.x cmdline.x material.x drawelement.x scene.x console.x modelloader-scm.x skeletal.x path.x stock-shader.x
 BUILT_SOURCES += stock-shader.c picking.c console.cpp sky.c
 
 EXTRA_DIST = stock-shader.c.in picking.c.in console.cpp.in sky.c.in
@@ -12,6 +12,7 @@ libcgls_la_SOURCES = 	\
 						animation.c animation.h \
 						basename.h \
 						c-utils.c c-utils.h \
+						cgls.c cgls.h \
 						cgls-config.h \
 						console.cpp console.h \
 						drawelement.c drawelement.h \

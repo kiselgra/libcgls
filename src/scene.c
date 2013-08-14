@@ -295,10 +295,10 @@ void default_scene_renderer(scene_ref ref) {
 #endif
 					vec3f min, max;
 					bounding_box_of_drawelement(run->ref, &min, &max);
-					if (!drawelement_has_bounding_box(run->ref) || aabb_in_frustum(&data, &min, &max)) {
+// 					if (!drawelement_has_bounding_box(run->ref) || aabb_in_frustum(&data, &min, &max)) {
 						c++;
 						render_drawelement(run->ref);
-					}
+// 					}
 #if CGLS_DRAWELEMENT_BB_VIS == 1
 				}
 				else {

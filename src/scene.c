@@ -27,8 +27,27 @@ struct scene {
 	void *aux;
 };
 
+struct smp_by_shader {
+	struct smp_by_shader *next;
+	struct drawelement_list *des;
+	shader_ref shader;
+};
+struct smp_by_mesh {
+	struct smp_by_mesh *next;
+	struct smp_by_shader *by_shader;
+	struct drawelement_list *tmp_des;
+	mesh_ref mesh;
+};
+struct single_material_pass {
+	char *name;
+	struct drawelement_list *drawelements;
+	struct smp_by_mesh *by_mesh;
+	uniform_setter_t extra_handler;
+};
+
 #include <libcgl/mm.h>
 define_mm(scene, scenes, scene_ref);
+define_mm(single_material_pass, material_passes, single_material_pass_ref);
 #include "scene.xx"
 
 vec4f cgls_scene_clear_color = { 0, 0 ,0, 0 };
@@ -569,6 +588,240 @@ scene_ref make_graph_scene(const char *name) {
 
 //! @}
 
+// 
+// single material pass
+//
+
+single_material_pass_ref make_single_material_pass(const char *name, const char *fragment_source, int uniforms, char **uniform, uniform_setter_t extra_handler, struct drawelement_list *drawelements) {
+	single_material_pass_ref ref = allocate_single_material_pass_ref();
+	struct single_material_pass *smp = material_passes+ref.id;
+	smp->name = strdup(name);
+	smp->drawelements = drawelements;
+	smp->extra_handler = extra_handler;
+
+	// partition by mesh
+	smp->by_mesh = 0;
+	for (struct drawelement_list *run = drawelements; run; run = run->next) {
+		struct smp_by_mesh *bm = smp->by_mesh;
+		while (bm && bm->mesh.id != drawelement_mesh(run->ref).id)
+			bm = bm->next;
+		if (!bm) {
+			struct smp_by_mesh *new = malloc(sizeof(struct smp_by_mesh));
+			new->mesh = drawelement_mesh(run->ref);
+			new->by_shader = 0;
+			new->tmp_des = 0;
+			new->next = smp->by_mesh;
+			smp->by_mesh = bm = new;
+		}
+		struct drawelement_list *node = malloc(sizeof(struct drawelement_list));
+		node->next = bm->tmp_des;
+		node->ref = run->ref;
+		bm->tmp_des = node;
+	}
+
+	// partition mesh buckets by shader
+	for (struct smp_by_mesh *bm = smp->by_mesh; bm; bm = bm->next) {
+		for (struct drawelement_list *run = bm->tmp_des; run; run = run->next) {
+			struct smp_by_shader *bs = bm->by_shader;
+			while (bs && bs->shader.id != drawelement_shader(run->ref).id)
+				bs = bs->next;
+			if (!bs) {
+				struct smp_by_shader *new = malloc(sizeof(struct smp_by_shader));
+				new->next = bm->by_shader;
+				new->shader = drawelement_shader(run->ref);
+				new->des = 0;
+				bm->by_shader = bs = new;
+			}
+			struct drawelement_list *node = malloc(sizeof(struct drawelement_list));
+			node->next = bs->des;
+			node->ref = run->ref;
+			bs->des = node;
+		}
+		struct drawelement_list *run = bm->tmp_des; 
+		while (run) {
+			struct drawelement_list *old = run;
+			run = run->next;
+			free(old);
+		}
+	}
+
+	// replace shaders
+	for (struct smp_by_mesh *bm = smp->by_mesh; bm; bm = bm->next) {
+		for (struct smp_by_shader *bs = bm->by_shader; bs; bs = bs->next) {
+			// default stock shader
+			struct stockshader_fragments ssf;
+			init_stockshader_fragments(&ssf);
+			stockshader_add_fsource(&ssf, fragment_source);
+			for (int i = 0; i < uniforms; ++i)
+				stockshader_add_uniform(&ssf, uniform[i]);
+			// add drawelement vertex shader part, use_tc according to \ref make_stock_shader_fragments.
+			bool use_tc = false;
+			for (int i = 0; i < shader_uniforms(bs->shader); ++i) {
+				const char *name = shader_uniform_name_by_id(bs->shader, i);
+				if (strcmp(name, "ambient_tex") == 0
+						|| strcmp(name, "diffuse_tex") == 0
+						|| strcmp(name, "specular_tex") == 0
+						|| strcmp(name, "mask_tex") == 0) {
+					use_tc = true;
+					break;
+				}
+			}
+			add_stock_vertex_shader_part(&ssf, true, use_tc, drawelement_number_of_bones(bs->des->ref), drawelement_with_path(bs->des->ref));
+			char *sname = 0;
+			int n = asprintf(&sname, "single-material-shader for pass '%s' based on shader '%s'", name, shader_name(bs->shader));
+			bs->shader = make_shader(sname, stockshader_inputs(&ssf));
+			populate_shader_with_fragments(bs->shader, &ssf);
+			compile_and_link_shader_showing_log_on_error(bs->shader);
+			free(sname);
+		}
+	}
+	
+	return ref;
+}
+
+void render_single_material_pass(single_material_pass_ref ref) {
+	struct single_material_pass *smp = material_passes + ref.id;
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
+
+	for (struct smp_by_mesh *bm = smp->by_mesh; bm; bm = bm->next) {
+		bind_mesh_to_gl(bm->mesh);
+		for (struct smp_by_shader *bs = bm->by_shader; bs; bs = bs->next) {
+			bind_shader(bs->shader);
+
+			for (struct drawelement_list *run = bs->des; run; run = run->next) {
+				if (!drawelement_hidden(run->ref)) {
+					shader_ref old_shader = drawelement_change_shader(run->ref, bs->shader);
+					if (smp->extra_handler)
+						prepend_drawelement_uniform_handler(run->ref, smp->extra_handler);
+					if (drawelement_using_index_range(run->ref))
+						bind_uniforms_and_render_indices_of_drawelement(run->ref);
+					else
+						bind_uniforms_and_render_drawelement_nonindexed(run->ref);
+					if (smp->extra_handler)
+						pop_drawelement_uniform_handler(run->ref);
+					drawelement_change_shader(run->ref, old_shader);
+				}
+			}
+
+			unbind_shader(bs->shader);
+		}
+		unbind_mesh_from_gl(bm->mesh);
+	}
+
+}
+	
+/*
+	graph_scene_or_return(ref);
+	struct graph_scene_aux *gs = scene_aux(ref);
+	bool use_single_shader = use_single_shader_for_scene(ref);
+	shader_ref shader = single_shader_for_scene(ref);
+	uniform_setter_t uniform_setter = single_shader_extra_uniform_handler(ref);
+
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
+	if (use_single_shader)
+		for (struct by_mesh *by_mesh = gs->meshes; by_mesh; by_mesh = by_mesh->next) {
+			bind_mesh_to_gl(by_mesh->mesh);
+			for (struct by_material *by_mat = by_mesh->materials; by_mat; by_mat = by_mat->next) {
+				// we'd have to separate material uniforms (textures [incl.
+				// binding], ...) and drawelement uniforms (object trafo)
+				bind_shader(shader);
+				for (struct drawelement_node *deno = by_mat->drawelements; deno; deno = deno->next) {
+					if (!drawelement_hidden(deno->ref)) {
+						shader_ref old_shader = drawelement_change_shader(by_mat->drawelements->ref, shader);
+						if (uniform_setter)
+							prepend_drawelement_uniform_handler(deno->ref, uniform_setter);
+						if (drawelement_using_index_range(deno->ref))
+							bind_uniforms_and_render_indices_of_drawelement(deno->ref);
+						else
+							bind_uniforms_and_render_drawelement_nonindexed(deno->ref);
+						if (uniform_setter)
+							pop_drawelement_uniform_handler(deno->ref);
+						drawelement_change_shader(by_mat->drawelements->ref, old_shader);
+					}
+				}
+				unbind_shader(shader);
+			}
+			unbind_mesh_from_gl(by_mesh->mesh);
+		}
+	else {
+		frustum_culling_t data;
+		populate_frustum_culling_info(current_camera(), &data);
+		int a = 0, c = 0;
+		for (struct by_mesh *by_mesh = gs->meshes; by_mesh; by_mesh = by_mesh->next) {
+			bind_mesh_to_gl(by_mesh->mesh);
+			for (struct by_material *by_mat = by_mesh->materials; by_mat; by_mat = by_mat->next) {
+				// we'd have to separate material uniforms (textures [incl.
+				// binding], ...) and drawelement uniforms (object trafo)
+				shader = drawelement_shader(by_mat->drawelements->ref);
+				bind_shader(shader);
+				for (struct drawelement_node *deno = by_mat->drawelements; deno; deno = deno->next) {
+#if CGLS_DRAWELEMENT_BB_VIS == 1
+					if (!drawelement_shows_bounding_box(deno->ref)) {
+#endif
+						a++;
+					if (!drawelement_hidden(deno->ref)) {
+						vec3f min, max;
+						bounding_box_of_drawelement(deno->ref, &min, &max);
+						if (!drawelement_has_bounding_box(deno->ref) || aabb_in_frustum(&data, &min, &max)) {
+							c++;
+							if (drawelement_using_index_range(deno->ref))
+								bind_uniforms_and_render_indices_of_drawelement(deno->ref);
+							else
+								bind_uniforms_and_render_drawelement_nonindexed(deno->ref);
+// 						}
+					}
+#if CGLS_DRAWELEMENT_BB_VIS == 1
+					}
+#endif
+				}
+				unbind_shader(shader);
+			}
+			unbind_mesh_from_gl(by_mesh->mesh);
+		}
+
+		*/
+
+
+
+
+struct single_material_shader_fragment {
+	struct single_material_shader_fragment *next;
+	char *name;
+	char *source;
+	int uniforms;
+	char **uniform;
+};
+
+static struct single_material_shader_fragment *single_material_shader_fragments = 0;
+
+static void register_single_material_shader_fragment(const char *name, const char *source, int u, char **U) {
+	struct single_material_shader_fragment *new = malloc(sizeof(struct single_material_shader_fragment));
+	new->name = strdup(name);
+	new->source = strdup(source);
+	new->uniforms = u;
+	new->uniform = malloc(sizeof(char*)*u);
+	for (int i = 0; i < u; ++i)
+		new->uniform[i] = strdup(U[i]);
+	new->next = single_material_shader_fragments;
+	single_material_shader_fragments = new;
+}
+
+single_material_pass_ref make_single_material_pass_from_fragment(const char *name, const char *fragment_name, uniform_setter_t extra_handler, struct drawelement_list *drawelements) {
+	for (struct single_material_shader_fragment *run = single_material_shader_fragments; run; run = run->next)
+		if (strcmp(run->name, fragment_name) == 0)
+			return make_single_material_pass(name, run->source, run->uniforms, run->uniform, extra_handler, drawelements);
+	fprintf(stderr, "Error: Cannot find single-material-shader-fragment '%s'.\n", fragment_name);
+	single_material_pass_ref bad = { -1 };
+	return bad;
+}
+
+// 
+// scheme
+//
+
+
 #ifdef WITH_GUILE
 #include <libguile.h>
 
@@ -659,6 +912,17 @@ SCM_DEFINE(s_scene_clear_color_x, "scene-clear-color!", 4, 0, 0, (SCM r, SCM g, 
 	cgls_scene_clear_color.y = scm_to_double(g);
 	cgls_scene_clear_color.z = scm_to_double(b);
 	cgls_scene_clear_color.w = scm_to_double(a);
+	return SCM_BOOL_T;
+}
+
+SCM_DEFINE(s_register_single_material_fragment, "register-single-material-shader-fragment", 3, 0, 0, (SCM name, SCM code, SCM uniforms), "") {
+	char *n = scm_to_locale_string(name);
+	char *c = scm_to_locale_string(code);
+	int u = scm_to_int(scm_length(uniforms));
+	char **U = malloc(sizeof(char*)*u);
+	for (int i = 0; i < u; ++i)
+		U[i] = scm_to_locale_string(scm_list_ref(uniforms, scm_from_int(i)));
+	register_single_material_shader_fragment(n, c, u, U);
 	return SCM_BOOL_T;
 }
 

@@ -100,6 +100,18 @@ struct graph_scene_bulk_de_list* graph_scene_bulk_drawelements(scene_ref ref);
 
 extern vec4f cgls_scene_clear_color;
 
+
+
+
+
+typedef struct {
+	int id;
+} single_material_pass_ref;
+
+single_material_pass_ref make_single_material_pass(const char *name, const char *fragment_source, int uniforms, char **uniform, uniform_setter_t extra_handler, struct drawelement_list *drawelements);
+single_material_pass_ref make_single_material_pass_from_fragment(const char *name, const char *fragment_name, uniform_setter_t extra_handler, struct drawelement_list *drawelements);
+void render_single_material_pass(single_material_pass_ref ref);
+
 #ifdef __cplusplus
 }
 #endif

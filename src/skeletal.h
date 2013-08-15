@@ -2,6 +2,7 @@
 #define __CGLS_SKELETAL_H__ 
 
 #include <libmcm/matrix.h>
+#include <libcgl/libcgl.h>
 
 #include "c-utils.h"
 #include "animation.h"
@@ -58,7 +59,7 @@ void change_skeletal_animation_speed(skeletal_animation_ref ref, float factor);
 bool valid_skeletal_animation_ref(skeletal_animation_ref ref);
 skeletal_animation_ref find_skeletal_animation(const char *name);
 
-define_slist(skeletal_animation_list, skeletal_animation_ref ref);
+define_array(skeletal_animation);
 struct skeletal_animation_list* list_skeletal_animations();
 
 

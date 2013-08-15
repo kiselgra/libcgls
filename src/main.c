@@ -214,7 +214,9 @@ void actual_main()
 	scene_ref scene = { 0 };
 	the_scene = scene;
 	
-	picking = make_picking_buffer("pick", the_scene, cmdline.res.x, cmdline.res.y);
+	struct drawelement_array picking_des = make_drawelement_array();
+	push_drawelement_list_to_array(scene_drawelements(the_scene), &picking_des);
+	picking = make_picking_buffer("pick", &picking_des, cmdline.res.x, cmdline.res.y);
 	push_interaction_mode(make_blender_style_interaction_mode(the_scene, picking));
 	
 	{
@@ -245,7 +247,8 @@ void actual_main()
 	vec3f u = { 0.172540,0.846205,-0.504150};
 	light_ref spot = make_spotlight("spot", gbuffer, &p, &d, &u, 10);
 	change_light_color3f(spot, 1, .5, .5);
-// 	add_light_to_scene(the_scene, spot);
+	add_light_to_scene(the_scene, spot);
+	push_drawelement_to_array(light_representation(spot), &picking_des);
 
 	{
 	vec3f pos = { 0,10,0 },
@@ -253,7 +256,8 @@ void actual_main()
 		  up = { 0,1,0 };
 	camera_ref c = make_perspective_cam("testcam", &pos, &dir, &up, 20, 1, 1, 1000);
 	light_ref camspot = make_spotlight_from_camera("camspot", gbuffer, c);
-// 	add_light_to_scene(the_scene, camspot);
+	add_light_to_scene(the_scene, camspot);
+	push_drawelement_to_array(light_representation(camspot), &picking_des);
 	}
 
 	scene_set_lighting(the_scene, apply_deferred_lights);
@@ -296,6 +300,8 @@ void actual_main()
 	add_node_to_path_animation(pa, verts+4, &up, times[4]);
 	start_path_animation(pa);
 	*/
+
+	finalize_single_material_passes_for_array(&picking_des);
 	
 	enter_glut_main_loop();
 }

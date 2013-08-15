@@ -109,9 +109,17 @@ typedef struct {
 	int id;
 } single_material_pass_ref;
 
-single_material_pass_ref make_single_material_pass(const char *name, const char *fragment_source, int uniforms, char **uniform, uniform_setter_t extra_handler, struct drawelement_list *drawelements);
-single_material_pass_ref make_single_material_pass_from_fragment(const char *name, const char *fragment_name, uniform_setter_t extra_handler, struct drawelement_list *drawelements);
+single_material_pass_ref make_single_material_pass(const char *name, struct drawelement_list *drawelements, const char *fragment_source, int uniforms, char **uniform, uniform_setter_t extra_handler);
+single_material_pass_ref make_single_material_pass_using_array(const char *name, struct drawelement_array *array, const char *fragment_source, int uniforms, char **uniform, uniform_setter_t extra_handler);
+single_material_pass_ref make_single_material_pass_from_fragment(const char *name, struct drawelement_list *drawelements, const char *fragment, uniform_setter_t extra_handler);
+single_material_pass_ref make_single_material_pass__from_fragmentusing_array(const char *name, struct drawelement_array *array, const char *fragment, uniform_setter_t extra_handler);
+void add_drawelement_to_single_material_pass(single_material_pass_ref ref, drawelement_ref de);
+void finalize_single_material_pass(single_material_pass_ref ref);
+void finalize_single_material_passes_for_array(struct drawelement_array *array);
 void render_single_material_pass(single_material_pass_ref ref);
+
+define_array(scene);
+define_array(single_material_pass);
 
 #ifdef __cplusplus
 }

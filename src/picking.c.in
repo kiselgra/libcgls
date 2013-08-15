@@ -37,7 +37,7 @@ static void build_clear_de(struct picking_buffer *buf);
 static bool picking_buffer_uniform_handler(drawelement_ref *ref, const char *uniform, int location);
 static const char* picking_fragment_shader();
 
-picking_buffer_ref make_picking_buffer(const char *name, scene_ref scene, unsigned int width, unsigned int height) {
+picking_buffer_ref make_picking_buffer(const char *name, struct drawelement_array *array, unsigned int width, unsigned int height) {
 	picking_buffer_ref ref = allocate_picking_buffer_ref();
 	struct picking_buffer *buf = picking_buffers+ref.id;
 
@@ -55,7 +55,9 @@ picking_buffer_ref make_picking_buffer(const char *name, scene_ref scene, unsign
 	unbind_texture(buf->id_tex);
 
 	char *u[1] = { "id" };
-	buf->update_pass = make_single_material_pass("pickingbuffer update", picking_fragment_shader(), 1, u, (uniform_setter_t)picking_buffer_uniform_handler, scene_drawelements(scene));
+	buf->update_pass = make_single_material_pass_using_array("pickingbuffer update", array, picking_fragment_shader(), 1, u, (uniform_setter_t)picking_buffer_uniform_handler);
+// 	buf->update_pass = make_single_material_pass("pickingbuffer update", list_drawelements());
+// 	buf->update_pass = make_single_material_pass("pickingbuffer update", picking_fragment_shader(), 1, u, (uniform_setter_t)picking_buffer_uniform_handler, list_drawelements());
 	build_clear_de(buf);
 
 	vec4f hc = { 1, 0.5, 0, 1 }, no = { 0, 0, 0, 1 };

@@ -18,10 +18,7 @@ typedef struct {
 	int id;
 } drawelement_ref;
 
-struct drawelement_list {
-    struct drawelement_list *next;
-    drawelement_ref ref;
-};
+define_array(drawelement);
 
 bool default_matrix_uniform_handler(drawelement_ref *ref, const char *uniform, int location);
 bool default_material_uniform_handler(drawelement_ref *ref, const char *uniform, int location); // defined in material.c

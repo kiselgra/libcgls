@@ -45,6 +45,8 @@ struct stockshader_fragments*  material_stock_shader_fragment(material_ref ref, 
 void* material_aux(material_ref ref);
 void material_set_aux(material_ref ref, void *aux);
 
+define_array(material);
+
 #ifdef __cplusplus
 }
 #endif

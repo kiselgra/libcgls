@@ -4,6 +4,8 @@
 #include <libmcm/vectors.h>
 #include <libmcm/matrix.h>
 
+#include <libcgl/cgl.h>
+
 #include "c-utils.h"
 #include "animation.h"
 
@@ -24,11 +26,12 @@ void change_path_animation_speed(path_animation_ref ref, float factor);
 float path_animation_speed(path_animation_ref ref, float factor);
 void evaluate_path_animation_at(path_animation_ref ref, animation_time_t time);
 
-define_slist(path_animation_list, path_animation_ref ref);
+define_array(path_animation);
 
 path_animation_ref find_path_animation(const char *name);
 struct path_animation_list* list_path_animations();
 bool valid_path_animation_ref(path_animation_ref ref);
+
 
 #ifdef __cplusplus
 }

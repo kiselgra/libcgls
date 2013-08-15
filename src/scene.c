@@ -41,8 +41,14 @@ struct smp_by_mesh {
 struct single_material_pass {
 	char *name;
 	struct drawelement_list *drawelements;
+	struct drawelement_array *de_array;
 	struct smp_by_mesh *by_mesh;
 	uniform_setter_t extra_handler;
+	int uniforms;
+	char **uniform;
+	char *fragment_source;
+	bool closed;
+	char *fragment;
 };
 
 #include <libcgl/mm.h>
@@ -592,31 +598,130 @@ scene_ref make_graph_scene(const char *name) {
 // single material pass
 //
 
-single_material_pass_ref make_single_material_pass(const char *name, const char *fragment_source, int uniforms, char **uniform, uniform_setter_t extra_handler, struct drawelement_list *drawelements) {
+single_material_pass_ref make_single_material_pass(const char *name, struct drawelement_list *drawelements, const char *fragment_source, int uniforms, char **uniform, uniform_setter_t extra_handler) {
 	single_material_pass_ref ref = allocate_single_material_pass_ref();
 	struct single_material_pass *smp = material_passes+ref.id;
 	smp->name = strdup(name);
 	smp->drawelements = drawelements;
+	smp->de_array = 0;
+	smp->closed = false;
 	smp->extra_handler = extra_handler;
+	smp->uniforms = uniforms;
+	smp->uniform = malloc(sizeof(char*)*uniforms);
+	for (int i = 0; i < uniforms; ++i)
+		smp->uniform[i] = strdup(uniform[i]);
+	smp->fragment_source = strdup(fragment_source);
+	smp->fragment = 0;
+	return ref;
+}
+
+single_material_pass_ref make_single_material_pass_using_array(const char *name, struct drawelement_array *array, const char *fragment_source, int uniforms, char **uniform, uniform_setter_t extra_handler) {
+	single_material_pass_ref ref = make_single_material_pass(name, 0, fragment_source, uniforms, uniform, extra_handler);
+	struct single_material_pass *smp = material_passes+ref.id;
+	smp->de_array = array;
+	return ref;
+}
+
+struct single_material_shader_fragment {
+	struct single_material_shader_fragment *next;
+	char *name;
+	char *source;
+	int uniforms;
+	char **uniform;
+};
+
+static struct single_material_shader_fragment *single_material_shader_fragments = 0;
+
+static void register_single_material_shader_fragment(const char *name, const char *source, int u, char **U) {
+	struct single_material_shader_fragment *new = malloc(sizeof(struct single_material_shader_fragment));
+	new->name = strdup(name);
+	new->source = strdup(source);
+	new->uniforms = u;
+	new->uniform = malloc(sizeof(char*)*u);
+	for (int i = 0; i < u; ++i)
+		new->uniform[i] = strdup(U[i]);
+	new->next = single_material_shader_fragments;
+	single_material_shader_fragments = new;
+}
+
+single_material_pass_ref make_single_material_pass_from_fragment(const char *name, struct drawelement_list *drawelements, const char *fragment, uniform_setter_t extra_handler) {
+	for (struct single_material_shader_fragment *run = single_material_shader_fragments; run; run = run->next)
+		if (strcmp(run->name, fragment) == 0)
+			return make_single_material_pass(name, drawelements, run->source, run->uniforms, run->uniform, extra_handler);
+	single_material_pass_ref bad = { -1 };
+	return bad;
+}
+
+single_material_pass_ref make_single_material_pass_from_fragment_using_array(const char *name, struct drawelement_array *array, const char *fragment, uniform_setter_t extra_handler) {
+	for (struct single_material_shader_fragment *run = single_material_shader_fragments; run; run = run->next)
+		if (strcmp(run->name, fragment) == 0)
+			return make_single_material_pass_using_array(name, array, run->source, run->uniforms, run->uniform, extra_handler);
+	single_material_pass_ref bad = { -1 };
+	return bad;
+}
+
+void add_drawelement_to_single_material_pass(single_material_pass_ref ref, drawelement_ref de) {
+	struct single_material_pass *smp = material_passes+ref.id;
+	if (smp->closed) {
+		fprintf(stderr, "Error: Cannot add drawelement '%s' to already closed material pass '%s'.\n", drawelement_name(de), smp->name);
+		return;
+	}
+	if (smp->de_array) {
+		fprintf(stderr, "Error: This pass collects its drawelements via an external array. Please maintain it explicitly.\n");
+		return;
+	}
+	struct drawelement_list *new = malloc(sizeof(struct drawelement_list));
+	new->ref = de;
+	new->next = smp->drawelements;
+	smp->drawelements = new;
+}
+
+void finalize_single_material_pass(single_material_pass_ref ref) {
+	struct single_material_pass *smp = material_passes+ref.id;
+	smp->closed = true;
 
 	// partition by mesh
-	smp->by_mesh = 0;
-	for (struct drawelement_list *run = drawelements; run; run = run->next) {
-		struct smp_by_mesh *bm = smp->by_mesh;
-		while (bm && bm->mesh.id != drawelement_mesh(run->ref).id)
-			bm = bm->next;
-		if (!bm) {
-			struct smp_by_mesh *new = malloc(sizeof(struct smp_by_mesh));
-			new->mesh = drawelement_mesh(run->ref);
-			new->by_shader = 0;
-			new->tmp_des = 0;
-			new->next = smp->by_mesh;
-			smp->by_mesh = bm = new;
+	if (smp->de_array) {
+		smp->by_mesh = 0;
+		for (int i = 0; i < smp->de_array->size; ++i) {
+			printf("looking at de '%s'\n", drawelement_name(smp->de_array->element[i]));
+			struct smp_by_mesh *bm = smp->by_mesh;
+			while (bm && bm->mesh.id != drawelement_mesh(smp->de_array->element[i]).id)
+				bm = bm->next;
+			if (!bm) {
+				struct smp_by_mesh *new = malloc(sizeof(struct smp_by_mesh));
+				new->mesh = drawelement_mesh(smp->de_array->element[i]);
+				new->by_shader = 0;
+				new->tmp_des = 0;
+				new->next = smp->by_mesh;
+				smp->by_mesh = bm = new;
+			}
+			printf("  --> into bucket of mesh '%s'\n", mesh_name(bm->mesh));
+			struct drawelement_list *node = malloc(sizeof(struct drawelement_list));
+			node->next = bm->tmp_des;
+			node->ref = smp->de_array->element[i];
+			bm->tmp_des = node;
 		}
-		struct drawelement_list *node = malloc(sizeof(struct drawelement_list));
-		node->next = bm->tmp_des;
-		node->ref = run->ref;
-		bm->tmp_des = node;
+	}
+	else {
+		smp->by_mesh = 0;
+		for (struct drawelement_list *run = smp->drawelements; run; run = run->next) {
+			struct smp_by_mesh *bm = smp->by_mesh;
+			while (bm && bm->mesh.id != drawelement_mesh(run->ref).id)
+				bm = bm->next;
+			if (!bm) {
+				struct smp_by_mesh *new = malloc(sizeof(struct smp_by_mesh));
+				new->mesh = drawelement_mesh(run->ref);
+				new->by_shader = 0;
+				new->tmp_des = 0;
+				new->next = smp->by_mesh;
+				smp->by_mesh = bm = new;
+			}
+			struct drawelement_list *node = malloc(sizeof(struct drawelement_list));
+			node->next = bm->tmp_des;
+			node->ref = run->ref;
+			bm->tmp_des = node;
+		}
 	}
 
 	// partition mesh buckets by shader
@@ -651,9 +756,9 @@ single_material_pass_ref make_single_material_pass(const char *name, const char 
 			// default stock shader
 			struct stockshader_fragments ssf;
 			init_stockshader_fragments(&ssf);
-			stockshader_add_fsource(&ssf, fragment_source);
-			for (int i = 0; i < uniforms; ++i)
-				stockshader_add_uniform(&ssf, uniform[i]);
+			stockshader_add_fsource(&ssf, smp->fragment_source);
+			for (int i = 0; i < smp->uniforms; ++i)
+				stockshader_add_uniform(&ssf, smp->uniform[i]);
 			// add drawelement vertex shader part, use_tc according to \ref make_stock_shader_fragments.
 			bool use_tc = false;
 			for (int i = 0; i < shader_uniforms(bs->shader); ++i) {
@@ -668,15 +773,21 @@ single_material_pass_ref make_single_material_pass(const char *name, const char 
 			}
 			add_stock_vertex_shader_part(&ssf, true, use_tc, drawelement_number_of_bones(bs->des->ref), drawelement_with_path(bs->des->ref));
 			char *sname = 0;
-			int n = asprintf(&sname, "single-material-shader for pass '%s' based on shader '%s'", name, shader_name(bs->shader));
+			int n = asprintf(&sname, "single-material-shader for pass '%s' based on shader '%s'", smp->name, shader_name(bs->shader));
 			bs->shader = make_shader(sname, stockshader_inputs(&ssf));
 			populate_shader_with_fragments(bs->shader, &ssf);
 			compile_and_link_shader_showing_log_on_error(bs->shader);
 			free(sname);
 		}
 	}
-	
-	return ref;
+}
+
+void finalize_single_material_passes_for_array(struct drawelement_array *array) {
+	for (int i = 0; i < next_single_material_pass_index; ++i)
+		if (material_passes[i].de_array == array) {
+			single_material_pass_ref ref = { i };
+			finalize_single_material_pass(ref);
+		}
 }
 
 void render_single_material_pass(single_material_pass_ref refx) {
@@ -711,37 +822,6 @@ void render_single_material_pass(single_material_pass_ref refx) {
 }
 	
 
-
-struct single_material_shader_fragment {
-	struct single_material_shader_fragment *next;
-	char *name;
-	char *source;
-	int uniforms;
-	char **uniform;
-};
-
-static struct single_material_shader_fragment *single_material_shader_fragments = 0;
-
-static void register_single_material_shader_fragment(const char *name, const char *source, int u, char **U) {
-	struct single_material_shader_fragment *new = malloc(sizeof(struct single_material_shader_fragment));
-	new->name = strdup(name);
-	new->source = strdup(source);
-	new->uniforms = u;
-	new->uniform = malloc(sizeof(char*)*u);
-	for (int i = 0; i < u; ++i)
-		new->uniform[i] = strdup(U[i]);
-	new->next = single_material_shader_fragments;
-	single_material_shader_fragments = new;
-}
-
-single_material_pass_ref make_single_material_pass_from_fragment(const char *name, const char *fragment_name, uniform_setter_t extra_handler, struct drawelement_list *drawelements) {
-	for (struct single_material_shader_fragment *run = single_material_shader_fragments; run; run = run->next)
-		if (strcmp(run->name, fragment_name) == 0)
-			return make_single_material_pass(name, run->source, run->uniforms, run->uniform, extra_handler, drawelements);
-	fprintf(stderr, "Error: Cannot find single-material-shader-fragment '%s'.\n", fragment_name);
-	single_material_pass_ref bad = { -1 };
-	return bad;
-}
 
 // 
 // scheme

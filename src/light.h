@@ -17,7 +17,7 @@ typedef struct {
 enum built_in_light_types { wrong_light_t, spot_light_t, hemi_light_t };
 
 define_slist(light_uniform_handler_node, uniform_setter_t handler);
-define_slist(light_list, light_ref ref);
+define_array(light);
 
 
 // actual light functions
@@ -67,7 +67,6 @@ drawelement_ref build_spot_light_representation_drawelement(const char *lightnam
 bool basic_light_uniform_handler(light_ref *ref, const char *uniform, int location);
 bool stock_spotlight_uniform_handler(light_ref *ref, const char *uniform, int location);
 bool stock_hemilight_uniform_handler(light_ref *ref, const char *uniform, int location);
-
 
 #ifdef __cplusplus
 }

@@ -312,7 +312,7 @@ void interaction_bm_mouse(interaction_mode *mode, int button, int state, int x, 
 	struct blendermode_aux *bm = mode->aux;
 	if (state == cgls_interaction_button_down) {
 		int yy = picking_buffer_height(bm->picking) - y;
-		update_picking_buffer(bm->picking, bm->scene, x, yy);
+		update_picking_buffer(bm->picking, x, yy);
 		bm->selected_de = read_picking_buffer(bm->picking, x, yy);
 		if (valid_drawelement_ref(bm->selected_de)) {
 			add_function_key_to_mode(mode, 'g', cgls_interaction_no_modifier, interaction_bm_grab_key);

@@ -207,8 +207,6 @@ void actual_main()
 
     gbuffer = make_stock_deferred_buffer("gbuffer", cmdline.res.x, cmdline.res.y, GL_RGBA8, GL_RGBA8, GL_RGBA16F, GL_RGBA32F, GL_DEPTH_COMPONENT24);
 
-	picking = make_picking_buffer("pick", cmdline.res.x, cmdline.res.y);
-
     char *config = 0;
     int n = asprintf(&config, "%s/%s", cmdline.include_path, cmdline.config);
 	load_configfile(config);
@@ -216,6 +214,7 @@ void actual_main()
 	scene_ref scene = { 0 };
 	the_scene = scene;
 	
+	picking = make_picking_buffer("pick", the_scene, cmdline.res.x, cmdline.res.y);
 	push_interaction_mode(make_blender_style_interaction_mode(the_scene, picking));
 	
 	{
@@ -277,6 +276,7 @@ void actual_main()
 // 	shader_ref newshader = make_stock_shader(0, girl, 0, true);
 // 	drawelement_change_shader(girl, newshader);
 	
+	/*
 	path_animation_ref pa = make_path_animation("blub", 5);
 	drawelement_ref de = find_drawelement("/home/kiselgra/render-data/models/sponza.obj/sponza_375");
 	make_drawelement_part_of_path_animation(de, pa);
@@ -295,7 +295,7 @@ void actual_main()
 	add_node_to_path_animation(pa, verts+3, &up, times[3]);
 	add_node_to_path_animation(pa, verts+4, &up, times[4]);
 	start_path_animation(pa);
-
+	*/
 	
 	enter_glut_main_loop();
 }

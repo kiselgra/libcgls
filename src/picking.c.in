@@ -25,6 +25,7 @@ struct picking_buffer {
 	shader_ref shader;
 	drawelement_ref clear_de;
 	material_ref hightlight_material;
+	single_material_pass_ref update_pass;
 };
 
 #include <libcgl/mm.h>
@@ -34,8 +35,9 @@ define_mm(picking_buffer, picking_buffers, picking_buffer_ref);
 static void build_shader(struct picking_buffer *buf);
 static void build_clear_de(struct picking_buffer *buf);
 static bool picking_buffer_uniform_handler(drawelement_ref *ref, const char *uniform, int location);
+static const char* picking_fragment_shader();
 
-picking_buffer_ref make_picking_buffer(const char *name, unsigned int width, unsigned int height) {
+picking_buffer_ref make_picking_buffer(const char *name, scene_ref scene, unsigned int width, unsigned int height) {
 	picking_buffer_ref ref = allocate_picking_buffer_ref();
 	struct picking_buffer *buf = picking_buffers+ref.id;
 
@@ -52,7 +54,8 @@ picking_buffer_ref make_picking_buffer(const char *name, unsigned int width, uns
 	unbind_framebuffer(buf->fbo);
 	unbind_texture(buf->id_tex);
 
-	build_shader(buf);
+	char *u[1] = { "id" };
+	buf->update_pass = make_single_material_pass("pickingbuffer update", picking_fragment_shader(), 1, u, (uniform_setter_t)picking_buffer_uniform_handler, scene_drawelements(scene));
 	build_clear_de(buf);
 
 	vec4f hc = { 1, 0.5, 0, 1 }, no = { 0, 0, 0, 1 };
@@ -77,7 +80,7 @@ int picking_buffer_height(picking_buffer_ref ref) {
 /*! \brief render drawelement ids to the picking buffer.
  *  when the arguments x and y are >= 0 only the specified pixel is updated.
  */
-void update_picking_buffer(picking_buffer_ref ref, scene_ref scene, int x, int y) {
+void update_picking_buffer(picking_buffer_ref ref, int x, int y) {
 	struct picking_buffer *buf = picking_buffers+ref.id;
 	bool scissor = x>=0 && y>=0;
 
@@ -88,7 +91,8 @@ void update_picking_buffer(picking_buffer_ref ref, scene_ref scene, int x, int y
 		}
 		render_drawelement(buf->clear_de);
 		glClear(GL_DEPTH_BUFFER_BIT);
-		render_scene_with_shader(scene, buf->shader, (uniform_setter_t)picking_buffer_uniform_handler);
+		render_single_material_pass(buf->update_pass);
+		glDisable(GL_CULL_FACE);
 		if (scissor)
 			glDisable(GL_SCISSOR_TEST);
 	unbind_framebuffer(buf->fbo);

@@ -139,7 +139,8 @@ static vec3f path_position_at(path_animation_ref ref, animation_time_t time, int
 	find_nodes_for_path_animation(pa, time, &next, &prev);
 	if (next < 0) {
 		fprintf(stderr, "Error: Invalid path-time in path_position_at(): %f.\n", time);
-		return;
+		vec3f ret = { 0,0,0 };
+		return ret;
 	}
 
 	// interpolation parameter
@@ -204,6 +205,28 @@ void evaluate_path_animation_at(path_animation_ref ref, animation_time_t time) {
 	}
 }
 
+/*! we approximate the arc length by the sum of a number of linear paths. cheap, yeah :/ */
+void normalize_speed_along_path(path_animation_ref ref) {
+	struct path_animation *pa = path_animations + ref.id;
+	float lengths[pa->nodes-1];
+	float path_length = 0;
+	for (int i = 0; i < pa->nodes-1; ++i) {
+		int segments = 100;
+		float arc_start = pa->node[i].time;
+		float arc_end = pa->node[i+1].time;
+		vec3f start = path_position_at(ref, arc_start, 0, 0), end, diff;
+		for (int s = 0; s < segments+1; ++s) {
+			end = path_position_at(ref, arc_start + (arc_end-arc_start)*s/(segments+1), 0, 0);
+			sub_components_vec3f(&diff, &end, &start);
+			path_length += length_of_vec3f(&diff);
+			start = end;
+		}
+		lengths[i] = path_length;
+	}
+	float expected_length = pa->node[pa->nodes-1].time;
+	for (int i = 1; i < pa->nodes; ++i)
+		pa->node[i].time = lengths[i-1] * expected_length / path_length;
+}
 
 
 #ifdef WITH_GUILE
@@ -268,6 +291,12 @@ SCM_DEFINE(s_pa_nodes_time, "path-animation-time", 1, 0, 0, (SCM id), "") {
 		l = scm_cons(scm_from_double(pa->node[i].time), l);
 	}
 	return l;
+}
+
+SCM_DEFINE(s_pa_normalize, "normalize-speed-along-path", 1, 0, 0, (SCM id), "") {
+	path_animation_ref ref = { scm_to_int(id) };
+	normalize_speed_along_path(ref);
+	return SCM_BOOL_T;
 }
 
 void register_scheme_functions_for_path_animation() {

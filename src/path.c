@@ -24,6 +24,7 @@ struct path_animation {
 	animation_time_t animation_start_time;
 	float animation_speed;
 	bool track_direction;
+	bool running;
 };
 
 #include <libcgl/mm.h>
@@ -40,6 +41,7 @@ path_animation_ref make_path_animation(const char *name, int nodes) {
 	pa->animation_start_time = 0;
 	pa->animation_speed = 1;
 	pa->track_direction = true;
+	pa->running = false;
 	make_unit_matrix4x4f(&pa->trafo);
 
 	return ref;
@@ -99,6 +101,12 @@ float path_animation_speed(path_animation_ref ref, float factor) {
 void start_path_animation(path_animation_ref ref) {
 	struct path_animation *pa = path_animations + ref.id;
 	pa->animation_start_time = animation_time_stamp();
+	pa->running = true;
+}
+
+void stop_path_animation(path_animation_ref ref) {
+	struct path_animation *pa = path_animations + ref.id;
+	pa->running = false;
 }
 
 matrix4x4f* path_matrix_of_animation(path_animation_ref ref) {
@@ -126,6 +134,8 @@ static void assign_hermite_points(struct path_animation *pa, vec3f *p_minus_1, v
 
 void evaluate_path_animation_at(path_animation_ref ref, animation_time_t time) {
 	struct path_animation *pa = path_animations + ref.id;
+	if (!pa->running)
+		return;
 	matrix4x4f *mat = path_matrix_of_animation(ref);
 	
 	time -= pa->animation_start_time;
@@ -223,6 +233,32 @@ SCM_DEFINE(s_start_pa, "start-path-animation", 1, 0, 0, (SCM pa), "") {
 	path_animation_ref ref = { scm_to_int(pa) };
 	start_path_animation(ref);
 	return SCM_BOOL_T;
+}
+
+SCM_DEFINE(s_stop_pa, "stop-path-animation", 1, 0, 0, (SCM pa), "") {
+	path_animation_ref ref = { scm_to_int(pa) };
+	stop_path_animation(ref);
+	return SCM_BOOL_T;
+}
+
+SCM_DEFINE(s_pa_nodes_pos, "path-animation-positions", 1, 0, 0, (SCM id), "") {
+	path_animation_ref ref = { scm_to_int(id) };
+	struct path_animation *pa = path_animations + ref.id;
+	SCM l = SCM_EOL;
+	for (int i = 0; i < pa->nodes; i++) {
+		l = scm_cons(vec3f_to_list(&pa->node[i].pos), l);
+	}
+	return l;
+}
+
+SCM_DEFINE(s_pa_nodes_time, "path-animation-time", 1, 0, 0, (SCM id), "") {
+	path_animation_ref ref = { scm_to_int(id) };
+	struct path_animation *pa = path_animations + ref.id;
+	SCM l = SCM_EOL;
+	for (int i = 0; i < pa->nodes; i++) {
+		l = scm_cons(scm_from_double(pa->node[i].time), l);
+	}
+	return l;
 }
 
 void register_scheme_functions_for_path_animation() {

@@ -1,6 +1,8 @@
 #ifndef __CONSOLE_H__ 
 #define __CONSOLE_H__ 
 
+#include "refs.h"
+
 #ifdef WITH_GUILE
 #include <libcgl/scheme.h>
 #endif
@@ -10,10 +12,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-typedef struct {
-	int id;
-} console_ref;
 
 typedef char* (*console_command_handler_t)(console_ref ref, const char *command);
 

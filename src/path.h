@@ -1,6 +1,8 @@
 #ifndef __CGLS_PATH_H__ 
 #define __CGLS_PATH_H__ 
 
+#include "refs.h"
+
 #include <libmcm/vectors.h>
 #include <libmcm/matrix.h>
 
@@ -12,10 +14,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-typedef struct {
-	int id;
-} path_animation_ref;
 
 path_animation_ref make_path_animation(const char *name, int nodes);
 void add_node_to_path_animation(path_animation_ref ref, vec3f *p, vec3f *up, float t);
@@ -33,6 +31,8 @@ path_animation_ref find_path_animation(const char *name);
 struct path_animation_list* list_path_animations();
 bool valid_path_animation_ref(path_animation_ref ref);
 
+// console.
+void add_path_commands_to_viconsole(console_ref console);
 
 #ifdef __cplusplus
 }

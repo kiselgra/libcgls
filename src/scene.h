@@ -1,6 +1,8 @@
 #ifndef __CGLS_SCENE_H__ 
 #define __CGLS_SCENE_H__ 
 
+#include "refs.h"
+
 #include "drawelement.h"
 #include "light.h"
 
@@ -33,10 +35,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-typedef struct {
-	int id;
-} scene_ref;
 
 typedef void (*scene_traverser_t)(scene_ref);
 void default_scene_renderer(scene_ref ref);
@@ -104,10 +102,6 @@ extern vec4f cgls_scene_clear_color;
 
 
 
-
-typedef struct {
-	int id;
-} single_material_pass_ref;
 
 single_material_pass_ref make_single_material_pass(const char *name, struct drawelement_list *drawelements, const char *fragment_source, int uniforms, char **uniform, uniform_setter_t extra_handler);
 single_material_pass_ref make_single_material_pass_using_array(const char *name, struct drawelement_array *array, const char *fragment_source, int uniforms, char **uniform, uniform_setter_t extra_handler);

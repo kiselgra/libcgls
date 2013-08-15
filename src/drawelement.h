@@ -1,6 +1,7 @@
 #ifndef __CGLS_DRAWELEMENT_H__ 
 #define __CGLS_DRAWELEMENT_H__ 
 
+#include "refs.h"
 #include "material.h"
 #include "uniforms.h"
 #include "skeletal.h"
@@ -13,10 +14,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-typedef struct {
-	int id;
-} drawelement_ref;
 
 define_array(drawelement);
 

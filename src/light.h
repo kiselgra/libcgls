@@ -1,6 +1,8 @@
 #ifndef __LIGHT_H__ 
 #define __LIGHT_H__ 
 
+#include "refs.h"
+
 #include "c-utils.h"
 #include "uniforms.h"
 #include "drawelement.h"
@@ -9,10 +11,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-typedef struct {
-	int id;
-} light_ref;
 
 enum built_in_light_types { wrong_light_t, spot_light_t, hemi_light_t };
 

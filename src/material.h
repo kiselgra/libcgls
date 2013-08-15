@@ -1,6 +1,8 @@
 #ifndef __MATERIAL_H__ 
 #define __MATERIAL_H__ 
 
+#include "refs.h"
+
 #include <libcgl/libcgl.h>
 #include "c-utils.h"
 
@@ -11,10 +13,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-typedef struct {
-	int id;
-} material_ref;
 
 inline bool equal_material_refs(material_ref a, material_ref b) {
 	return a.id == b.id;

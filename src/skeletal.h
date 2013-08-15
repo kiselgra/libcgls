@@ -1,6 +1,8 @@
 #ifndef __CGLS_SKELETAL_H__ 
 #define __CGLS_SKELETAL_H__ 
 
+#include "refs.h"
+
 #include <libmcm/matrix.h>
 #include <libcgl/libcgl.h>
 
@@ -42,10 +44,6 @@ struct animation_sequence {
 };
 
 define_slist(animation_list, struct animation_sequence *animation);
-
-typedef struct {
-	int id;
-} skeletal_animation_ref;
 
 skeletal_animation_ref make_skeletal_animation(const char *name, struct bone_list *bones);
 struct bone* find_bone_in_skeletal_animation(skeletal_animation_ref ref, const char *bone_name);

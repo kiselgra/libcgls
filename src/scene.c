@@ -684,16 +684,12 @@ void render_single_material_pass(single_material_pass_ref refx) {
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
 	
-	printf("material pass %s:\n", smp->name);
-
-// /*
 	for (struct smp_by_mesh *bm = smp->by_mesh; bm; bm = bm->next) {
 		bind_mesh_to_gl(bm->mesh);
 		for (struct smp_by_shader *bs = bm->by_shader; bs; bs = bs->next) {
 			bind_shader(bs->shader);
 
 			for (struct drawelement_list *run = bs->des; run; run = run->next) {
-				printf("   - %s\n", drawelement_name(run->ref));
 				if (!drawelement_hidden(run->ref)) {
 					shader_ref old_shader = drawelement_change_shader(run->ref, bs->shader);
 					if (smp->extra_handler)
@@ -712,119 +708,8 @@ void render_single_material_pass(single_material_pass_ref refx) {
 		}
 		unbind_mesh_from_gl(bm->mesh);
 	}
-// 	*/
-	
-	/*
-	scene_ref ref = { 0 };
-	graph_scene_or_return(ref);
-	struct graph_scene_aux *gs = scene_aux(ref);
-	bool use_single_shader = use_single_shader_for_scene(ref);
-	shader_ref shader = single_shader_for_scene(ref);
-	uniform_setter_t uniform_setter = single_shader_extra_uniform_handler(ref);
-
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_BACK);
-	for (struct by_mesh *by_mesh = gs->meshes; by_mesh; by_mesh = by_mesh->next) {
-		bind_mesh_to_gl(by_mesh->mesh);
-		for (struct by_material *by_mat = by_mesh->materials; by_mat; by_mat = by_mat->next) {
-			// we'd have to separate material uniforms (textures [incl.
-			// binding], ...) and drawelement uniforms (object trafo)
-			bind_shader(shader);
-			for (drawelement_node *deno = by_mat->drawelements; deno; deno = deno->next) {
-				if (!drawelement_hidden(deno->ref)) {
-					shader_ref old_shader = drawelement_change_shader(by_mat->drawelements->ref, shader);
-					if (smp->extra_handler)
-						prepend_drawelement_uniform_handler(deno->ref, smp->extra_handler);
-					if (drawelement_using_index_range(deno->ref))
-						bind_uniforms_and_render_indices_of_drawelement(deno->ref);
-					else
-						bind_uniforms_and_render_drawelement_nonindexed(deno->ref);
-					if (smp->extra_handler)
-						pop_drawelement_uniform_handler(deno->ref);
-					drawelement_change_shader(by_mat->drawelements->ref, old_shader);
-				}
-			}
-			unbind_shader(shader);
-		}
-		unbind_mesh_from_gl(by_mesh->mesh);
-	}
-	*/
-
 }
 	
-/*
-	graph_scene_or_return(ref);
-	struct graph_scene_aux *gs = scene_aux(ref);
-	bool use_single_shader = use_single_shader_for_scene(ref);
-	shader_ref shader = single_shader_for_scene(ref);
-	uniform_setter_t uniform_setter = single_shader_extra_uniform_handler(ref);
-
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_BACK);
-	if (use_single_shader)
-		for (struct by_mesh *by_mesh = gs->meshes; by_mesh; by_mesh = by_mesh->next) {
-			bind_mesh_to_gl(by_mesh->mesh);
-			for (struct by_material *by_mat = by_mesh->materials; by_mat; by_mat = by_mat->next) {
-				// we'd have to separate material uniforms (textures [incl.
-				// binding], ...) and drawelement uniforms (object trafo)
-				bind_shader(shader);
-				for (struct drawelement_node *deno = by_mat->drawelements; deno; deno = deno->next) {
-					if (!drawelement_hidden(deno->ref)) {
-						shader_ref old_shader = drawelement_change_shader(by_mat->drawelements->ref, shader);
-						if (uniform_setter)
-							prepend_drawelement_uniform_handler(deno->ref, uniform_setter);
-						if (drawelement_using_index_range(deno->ref))
-							bind_uniforms_and_render_indices_of_drawelement(deno->ref);
-						else
-							bind_uniforms_and_render_drawelement_nonindexed(deno->ref);
-						if (uniform_setter)
-							pop_drawelement_uniform_handler(deno->ref);
-						drawelement_change_shader(by_mat->drawelements->ref, old_shader);
-					}
-				}
-				unbind_shader(shader);
-			}
-			unbind_mesh_from_gl(by_mesh->mesh);
-		}
-	else {
-		frustum_culling_t data;
-		populate_frustum_culling_info(current_camera(), &data);
-		int a = 0, c = 0;
-		for (struct by_mesh *by_mesh = gs->meshes; by_mesh; by_mesh = by_mesh->next) {
-			bind_mesh_to_gl(by_mesh->mesh);
-			for (struct by_material *by_mat = by_mesh->materials; by_mat; by_mat = by_mat->next) {
-				// we'd have to separate material uniforms (textures [incl.
-				// binding], ...) and drawelement uniforms (object trafo)
-				shader = drawelement_shader(by_mat->drawelements->ref);
-				bind_shader(shader);
-				for (struct drawelement_node *deno = by_mat->drawelements; deno; deno = deno->next) {
-#if CGLS_DRAWELEMENT_BB_VIS == 1
-					if (!drawelement_shows_bounding_box(deno->ref)) {
-#endif
-						a++;
-					if (!drawelement_hidden(deno->ref)) {
-						vec3f min, max;
-						bounding_box_of_drawelement(deno->ref, &min, &max);
-						if (!drawelement_has_bounding_box(deno->ref) || aabb_in_frustum(&data, &min, &max)) {
-							c++;
-							if (drawelement_using_index_range(deno->ref))
-								bind_uniforms_and_render_indices_of_drawelement(deno->ref);
-							else
-								bind_uniforms_and_render_drawelement_nonindexed(deno->ref);
-// 						}
-					}
-#if CGLS_DRAWELEMENT_BB_VIS == 1
-					}
-#endif
-				}
-				unbind_shader(shader);
-			}
-			unbind_mesh_from_gl(by_mesh->mesh);
-		}
-
-		*/
-
-
 
 
 struct single_material_shader_fragment {

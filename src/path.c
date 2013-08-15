@@ -264,16 +264,64 @@ static char* console_path_name(int argc, char **argv, path_animation_ref *ref) {
 static char* console_start_path_animation(console_ref c, int argc, char **argv) {
 	path_name_or_else;
 	start_path_animation(ref);
+	return 0;
 }
 
 static char* console_stop_path_animation(console_ref c, int argc, char **argv) {
 	path_name_or_else;
 	stop_path_animation(ref);
+	return 0;
+}
+
+static char* console_normalize_path_animation(console_ref c, int argc, char **argv) {
+	path_name_or_else;
+	normalize_speed_along_path(ref);
+	return 0;
+}
+
+static char* console_pa_change_node(console_ref c, int argc, char **argv) {
+	path_name_or_else;
+	if (argc < 3) return strdup("not enough arguments");
+	if (!isdigit(argv[2][0])) return strdup("not a node id");
+	int id = atoi(argv[2]);
+	if (argc < 4) return strdup("missing operation");
+	enum { ass, add, sub };
+	int op;
+	if (argv[3][0] == '=') op = ass;
+	else if (argv[3][0] == '+') op = add;
+	else if (argv[3][0] == '-') op = sub;
+	else return strdup("invalid operand");
+	if (argc < 7) return strdup("incomplete position argument");
+	vec3f pos;
+	pos.x = atof(argv[4]);
+	pos.y = atof(argv[5]);
+	pos.z = atof(argv[6]);
+	struct path_animation *pa = path_animations + ref.id;
+	if (op == ass) pa->node[id].pos = pos;
+	if (op == add) add_components_vec3f(&pa->node[id].pos, &pa->node[id].pos, &pos);
+	if (op == sub) sub_components_vec3f(&pa->node[id].pos, &pa->node[id].pos, &pos);
+	return 0;
+}
+
+static char* console_help_path_animation(console_ref c, int argc, char **argv) {
+	return strdup("options:  a-start  a-stop  a-normalize  a-nodes");
 }
 
 void add_path_commands_to_viconsole(console_ref console) {
-	add_vi_console_command(console, "start-a", console_start_path_animation);
-	add_vi_console_command(console, "stop-a", console_stop_path_animation);
+	add_vi_console_command(console, "a-start", console_start_path_animation);
+	add_vi_console_command(console, "a-stop", console_stop_path_animation);
+	add_vi_console_command(console, "a-normalize", console_normalize_path_animation);
+	add_vi_console_command(console, "a-help", console_help_path_animation);
+	scm_c_eval_string("(define (console-pa-show-points console args) \
+	                     (if (< (length args) 2) \
+						     (format #f \"not enough arguments\") \
+							 (let ((id (if (string->number (second args)) \
+							               (string->number (second args)) \
+										   (find-path-animation (second args))))) \
+							   (if (< id 0) \
+							       (format #f \"no such path animation\") \
+                                   (format #f \"~a\" (path-animation-positions id))))))");
+	add_vi_console_command_scm(console, "a-nodes", scm_c_eval_string("console-pa-show-points"));
 }
 
 #ifdef WITH_GUILE

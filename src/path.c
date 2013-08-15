@@ -132,6 +132,32 @@ static void assign_hermite_points(struct path_animation *pa, vec3f *p_minus_1, v
 	if (next < pa->nodes-1) *p_plus_2 = pa->node[next+1].pos;
 }
 
+//! \attention \c time is not the gloabl timer but the path-time value stored in the nodes.
+static vec3f path_position_at(path_animation_ref ref, animation_time_t time, int *N, int *P) {
+	struct path_animation *pa = path_animations + ref.id;
+	int next = -1, prev = 0;
+	find_nodes_for_path_animation(pa, time, &next, &prev);
+	if (next < 0) {
+		fprintf(stderr, "Error: Invalid path-time in path_position_at(): %f.\n", time);
+		return;
+	}
+
+	// interpolation parameter
+	float t = (time - pa->node[prev].time) / (pa->node[next].time - pa->node[prev].time);
+	
+	// positions
+	vec3f p0, p1, p_minus_1, p_plus_2;
+	assign_hermite_points(pa, &p_minus_1, &p0, &p1, &p_plus_2, next, prev);
+
+	// interpolate position
+	vec3f p;
+	hermite_interpolation(&p, &p_minus_1, &p0, &p1, &p_plus_2, t);
+
+	if (P) *P = prev;
+	if (N) *N = next;
+	return p;
+}
+
 void evaluate_path_animation_at(path_animation_ref ref, animation_time_t time) {
 	struct path_animation *pa = path_animations + ref.id;
 	if (!pa->running)
@@ -147,31 +173,12 @@ void evaluate_path_animation_at(path_animation_ref ref, animation_time_t time) {
 		pa->animation_start_time += pa->node[pa->nodes-1].time * 1000 / pa->animation_speed;
 	}
 	int next = -1, prev = 0;
-	find_nodes_for_path_animation(pa, time, &next, &prev);
-	if (next < 0) 
-		return;
-
-	// interpolation parameter
-	float t = (time - pa->node[prev].time) / (pa->node[next].time - pa->node[prev].time);
-
-	// positions
-	vec3f p0, p1, p_minus_1, p_plus_2;
-	assign_hermite_points(pa, &p_minus_1, &p0, &p1, &p_plus_2, next, prev);
-
-	// interpolate position
-	vec3f p;
-	hermite_interpolation(&p, &p_minus_1, &p0, &p1, &p_plus_2, t);
+	vec3f p = path_position_at(ref, time, &next, &prev);
 	
 	if (pa->track_direction) {
 		// interpolate slightly advanced position to obtain difference
 		time += (pa->node[next].time - pa->node[prev].time)/16;
-		float t = (time - pa->node[prev].time) / (pa->node[next].time - pa->node[prev].time);
-
-		next = -1, prev = 0;
-		find_nodes_for_path_animation(pa, time, &next, &prev);
-
-		vec3f q;
-		hermite_interpolation(&q, &p_minus_1, &p0, &p1, &p_plus_2, t);
+		vec3f q = path_position_at(ref, time, 0, 0);
 
 		vec3f dir;
 		sub_components_vec3f(&dir, &q, &p);
@@ -196,6 +203,8 @@ void evaluate_path_animation_at(path_animation_ref ref, animation_time_t time) {
 		mat->col_major[14] = p.z;
 	}
 }
+
+
 
 #ifdef WITH_GUILE
 

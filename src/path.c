@@ -3,9 +3,12 @@
 #include <libmcm/matrix.h>
 #include <libmcm/camera-matrices.h>
 
+#include "console.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 
 typedef struct {
 	vec3f pos;
@@ -228,6 +231,50 @@ void normalize_speed_along_path(path_animation_ref ref) {
 		pa->node[i].time = lengths[i-1] * expected_length / path_length;
 }
 
+void change_path_node_position(path_animation_ref ref, int node, vec3f pos) {
+	struct path_animation *pa = path_animations + ref.id;
+	if (pa->nodes >= node) {
+		fprintf(stderr, "Error: Node id out of bounds (path animation '%s', node %d).\n", pa->name, node);
+		return;
+	}
+	pa->node[node].pos = pos;
+}
+
+void insert_path_node(path_animation_ref ref, vec3f pos, float time) {
+	struct path_animation *pa = path_animations + ref.id;
+	pa->nodes++;
+	pa->node = realloc(pa->node, sizeof(path_node)*pa->nodes);
+	pa->node[pa->nodes-1].pos = pos;
+	pa->node[pa->nodes-1].time = time;
+}
+
+static char* console_path_name(int argc, char **argv, path_animation_ref *ref) {
+	if (argc < 2) return strdup("not enough arguments");
+	if (isdigit(argv[1][0])) ref->id = atoi(argv[1]);
+	else                     *ref = find_path_animation(argv[1]);
+	if (ref->id < 0) return strdup("no such path animation");
+	return 0;
+}
+
+#define path_name_or_else \
+	path_animation_ref ref;\
+	char *r = console_path_name(argc, argv, &ref);\
+	if (r) return r;
+
+static char* console_start_path_animation(console_ref c, int argc, char **argv) {
+	path_name_or_else;
+	start_path_animation(ref);
+}
+
+static char* console_stop_path_animation(console_ref c, int argc, char **argv) {
+	path_name_or_else;
+	stop_path_animation(ref);
+}
+
+void add_path_commands_to_viconsole(console_ref console) {
+	add_vi_console_command(console, "start-a", console_start_path_animation);
+	add_vi_console_command(console, "stop-a", console_stop_path_animation);
+}
 
 #ifdef WITH_GUILE
 
@@ -298,6 +345,23 @@ SCM_DEFINE(s_pa_normalize, "normalize-speed-along-path", 1, 0, 0, (SCM id), "") 
 	normalize_speed_along_path(ref);
 	return SCM_BOOL_T;
 }
+
+SCM_DEFINE(s_pa_change_node_pos, "change-path-node-position", 3, 0, 0, (SCM id, SCM nodeid, SCM vec), "") {
+	path_animation_ref ref = { scm_to_int(id) };
+	vec3f pos = scm_vec_to_vec3f(vec);
+	int n = scm_to_int(nodeid);
+	change_path_node_position(ref, n, pos);
+	return SCM_BOOL_T;
+}
+
+SCM_DEFINE(s_pa_insert_node, "insert-path-node", 3, 0, 0, (SCM id, SCM vec, SCM time), "") {
+	path_animation_ref ref = { scm_to_int(id) };
+	vec3f pos = scm_vec_to_vec3f(vec);
+	float t = scm_to_double(time);
+	insert_path_node(ref, pos, t);
+	return SCM_BOOL_T;
+}
+
 
 void register_scheme_functions_for_path_animation() {
 #include "path.x"

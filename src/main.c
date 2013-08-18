@@ -337,6 +337,7 @@ void actual_main()
 	camera_animation_speed(ca, 1.2);
 	start_camera_animation(ca);
 
+	add_cam_anim_commands_to_viconsole(console);
 	finalize_single_material_passes_for_array(&picking_des);
 	
 	enter_glut_main_loop();

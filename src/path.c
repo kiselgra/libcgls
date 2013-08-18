@@ -138,7 +138,7 @@ static void assign_hermite_points(struct path_animation *pa, vec3f *p_minus_1, v
 }
 
 //! \attention \c time is not the gloabl timer but the path-time value stored in the nodes.
-static vec3f path_position_at(path_animation_ref ref, animation_time_t time, int *N, int *P) {
+vec3f path_position_at(path_animation_ref ref, animation_time_t time, int *N, int *P) {
 	struct path_animation *pa = path_animations + ref.id;
 	int next = -1, prev = 0;
 	find_nodes_for_path_animation(pa, time, &next, &prev);
@@ -180,7 +180,6 @@ void evaluate_path_animation_at(path_animation_ref ref, animation_time_t time) {
 	}
 	int next = -1, prev = 0;
 	vec3f p = path_position_at(ref, time, &next, &prev);
-	printf("[%6.6f] p   = %6.6f %6.6f %6.6f\n", time, p.x, p.y, p.z);
 	
 	if (pa->track_direction) {
 		// interpolate slightly advanced position to obtain difference

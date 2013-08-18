@@ -23,5 +23,9 @@ void start_camera_animation(camera_animation_ref ref);
 void stop_camera_animation(camera_animation_ref ref);
 void evaluate_camera_animation_at(camera_animation_ref ref, animation_time_t time);
 
+// console
+
+void add_cam_anim_commands_to_viconsole(console_ref console);
+
 #endif
 

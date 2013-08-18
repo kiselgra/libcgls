@@ -1,6 +1,7 @@
 
 #ifdef WITH_GUILE
 
+void register_scheme_functions_for_camera_animation();
 void register_scheme_functions_for_cgls_objloader();
 void register_scheme_functions_for_material();
 void register_scheme_functions_for_drawelement();
@@ -12,6 +13,7 @@ void register_scheme_functions_for_skeletal_animation();
 void register_scheme_functions_for_stock_shader();
 
 void register_cgls_scheme_functions() {
+	register_scheme_functions_for_camera_animation();
 	register_scheme_functions_for_cgls_objloader();
 	register_scheme_functions_for_material();
 	register_scheme_functions_for_drawelement();

@@ -22,7 +22,6 @@ struct path_animation {
 	char *name;
 	int nodes;
 	path_node *node;
-	int nodes_set;
 	matrix4x4f trafo;
 	animation_time_t animation_start_time;
 	float animation_speed;
@@ -34,13 +33,12 @@ struct path_animation {
 define_mm(path_animation, path_animations, path_animation_ref);
 #include "path.xx"
 
-path_animation_ref make_path_animation(const char *name, int nodes) {
+path_animation_ref make_path_animation(const char *name) {
 	path_animation_ref ref = allocate_path_animation_ref();
 	struct path_animation *pa = path_animations + ref.id;
 	pa->name = strdup(name);
-	pa->nodes = nodes;
-	pa->node = malloc(sizeof(path_node)*nodes);
-	pa->nodes_set = 0;
+	pa->nodes = 0;
+	pa->node = 0;
 	pa->animation_start_time = 0;
 	pa->animation_speed = 1;
 	pa->track_direction = true;
@@ -52,17 +50,14 @@ path_animation_ref make_path_animation(const char *name, int nodes) {
 
 void add_node_to_path_animation(path_animation_ref ref, vec3f *p, vec3f *up, float t) {
 	struct path_animation *pa = path_animations + ref.id;
-	if (pa->nodes_set == pa->nodes) {
-		fprintf(stderr, "The path animation '%s' is already full. Cannot add further nodes.\n", pa->name);
-		return;
-	}
-	pa->node[pa->nodes_set].pos = *p;
+	pa->node = realloc(pa->node, sizeof(path_node)*(pa->nodes+1));
+	pa->node[pa->nodes].pos = *p;
 	if (up)
-		pa->node[pa->nodes_set].up = *up;
+		pa->node[pa->nodes].up = *up;
 	else
 		pa->track_direction = false;
-	pa->node[pa->nodes_set].time = t;
-	pa->nodes_set++;
+	pa->node[pa->nodes].time = t;
+	pa->nodes++;
 }
 
 path_animation_ref find_path_animation(const char *name) {
@@ -104,6 +99,13 @@ float path_animation_speed(path_animation_ref ref, float factor) {
 void start_path_animation(path_animation_ref ref) {
 	struct path_animation *pa = path_animations + ref.id;
 	pa->animation_start_time = animation_time_stamp();
+	pa->running = true;
+}
+
+//! this is for \ref camera-animation interaction, only.
+void start_path_animation_with_timestamp(path_animation_ref ref, animation_time_t stamp) {
+	struct path_animation *pa = path_animations + ref.id;
+	pa->animation_start_time = stamp;
 	pa->running = true;
 }
 
@@ -178,6 +180,7 @@ void evaluate_path_animation_at(path_animation_ref ref, animation_time_t time) {
 	}
 	int next = -1, prev = 0;
 	vec3f p = path_position_at(ref, time, &next, &prev);
+	printf("[%6.6f] p   = %6.6f %6.6f %6.6f\n", time, p.x, p.y, p.z);
 	
 	if (pa->track_direction) {
 		// interpolate slightly advanced position to obtain difference
@@ -304,14 +307,14 @@ static char* console_pa_change_node(console_ref c, int argc, char **argv) {
 }
 
 static char* console_help_path_animation(console_ref c, int argc, char **argv) {
-	return strdup("options:  a-start  a-stop  a-normalize  a-nodes");
+	return strdup("options:  pa-start  pa-stop  pa-normalize  pa-nodes");
 }
 
 void add_path_commands_to_viconsole(console_ref console) {
-	add_vi_console_command(console, "a-start", console_start_path_animation);
-	add_vi_console_command(console, "a-stop", console_stop_path_animation);
-	add_vi_console_command(console, "a-normalize", console_normalize_path_animation);
-	add_vi_console_command(console, "a-help", console_help_path_animation);
+	add_vi_console_command(console, "pa-start", console_start_path_animation);
+	add_vi_console_command(console, "pa-stop", console_stop_path_animation);
+	add_vi_console_command(console, "pa-normalize", console_normalize_path_animation);
+	add_vi_console_command(console, "pa-help", console_help_path_animation);
 	scm_c_eval_string("(define (console-pa-show-points console args) \
 	                     (if (< (length args) 2) \
 						     (format #f \"not enough arguments\") \
@@ -321,17 +324,16 @@ void add_path_commands_to_viconsole(console_ref console) {
 							   (if (< id 0) \
 							       (format #f \"no such path animation\") \
                                    (format #f \"~a\" (path-animation-positions id))))))");
-	add_vi_console_command_scm(console, "a-nodes", scm_c_eval_string("console-pa-show-points"));
+	add_vi_console_command_scm(console, "pa-nodes", scm_c_eval_string("console-pa-show-points"));
 }
 
 #ifdef WITH_GUILE
 
 #include <libcgl/scheme.h>
 
-SCM_DEFINE(s_make_path_anim, "make-path-animation", 2, 0, 0, (SCM name, SCM nodes), "") {
+SCM_DEFINE(s_make_path_anim, "make-path-animation", 1, 0, 0, (SCM name), "") {
     char *n = scm_to_locale_string(name);
-    int i = scm_to_int(nodes);
-    path_animation_ref ref = make_path_animation(n, i);
+    path_animation_ref ref = make_path_animation(n);
     free(n);
 	return scm_from_int(ref.id);
 }
@@ -353,7 +355,7 @@ SCM_DEFINE(s_add_node_to_pa, "add-node-to-path-animation", 4, 0, 0, (SCM pa, SCM
 	}
 	float time = scm_to_double(t);
 	add_node_to_path_animation(ref, &p, u, time);
-	return scm_from_bool(path_animations[ref.id].nodes_set < path_animations[ref.id].nodes);
+	return SCM_BOOL_T;
 }
 
 SCM_DEFINE(s_start_pa, "start-path-animation", 1, 0, 0, (SCM pa), "") {

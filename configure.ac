@@ -69,6 +69,8 @@ AC_ARG_ENABLE(arschwichtel,
 			[AS_HELP_STRING([--enable-arschwichtel], [Wether to include support for the assimp library. Default: no.])],
 			with_ai="$enableval")
 if test "x$with_ai" == "xyes" ; then
+	PKG_CHECK_EXISTS([assimp < 3], [AC_DEFINE([HAVE_ASSIMP_2], [1], [We found ass-imp < 3.])])
+	PKG_CHECK_EXISTS([assimp >= 3], [AC_DEFINE([HAVE_ASSIMP_3], [1], [We found ass-imp >= 3.])])
 	PKG_CHECK_MODULES(AI, assimp)
 fi
 AC_SUBST([AI_CFLAGS])

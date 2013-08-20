@@ -1,6 +1,8 @@
 #include "modelloader.h"
 
 #include "material.h"
+#include "cgls-config.h"
+
 #include "basename.h"
 #include <libgen.h>
 
@@ -11,16 +13,32 @@
 #include <iomanip>
 #include <vector>
 
+#if LIBCGLS_HAVE_ASSIMP_2 == 1
 #include <assimp/assimp.hpp>
 #include <assimp/aiScene.h>
 #include <assimp/aiPostProcess.h>
 #include <assimp/aiTypes.h>
+#endif
+
+#if LIBCGLS_HAVE_ASSIMP_3 == 1
+#include <assimp/Importer.hpp>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
+#endif
 
 #include "skeletal.h"
 #include "stock-shader.h"
 
 using namespace std;
+#if LIBCGLS_HAVE_ASSIMP_2 == 1
 using namespace Assimp;
+#endif
+
+#ifndef LIBCGLS_HAVE_ASSIMP_2
+#ifndef LIBCGLS_HAVE_ASSIMP_3
+#error NO ASS IMP.
+#endif
+#endif
 
 extern "C" {
 	void add_texture_if_found(material_ref mat, const char *filename, tex_params_t *p, const char *texname);

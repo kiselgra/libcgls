@@ -119,7 +119,8 @@ void display() {
 		rounds++;
 		if (rounds == 5) {
 			keyboard('p', 0, 0);
-// 			exit(0);
+			scm_c_eval_string("(format #t \"des: ~a~%\" (length (list-drawelements)))");
+			exit(0);
 		}
 	}
 

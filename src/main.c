@@ -119,7 +119,7 @@ void display() {
 		rounds++;
 		if (rounds == 5) {
 			keyboard('p', 0, 0);
-			exit(0);
+// 			exit(0);
 		}
 	}
 

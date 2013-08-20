@@ -15,7 +15,7 @@
 extern "C" {
 #endif
 
-path_animation_ref make_path_animation(const char *name, int nodes);
+path_animation_ref make_path_animation(const char *name);
 void add_node_to_path_animation(path_animation_ref ref, vec3f *p, vec3f *up, float t);
 matrix4x4f* path_matrix_of_animation(path_animation_ref ref);
 

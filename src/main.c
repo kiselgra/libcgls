@@ -8,6 +8,7 @@
 #include "interaction.h"
 #include "sky.h"
 #include "console.h"
+#include "camera-animation.h"
 
 #include "cmdline.h"
 #include "cgls.h"
@@ -62,6 +63,10 @@ void display() {
 
 	for (struct path_animation_list *animations = list_path_animations(); animations; animations = animations->next) {
 		evaluate_path_animation_at(animations->ref, curr_time);
+	}
+
+	for (struct camera_animation_list *animations = list_camera_animations(); animations; animations = animations->next) {
+		evaluate_camera_animation_at(animations->ref, curr_time);
 	}
 
 // 	scene_set_traverser(the_scene, graph_scene_bulk_traverser);
@@ -309,7 +314,39 @@ void actual_main()
 	add_node_to_path_animation(pa, verts+4, &up, times[4]);
 	start_path_animation(pa);
 	*/
+	
+	/*
+	--pos 1070.518311,629.678711,7.745225 --dir -0.995506,0.026509,-0.090880 --up 0.023953,0.999287,0.029105
+	--pos 1059.410889,166.310974,-5.750772 --dir -0.995509,0.026509,-0.090880 --up 0.023953,0.999289,0.029105
+	--pos 1059.410889,166.310974,-5.750772 --dir 0.038553,0.001686,-0.999254 --up 0.000455,0.999998,0.001705
+	--pos 1115.503174,161.229156,-462.977631 --dir -0.999004,0.041247,0.016819 --up 0.040625,0.998532,-0.035794
+	--pos 667.909607,150.321976,-356.487122 --dir -0.677259,0.042316,-0.734526 --up 0.071865,0.997375,-0.008804
+	--pos 315.462280,184.234497,-586.308472 --dir -0.019237,-0.067700,0.997520 --up -0.004957,0.997699,0.067617
+	*/
+	camera_animation_ref ca = make_camera_animation("test", current_camera());
+	vec3f pos, dir, up;
+	make_vec3f(&pos, 1070.518311,629.678711,7.745225); make_vec3f(&dir, -0.995506,0.026509,-0.090880); make_vec3f(&up, 0.023953,0.999287,0.029105);
+	make_lookat_matrixf(lookat_matrix_of_cam(current_camera()), &pos, &dir, &up); recompute_gl_matrices_of_cam(current_camera());
+	add_current_view_to_camera_animation(ca,00);
+	make_vec3f(&pos, 1059.410889,166.310974,-5.750772); make_vec3f(&dir, -0.995509,0.026509,-0.090880); make_vec3f(&up, 0.023953,0.999289,0.029105);
+	make_lookat_matrixf(lookat_matrix_of_cam(current_camera()), &pos, &dir, &up); recompute_gl_matrices_of_cam(current_camera());
+	add_current_view_to_camera_animation(ca,10);
+	make_vec3f(&pos, 1059.410889,166.310974,-5.750772); make_vec3f(&dir, 0.038553,0.001686,-0.999254); make_vec3f(&up, 0.000455,0.999998,0.001705);
+	make_lookat_matrixf(lookat_matrix_of_cam(current_camera()), &pos, &dir, &up); recompute_gl_matrices_of_cam(current_camera());
+	add_current_view_to_camera_animation(ca,20);
+	make_vec3f(&pos, 1115.503174,161.229156,-462.977631); make_vec3f(&dir, -0.999004,0.041247,0.016819); make_vec3f(&up, 0.040625,0.998532,-0.035794);
+	make_lookat_matrixf(lookat_matrix_of_cam(current_camera()), &pos, &dir, &up); recompute_gl_matrices_of_cam(current_camera());
+	add_current_view_to_camera_animation(ca,30);
+	make_vec3f(&pos, 667.909607,150.321976,-356.487122); make_vec3f(&dir, -0.677259,0.042316,-0.734526); make_vec3f(&up, 0.071865,0.997375,-0.008804);
+	make_lookat_matrixf(lookat_matrix_of_cam(current_camera()), &pos, &dir, &up); recompute_gl_matrices_of_cam(current_camera());
+	add_current_view_to_camera_animation(ca,40);
+	make_vec3f(&pos, 315.462280,184.234497,-586.308472); make_vec3f(&dir, -0.019237,-0.067700,0.997520); make_vec3f(&up, -0.004957,0.997699,0.067617);
+	make_lookat_matrixf(lookat_matrix_of_cam(current_camera()), &pos, &dir, &up); recompute_gl_matrices_of_cam(current_camera());
+	add_current_view_to_camera_animation(ca,50);
+	camera_animation_speed(ca, 1.2);
+	start_camera_animation(ca);
 
+	add_cam_anim_commands_to_viconsole(console);
 	finalize_single_material_passes_for_array(&picking_des);
 	
 	enter_glut_main_loop();

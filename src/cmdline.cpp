@@ -27,6 +27,7 @@ static struct argp_option options[] =
     { "config", 'c', "configfile", 0, "Scheme file to supply instructions."},
     { "include-path", 'I', "path", 0, "Path to search for the config file. Default: " DATADIR "."},
     { "res", 'r', "w,h", 0, "Window resolution."},
+    { "factor", 'f', "x", 0, "Drawelement collapse threshold."},
 	{ 0 }
 };	
 
@@ -73,6 +74,7 @@ static error_t parse_options(int key, char *arg, argp_state *state)
     case 'c':   cmdline.config = strdup(arg); break;
     case 'I':   cmdline.include_path = strdup(arg); break;
     case 'r':   cmdline.res = read_vec2f(sarg); break;
+    case 'f':   cmdline.collapse_factor = atof(arg); break;
 	
 	case ARGP_KEY_ARG:		// process arguments. 
 							// state->arg_num gives number of current arg
@@ -99,6 +101,7 @@ int parse_cmdline(int argc, char **argv)
     cmdline.res.x = 1366; 
     cmdline.res.y = 768;
 	cmdline.scenefile = cmdline.objfile = false;
+	cmdline.collapse_factor = 1e20;
 	int ret = argp_parse(&parser, argc, argv, /*ARGP_NO_EXIT*/0, 0, 0);
 
 	if (cmdline.filename == 0) {

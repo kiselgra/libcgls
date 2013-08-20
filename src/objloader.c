@@ -67,7 +67,7 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 	prepend_image_path(dirname(dirname_tmp));
 	free(dirname_tmp);
 
-	load_objfile(modelname, filename, &objdata, false, false);
+	load_objfile(modelname, filename, &objdata, false, false, 0);
 
 	time_t mid = clock();
 
@@ -245,7 +245,7 @@ static void load_objfile_and_create_objects_with_single_vbo_general(
 	time_t start = clock();
 
 	bool collapse_materials = true;
-	load_objfile(modelname, filename, &objdata, true, collapse_materials);
+	load_objfile(modelname, filename, &objdata, true, collapse_materials, cmdline.collapse_factor);
 	
 	time_t mid = clock();
 

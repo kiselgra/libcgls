@@ -16,6 +16,7 @@ typedef struct
     const char *include_path;
     vec2f res;
 	bool scenefile, objfile;
+	float collapse_factor;
 } Cmdline;
 
 #ifdef __cplusplus

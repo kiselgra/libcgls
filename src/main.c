@@ -314,6 +314,7 @@ void actual_main()
 	--pos 667.909607,150.321976,-356.487122 --dir -0.677259,0.042316,-0.734526 --up 0.071865,0.997375,-0.008804
 	--pos 315.462280,184.234497,-586.308472 --dir -0.019237,-0.067700,0.997520 --up -0.004957,0.997699,0.067617
 	*/
+	/*
 	camera_animation_ref ca = make_camera_animation("test", current_camera());
 	vec3f pos, dir, up;
 	make_vec3f(&pos, 1070.518311,629.678711,7.745225); make_vec3f(&dir, -0.995506,0.026509,-0.090880); make_vec3f(&up, 0.023953,0.999287,0.029105);
@@ -336,6 +337,7 @@ void actual_main()
 	add_current_view_to_camera_animation(ca,50);
 	camera_animation_speed(ca, 1.2);
 	start_camera_animation(ca);
+	*/
 
 	add_cam_anim_commands_to_viconsole(console);
 	finalize_single_material_passes_for_array(&picking_des);

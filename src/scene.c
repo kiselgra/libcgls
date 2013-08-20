@@ -320,10 +320,10 @@ void default_scene_renderer(scene_ref ref) {
 #endif
 					vec3f min, max;
 					bounding_box_of_drawelement(run->ref, &min, &max);
-// 					if (!drawelement_has_bounding_box(run->ref) || aabb_in_frustum(&data, &min, &max)) {
+					if (!drawelement_has_bounding_box(run->ref) || aabb_in_frustum(&data, &min, &max)) {
 						c++;
 						render_drawelement(run->ref);
-// 					}
+					}
 #if CGLS_DRAWELEMENT_BB_VIS == 1
 				}
 				else {
@@ -513,17 +513,15 @@ void graph_scene_traverser(scene_ref ref) {
 #endif
 						a++;
 					if (!drawelement_hidden(deno->ref)) {
-						/*
 						vec3f min, max;
 						bounding_box_of_drawelement(deno->ref, &min, &max);
 						if (!drawelement_has_bounding_box(deno->ref) || aabb_in_frustum(&data, &min, &max)) {
 							c++;
-							*/
 							if (drawelement_using_index_range(deno->ref))
 								bind_uniforms_and_render_indices_of_drawelement(deno->ref);
 							else
 								bind_uniforms_and_render_drawelement_nonindexed(deno->ref);
-// 						}
+						}
 					}
 #if CGLS_DRAWELEMENT_BB_VIS == 1
 					}

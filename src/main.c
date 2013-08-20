@@ -109,6 +109,15 @@ void display() {
 	curr_pos = (curr_pos+1) % samples;
 	valid_pos = (valid_pos == samples ? samples : valid_pos+1);
 
+	static int rounds = 0;
+	if (curr_pos == 0) {
+		rounds++;
+		if (rounds == 5) {
+			keyboard('p', 0, 0);
+			exit(0);
+		}
+	}
+
     check_for_gl_errors("display");
 	render_console(console);
 

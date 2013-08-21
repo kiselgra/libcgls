@@ -8,6 +8,10 @@
 #include <libcgl/cgl.h>
 #include <libcgl/camera.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 define_array(camera_animation);
 
 camera_animation_ref make_camera_animation(const char *name, camera_ref cam);
@@ -26,6 +30,10 @@ void evaluate_camera_animation_at(camera_animation_ref ref, animation_time_t tim
 // console
 
 void add_cam_anim_commands_to_viconsole(console_ref console);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 

@@ -303,9 +303,9 @@ SCM_DEFINE(s_find_camera_anim, "find-camera-animation", 1, 0, 0, (SCM name), "")
 SCM_DEFINE(s_add_node_to_ca, "add-node-to-camera-animation", 5, 0, 0, (SCM ca, SCM pos, SCM dir, SCM up, SCM t), "") {
 	camera_animation_ref ref = { scm_to_int(ca) };
 	vec3f p = { 0, 0, 0}, d= { 0, 0, 0 }, u = { 0, 0, 0 };
-	if (scm_is_pair(pos))  p  = scm_vec_to_vec3f(up);
+	if (scm_is_pair(pos))  p  = scm_vec_to_vec3f(pos);
 	else                   { fprintf(stderr, "Invalid value for 'pos'\n"); return SCM_BOOL_F; }
-	if (scm_is_pair(dir))  d = scm_vec_to_vec3f(up);
+	if (scm_is_pair(dir))  d = scm_vec_to_vec3f(dir);
 	else                   { fprintf(stderr, "Invalid value for 'dir'\n"); return SCM_BOOL_F; }
 	if (scm_is_pair(up))   u = scm_vec_to_vec3f(up);
 	else                   { fprintf(stderr, "Invalid value for 'up'\n"); return SCM_BOOL_F; }

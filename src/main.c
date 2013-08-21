@@ -118,6 +118,7 @@ void display() {
 	if (curr_pos == 0) {
 		rounds++;
 		if (rounds == 5) {
+			void keyboard(unsigned char key, int x, int y);
 			keyboard('p', 0, 0);
 			scm_c_eval_string("(format #t \"des: ~a~%\" (length (list-drawelements)))");
 			exit(0);

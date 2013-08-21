@@ -119,53 +119,53 @@ void replace_drawelement_trafo(drawelement_ref ref, matrix4x4f *new_trafo) {
 }
 
 mesh_ref drawelement_mesh(drawelement_ref ref) {
-	struct drawelement* de = drawelements+ref.id;
+	struct drawelement *de = drawelements+ref.id;
 	return de->mesh;
 }
 
 shader_ref drawelement_shader(drawelement_ref ref) {
-	struct drawelement* de = drawelements+ref.id;
+	struct drawelement *de = drawelements+ref.id;
 	return de->shader;
 }
 
 material_ref drawelement_material(drawelement_ref ref) {
-	struct drawelement* de = drawelements+ref.id;
+	struct drawelement *de = drawelements+ref.id;
 	return de->material;
 }
 
 shader_ref drawelement_change_shader(drawelement_ref ref, shader_ref s) {
-	struct drawelement* de = drawelements+ref.id;
+	struct drawelement *de = drawelements+ref.id;
     shader_ref old = de->shader;
     de->shader = s;
 	return old;
 }
 
 material_ref drawelement_change_material(drawelement_ref ref, material_ref m) {
-	struct drawelement* de = drawelements+ref.id;
+	struct drawelement *de = drawelements+ref.id;
     material_ref old = drawelement_material(ref);
     de->material = m;
 	return old;
 }
 
 void set_drawelement_index_buffer_range(drawelement_ref ref, unsigned int start, unsigned int count) {
-	struct drawelement* de = drawelements+ref.id;
+	struct drawelement *de = drawelements+ref.id;
 	de->index_buffer_start = start;
 	de->indices = count;
 	de->use_index_range = true;
 }
 
 unsigned int drawelement_index_range_start(drawelement_ref ref) {
-	struct drawelement* de = drawelements+ref.id;
+	struct drawelement *de = drawelements+ref.id;
 	return de->index_buffer_start;
 }
 
 unsigned int drawelement_index_range_len(drawelement_ref ref) {
-	struct drawelement* de = drawelements+ref.id;
+	struct drawelement *de = drawelements+ref.id;
 	return de->indices;
 }
 
 void set_drawelement_bounding_box(drawelement_ref ref, vec3f *min, vec3f *max) {
-	struct drawelement* de = drawelements+ref.id;
+	struct drawelement *de = drawelements+ref.id;
 	de->bb_min = *min;
 	de->bb_max = *max;
 	de->has_bb = true;
@@ -183,9 +183,14 @@ void set_drawelement_bounding_box(drawelement_ref ref, vec3f *min, vec3f *max) {
 #endif
 }
 
+void drop_drawelement_bounding_box(drawelement_ref ref) {
+	struct drawelement *de = drawelements+ref.id;
+    de->has_bb = false;
+}
+
 //! this returns the drawelement's initial bounding box, transformed by the drawelement's matrix.
 void bounding_box_of_drawelement(drawelement_ref ref, vec3f *min, vec3f *max) {
-	struct drawelement* de = drawelements+ref.id;
+	struct drawelement *de = drawelements+ref.id;
 	vec4f tmp, res;
 	tmp.x = de->bb_min.x; 
 	tmp.y = de->bb_min.y; 
@@ -566,6 +571,12 @@ SCM_DEFINE(s_de_setbb, "drawelement-bounding-box!", 3, 0, 0, (SCM id, SCM bbmin,
 	vec3f bbmi = scm_vec_to_vec3f(bbmin),
 		  bbma = scm_vec_to_vec3f(bbmax);
 	set_drawelement_bounding_box(ref, &bbmi, &bbma);
+	return SCM_BOOL_T;
+}
+
+SCM_DEFINE(s_de_dropbb, "drawelement-drop-bounding-box!", 1, 0, 0, (SCM id), "") {
+    drawelement_ref ref = { scm_to_int(id) };
+	drop_drawelement_bounding_box(ref);
 	return SCM_BOOL_T;
 }
 

@@ -79,16 +79,18 @@ void slerp_quaterionf(quaternionf *to, const quaternionf *p, const quaternionf *
 	// printf("quaternion dot of %6.6f %6.6f %6.6f %6.6f\n", p->v.x, p->v.y, p->v.z, p->w);
 	// printf("            with  %6.6f %6.6f %6.6f %6.6f\n", q->v.x, q->v.y, q->v.z, q->w);
 	// printf("    ----------->  %6.6f.\n", cos_phi);
+	//
 	// this breaks: (0,0,-1) -> (-1,0,0) vs (0,0,-1) -> (-1,0,0.1)
 	// it's not in http://number-none.com/product/Understanding%20Slerp,%20Then%20Not%20Using%20It/, either.
-// 	if (cos_phi < 0) {	
-// 		tmp_q.v.x = -q->v.x;
-// 		tmp_q.v.y = -q->v.y;
-// 		tmp_q.v.z = -q->v.z;
-// 		tmp_q.w = -q->w;
-// 		cos_phi = -cos_phi;
-// 	}
-// 	else
+	// however, the bone animations break when we don't do it...
+	if (cos_phi < 0) {	
+		tmp_q.v.x = -q->v.x;
+		tmp_q.v.y = -q->v.y;
+		tmp_q.v.z = -q->v.z;
+		tmp_q.w = -q->w;
+		cos_phi = -cos_phi;
+	}
+	else
 		copy_quaternion4f(&tmp_q, q);
 
 	if (cos_phi >= 0.999999) {

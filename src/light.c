@@ -398,3 +398,45 @@ light_ref make_hemispherical_light(const char *name, framebuffer_ref gbuffer, ve
 	return ref;
 }
 
+light_ref find_light(const char *name) {
+	light_ref ref = { -1 };
+	if (strlen(name) == 0) return ref;
+    for (int i = 0; i < next_light_index; ++i) {
+        if (strcmp(lights[i].name, name) == 0) {
+			ref.id = i;
+			return ref;
+		}
+	}
+	return ref;
+}
+
+
+#ifdef WITH_GUILE
+
+SCM_DEFINE(s_find_light, "find-light", 1, 0, 0, (SCM name), "") {
+    char *n = scm_to_locale_string(name);
+    light_ref ref = find_light(n);
+    free(n);
+    return scm_from_int(ref.id);
+}
+
+SCM_DEFINE(s_light_color, "light-color", 1, 0, 0, (SCM id), "") {
+    light_ref ref = { scm_to_int(id) };
+	return vec3f_to_list(light_color(ref));
+}
+
+SCM_DEFINE(s_light_color_x, "set-light-color!", 2, 0, 0, (SCM id, SCM col), "") {
+    light_ref ref = { scm_to_int(id) };
+	vec3f c = scm_vec_to_vec3f(col);
+	change_light_color(ref, &c);
+	return SCM_BOOL_T;
+}
+
+void register_scheme_functions_for_light() {
+#ifndef SCM_MAGIC_SNARFER
+#include "light.x"
+#endif
+}
+
+
+#endif

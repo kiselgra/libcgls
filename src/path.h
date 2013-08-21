@@ -25,6 +25,8 @@ void change_path_animation_speed(path_animation_ref ref, float factor);
 float path_animation_speed(path_animation_ref ref, float factor);
 void evaluate_path_animation_at(path_animation_ref ref, animation_time_t time);
 
+void change_path_node_tension(path_animation_ref ref, int node, float tension);
+
 define_array(path_animation);
 
 path_animation_ref find_path_animation(const char *name);

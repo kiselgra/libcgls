@@ -335,6 +335,13 @@ SCM_DEFINE(s_stop_ca, "stop-camera-animation", 1, 0, 0, (SCM ca), "") {
 	return SCM_BOOL_T;
 }
 
+SCM_DEFINE(s_change_ca_speed, "change-camera-animation-speed!", 2, 0, 0, (SCM ca, SCM factor), "") {
+	camera_animation_ref ref = { scm_to_int(ca) };
+	float f = scm_to_double(factor);
+	change_camera_animation_speed(ref, f);
+	return SCM_BOOL_T;
+}
+
 SCM_DEFINE(s_ca_nodes, "camera-animation-config", 1, 0, 0, (SCM id), "") {
 	camera_animation_ref ref = { scm_to_int(id) };
 	struct camera_animation *ca = camera_animations + ref.id;

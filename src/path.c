@@ -157,6 +157,9 @@ vec3f path_position_at(path_animation_ref ref, animation_time_t time, int *N, in
 	vec3f p0, p1, p_minus_1, p_plus_2;
 	assign_hermite_points(pa, &p_minus_1, &p0, &p1, &p_plus_2, next, prev);
 
+	if (equal_under_eps_vec3f(&p0, &p1, 0.01))
+	   	return p0;
+
 	// interpolate position
 	vec3f p;
 	hermite_interpolation(&p, &p_minus_1, &p0, &p1, &p_plus_2, t, pa->node[next].tension);

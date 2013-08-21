@@ -327,7 +327,14 @@ SCM_DEFINE(s_list_anims, "list-skeletal-animations", 0, 0, 0, (), "") {
     return list;
 }
 
-SCM_DEFINE(s_change_anim_speed, "change-speed-of-skeletal-animation", 2, 0, 0, (SCM anim, SCM factor), "") {
+SCM_DEFINE(s_find_skel_anim, "find-skeletal-animation", 1, 0, 0, (SCM name), "") {
+    char *n = scm_to_locale_string(name);
+    skeletal_animation_ref ref = find_skeletal_animation(n);
+    free(n);
+	return scm_from_int(ref.id);
+}
+
+SCM_DEFINE(s_change_anim_speed, "change-speed-of-skeletal-animation!", 2, 0, 0, (SCM anim, SCM factor), "") {
     skeletal_animation_ref ref = { scm_to_int(anim) };
 	change_skeletal_animation_speed(ref, scm_to_double(factor));
 	return SCM_BOOL_T;

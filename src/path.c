@@ -14,6 +14,7 @@ typedef struct {
 	vec3f pos;
 	vec3f up;
 	float time;
+	float tension;
 } path_node;
 
 define_slist(path_node_list, path_node node);
@@ -57,6 +58,7 @@ void add_node_to_path_animation(path_animation_ref ref, vec3f *p, vec3f *up, flo
 	else
 		pa->track_direction = false;
 	pa->node[pa->nodes].time = t;
+	pa->node[pa->nodes].tension = 0.5f;
 	pa->nodes++;
 }
 
@@ -157,27 +159,18 @@ vec3f path_position_at(path_animation_ref ref, animation_time_t time, int *N, in
 
 	// interpolate position
 	vec3f p;
-	hermite_interpolation(&p, &p_minus_1, &p0, &p1, &p_plus_2, t);
+	hermite_interpolation(&p, &p_minus_1, &p0, &p1, &p_plus_2, t, pa->node[next].tension);
 
 	if (P) *P = prev;
 	if (N) *N = next;
 	return p;
 }
 
-void evaluate_path_animation_at(path_animation_ref ref, animation_time_t time) {
+//! \attention \c time is not the global timer but the path-time value stored in the nodes.
+void set_path_to_animation_state_at(path_animation_ref ref, animation_time_t time) {
 	struct path_animation *pa = path_animations + ref.id;
-	if (!pa->running)
-		return;
 	matrix4x4f *mat = path_matrix_of_animation(ref);
 	
-	time -= pa->animation_start_time;
-	time /= 1000;
-	time *= pa->animation_speed;
-
-	if (time > pa->node[pa->nodes-1].time) {
-		time -= pa->node[pa->nodes-1].time;
-		pa->animation_start_time += pa->node[pa->nodes-1].time * 1000 / pa->animation_speed;
-	}
 	int next = -1, prev = 0;
 	vec3f p = path_position_at(ref, time, &next, &prev);
 	
@@ -210,6 +203,23 @@ void evaluate_path_animation_at(path_animation_ref ref, animation_time_t time) {
 	}
 }
 
+void evaluate_path_animation_at(path_animation_ref ref, animation_time_t time) {
+	struct path_animation *pa = path_animations + ref.id;
+	if (!pa->running)
+		return;
+	
+	time -= pa->animation_start_time;
+	time /= 1000;
+	time *= pa->animation_speed;
+
+	if (time > pa->node[pa->nodes-1].time) {
+		time -= pa->node[pa->nodes-1].time;
+		pa->animation_start_time += pa->node[pa->nodes-1].time * 1000 / pa->animation_speed;
+	}
+
+	set_path_to_animation_state_at(ref, time);
+}
+
 /*! we approximate the arc length by the sum of a number of linear paths. cheap, yeah :/ */
 void normalize_speed_along_path(path_animation_ref ref) {
 	struct path_animation *pa = path_animations + ref.id;
@@ -235,11 +245,20 @@ void normalize_speed_along_path(path_animation_ref ref) {
 
 void change_path_node_position(path_animation_ref ref, int node, vec3f pos) {
 	struct path_animation *pa = path_animations + ref.id;
-	if (pa->nodes >= node) {
+	if (pa->nodes <= node) {
 		fprintf(stderr, "Error: Node id out of bounds (path animation '%s', node %d).\n", pa->name, node);
 		return;
 	}
 	pa->node[node].pos = pos;
+}
+
+void change_path_node_tension(path_animation_ref ref, int node, float tension) {
+	struct path_animation *pa = path_animations + ref.id;
+	if (pa->nodes <= node) {
+		fprintf(stderr, "Error: Node id out of bounds (path animation '%s', node %d).\n", pa->name, node);
+		return;
+	}
+	pa->node[node].tension = tension;
 }
 
 void insert_path_node(path_animation_ref ref, vec3f pos, float time) {
@@ -395,11 +414,33 @@ SCM_DEFINE(s_pa_normalize, "normalize-speed-along-path", 1, 0, 0, (SCM id), "") 
 	return SCM_BOOL_T;
 }
 
+SCM_DEFINE(s_pa_changespeed, "change-path-animation-speed!", 2, 0, 0, (SCM id, SCM factor), "") {
+	path_animation_ref ref = { scm_to_int(id) };
+	float f = scm_to_double(factor);
+	change_path_animation_speed(ref, f);
+	return SCM_BOOL_T;
+}
+
+SCM_DEFINE(s_pa_change_anim_pos, "set-path-animation-to!", 2, 0, 0, (SCM id, SCM time), "") {
+	path_animation_ref ref = { scm_to_int(id) };
+	float t = scm_to_double(time);
+	set_path_to_animation_state_at(ref, t);
+	return SCM_BOOL_T;
+}
+
 SCM_DEFINE(s_pa_change_node_pos, "change-path-node-position", 3, 0, 0, (SCM id, SCM nodeid, SCM vec), "") {
 	path_animation_ref ref = { scm_to_int(id) };
 	vec3f pos = scm_vec_to_vec3f(vec);
 	int n = scm_to_int(nodeid);
 	change_path_node_position(ref, n, pos);
+	return SCM_BOOL_T;
+}
+
+SCM_DEFINE(s_pa_change_node_ten, "change-path-node-tension", 3, 0, 0, (SCM id, SCM nodeid, SCM tension), "") {
+	path_animation_ref ref = { scm_to_int(id) };
+	float ten = scm_to_double(tension);
+	int n = scm_to_int(nodeid);
+	change_path_node_tension(ref, n, ten);
 	return SCM_BOOL_T;
 }
 

@@ -34,7 +34,7 @@ void mul_quaternionf_by_scalar(quaternionf *to, const quaternionf *a, float s);
 void lerp_quaterionf(quaternionf *to, const quaternionf *a, const quaternionf *b, float t);
 void slerp_quaterionf(quaternionf *to, const quaternionf *p, const quaternionf *q, float t);
 
-void hermite_interpolation(vec3f *to, vec3f *p_minus_1, vec3f *p0, vec3f *p1, vec3f *p_plus_2, float t);
+void hermite_interpolation(vec3f *to, vec3f *p_minus_1, vec3f *p0, vec3f *p1, vec3f *p_plus_2, float t, float tension);
 
 typedef double animation_time_t;
 animation_time_t animation_time_stamp();

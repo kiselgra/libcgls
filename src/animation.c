@@ -116,7 +116,7 @@ animation_time_t animation_time_stamp() {
 }
 
 //! t \in [0,1]
-void hermite_interpolation(vec3f *to, vec3f *p_minus_1, vec3f *p0, vec3f *p1, vec3f *p_plus_2, float t) {
+void hermite_interpolation(vec3f *to, vec3f *p_minus_1, vec3f *p0, vec3f *p1, vec3f *p_plus_2, float t, float tension) {
 	float t2 = t*t;
 	float t3 = t2*t;
 	float h00 = 2*t3 - 3*t2 + 1;
@@ -132,12 +132,12 @@ void hermite_interpolation(vec3f *to, vec3f *p_minus_1, vec3f *p0, vec3f *p1, ve
 	sub_components_vec3f(&tmp, p0, p_minus_1);
 	sub_components_vec3f(&m0, p1, p0);
 	add_components_vec3f(&m0, &m0, &tmp);
-	div_vec3f_by_scalar(&m0, &m0, 2);
+	mul_vec3f_by_scalar(&m0, &m0, tension);
 	// m1
 	sub_components_vec3f(&tmp, p_plus_2, p1);
 	sub_components_vec3f(&m1, p1, p0);
 	add_components_vec3f(&m1, &m1, &tmp);
-	div_vec3f_by_scalar(&m1, &m1, 2);
+	mul_vec3f_by_scalar(&m1, &m1, tension);
 	
 	// combination
 	mul_vec3f_by_scalar(to, p0, h00);

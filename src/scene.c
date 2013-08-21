@@ -682,7 +682,7 @@ void finalize_single_material_pass(single_material_pass_ref ref) {
 	if (smp->de_array) {
 		smp->by_mesh = 0;
 		for (int i = 0; i < smp->de_array->size; ++i) {
-			printf("looking at de '%s'\n", drawelement_name(smp->de_array->element[i]));
+// 			printf("looking at de '%s'\n", drawelement_name(smp->de_array->element[i]));
 			struct smp_by_mesh *bm = smp->by_mesh;
 			while (bm && bm->mesh.id != drawelement_mesh(smp->de_array->element[i]).id)
 				bm = bm->next;
@@ -694,7 +694,7 @@ void finalize_single_material_pass(single_material_pass_ref ref) {
 				new->next = smp->by_mesh;
 				smp->by_mesh = bm = new;
 			}
-			printf("  --> into bucket of mesh '%s'\n", mesh_name(bm->mesh));
+// 			printf("  --> into bucket of mesh '%s'\n", mesh_name(bm->mesh));
 			struct drawelement_list *node = malloc(sizeof(struct drawelement_list));
 			node->next = bm->tmp_des;
 			node->ref = smp->de_array->element[i];

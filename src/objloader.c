@@ -34,7 +34,6 @@
 
 
 void add_texture_if_found(material_ref mat, const char *filename, tex_params_t *p, const char *texname) {
-	printf("---------------------------------- looking for %s\n", filename);
 	char *fn = find_file(filename);
 	if (fn) {
 		texture_ref tex = find_texture_by_filename(fn);
@@ -202,7 +201,7 @@ static drawelement_ref example_make_drawelem(const char *name, mesh_ref mesh, ma
 static void load_objfile_and_create_objects_with_single_vbo_general(
                         const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max,
                         drawelement_ref (*make_drawelem)(const char*, mesh_ref, material_ref, unsigned int start, unsigned int len, vec3f *bbmin, vec3f *bbmax),
-                        material_ref fallback_material, bool keep_meshes_on_cpu);
+                        material_ref fallback_material, bool keep_meshes_on_cpu, float merge_factor);
 /*! \brief Load and obj file and store all data in a single vbo, creating indexed drawelements.
  *	\ingroup objloading
  *
@@ -220,21 +219,21 @@ static void load_objfile_and_create_objects_with_single_vbo_general(
 void load_objfile_and_create_objects_with_single_vbo(	// i really don't like writing it with such strange indent, the name, however, is just too long...
                   const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max,
                   drawelement_ref (*make_drawelem)(const char*, mesh_ref, material_ref, unsigned int start, unsigned int len, vec3f *bbmin, vec3f *bbmax),
-                  material_ref fallback_material) {
-	load_objfile_and_create_objects_with_single_vbo_general(filename, object_name, bb_min, bb_max, make_drawelem, fallback_material, false);
+                  material_ref fallback_material, float merge_factor) {
+	load_objfile_and_create_objects_with_single_vbo_general(filename, object_name, bb_min, bb_max, make_drawelem, fallback_material, false, merge_factor);
 }
 
 void load_objfile_and_create_objects_with_single_vbo_keeping_cpu_data(
                   const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max,
                   drawelement_ref (*make_drawelem)(const char*, mesh_ref, material_ref, unsigned int start, unsigned int len, vec3f *bbmin, vec3f *bbmax),
-                  material_ref fallback_material) {
-	load_objfile_and_create_objects_with_single_vbo_general(filename, object_name, bb_min, bb_max, make_drawelem, fallback_material, true);
+                  material_ref fallback_material, float merge_factor) {
+	load_objfile_and_create_objects_with_single_vbo_general(filename, object_name, bb_min, bb_max, make_drawelem, fallback_material, true, merge_factor);
 }
 
 static void load_objfile_and_create_objects_with_single_vbo_general(
                         const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max,
                         drawelement_ref (*make_drawelem)(const char*, mesh_ref, material_ref, unsigned int start, unsigned int len, vec3f *bbmin, vec3f *bbmax),
-                        material_ref fallback_material, bool keep_meshes_on_cpu) {
+                        material_ref fallback_material, bool keep_meshes_on_cpu, float merge_factor) {
 	obj_data objdata;
 	const char *modelname = object_name ? object_name : filename;
 
@@ -245,7 +244,7 @@ static void load_objfile_and_create_objects_with_single_vbo_general(
 	time_t start = clock();
 
 	bool collapse_materials = true;
-	load_objfile(modelname, filename, &objdata, true, collapse_materials, cmdline.collapse_factor);
+	load_objfile(modelname, filename, &objdata, true, collapse_materials, merge_factor);
 	
 	time_t mid = clock();
 
@@ -374,8 +373,8 @@ SCM_DEFINE(s_load_objfile_and_create_objects_with_separate_vbos,
 }
 
 SCM_DEFINE(s_load_objfile_and_create_objects_with_single_vbos_general,
-           "load-objfile-and-create-objects-with-single-vbo-general", 5, 0, 0,
-		   (SCM filename, SCM object_name, SCM callback, SCM fallback_mat, SCM keep_cpu_data), "") {
+           "load-objfile-and-create-objects-with-single-vbo-general", 6, 0, 0,
+		   (SCM filename, SCM object_name, SCM callback, SCM fallback_mat, SCM keep_cpu_data, SCM merge_fact), "") {
 	char *f = scm_to_locale_string(filename);
 	char *o = scm_to_locale_string(object_name);
 	bool keep = scm_is_true(keep_cpu_data);
@@ -387,7 +386,8 @@ SCM_DEFINE(s_load_objfile_and_create_objects_with_single_vbos_general,
 	vec3f min, max;
 	vec4f amb = {1,0,0,1}, diff = {1,0,0,1}, spec = {1,0,0,1};
 	material_ref fallback = { scm_to_int(fallback_mat) };
-	load_objfile_and_create_objects_with_single_vbo_general(f, o, &min, &max, create_drawelement_forwarder, fallback, keep);
+	float merge_factor = scm_to_double(merge_fact);
+	load_objfile_and_create_objects_with_single_vbo_general(f, o, &min, &max, create_drawelement_forwarder, fallback, keep, merge_factor);
 	return scm_values(scm_list_2(vec3f_to_list(&min), vec3f_to_list(&max)));
 }
 
@@ -395,12 +395,10 @@ void register_scheme_functions_for_cgls_objloader() {
 #ifndef SCM_MAGIC_SNARFER
 #include "objloader.x"
 #endif
-	scm_c_eval_string("(define (load-objfile-and-create-objects-with-single-vbo filename objname callback fallback-mat)\
-						 (format #t \"~a ~a ~a ~a #f\" filename objname callback fallback-mat)\
-	                     (load-objfile-and-create-objects-with-single-vbo-general filename objname callback fallback-mat #f))");
-	scm_c_eval_string("(define (load-objfile-and-create-objects-with-single-vbo-keeping-cpu-data filename objname callback fallback-mat)\
-						 (format #t \"~a ~a ~a ~a #t\" filename objname callback fallback-mat)\
-	                     (load-objfile-and-create-objects-with-single-vbo-general filename objname callback fallback-mat #t))");
+	scm_c_eval_string("(define (load-objfile-and-create-objects-with-single-vbo filename objname callback fallback-mat merge-factor)\
+	                     (load-objfile-and-create-objects-with-single-vbo-general filename objname callback fallback-mat #f merge-factor))");
+	scm_c_eval_string("(define (load-objfile-and-create-objects-with-single-vbo-keeping-cpu-data filename objname callback fallback-mat merge-factor)\
+	                     (load-objfile-and-create-objects-with-single-vbo-general filename objname callback fallback-mat #t merge-factor))");
 }
 
 #endif

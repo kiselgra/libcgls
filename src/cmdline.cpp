@@ -154,6 +154,9 @@ extern "C" {
 		else if (s == "filetype") {
 			return scm_string_to_symbol(scm_from_locale_string((cmdline.objfile ? string("obj") : string("scene")).c_str()));
 		}
+		else if (s == "merge-factor") {
+			return scm_from_double(cmdline.collapse_factor);
+        }
 
 
 		scm_throw(scm_from_locale_symbol("cmdline-error"), 

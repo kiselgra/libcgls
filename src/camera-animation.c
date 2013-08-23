@@ -270,16 +270,18 @@ void add_cam_anim_commands_to_viconsole(console_ref console) {
 	add_vi_console_command(console, "ca-help", console_help_camera_animation);
 	add_vi_console_command(console, "ca-new", console_make_ca);
 #ifdef WITH_GUILE
-	scm_c_eval_string("(define (console-ca-show-points console args) \
-	                     (if (< (length args) 2) \
-						     (format #f \"not enough arguments\") \
-							 (let ((id (if (string->number (second args)) \
-							               (string->number (second args)) \
-										   (find-path-animation (second args))))) \
-							   (if (< id 0) \
-							       (format #f \"no such path animation\") \
-                                   (format #f \"~a\" (camera-animation-config id))))))");
-	add_vi_console_command_scm(console, "ca-show", scm_c_eval_string("console-ca-show-points"));
+	if (cgl_use_guile) {
+		scm_c_eval_string("(define (console-ca-show-points console args) \
+							 (if (< (length args) 2) \
+								 (format #f \"not enough arguments\") \
+								 (let ((id (if (string->number (second args)) \
+											   (string->number (second args)) \
+											   (find-path-animation (second args))))) \
+								   (if (< id 0) \
+									   (format #f \"no such path animation\") \
+									   (format #f \"~a\" (camera-animation-config id))))))");
+		add_vi_console_command_scm(console, "ca-show", scm_c_eval_string("console-ca-show-points"));
+	}
 #endif
 }
 

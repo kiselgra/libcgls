@@ -107,7 +107,9 @@ void bind_handled_uniforms(struct uniform_handler_node *chain, shader_ref shader
 	for (int i = 0; i < shader_uniforms(shader); ++i) {
 		const char *name = shader_uniform_name_by_id(shader, i);
 #ifdef WITH_GUILE
-		SCM s_name = scm_from_locale_string(name);
+		SCM s_name;
+		if (cgl_use_guile) 
+			s_name = scm_from_locale_string(name);
 #endif
 		int loc = shader_uniform_location_by_id(shader, i);
 		struct uniform_handler_node *run = chain;
@@ -117,7 +119,7 @@ void bind_handled_uniforms(struct uniform_handler_node *chain, shader_ref shader
 					break;
 			}
 #ifdef WITH_GUILE
-			else
+			else if (cgl_use_guile)
 				if (scm_is_true(scm_call_3(run->scheme_handler,
 								scm_from_int(((drawelement_ref*)thing)->id), 
 								s_name, scm_from_int(loc))))	//!< \attention this assumes the same layout for all refs which pass through this!

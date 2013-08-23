@@ -336,16 +336,20 @@ void add_path_commands_to_viconsole(console_ref console) {
 	add_vi_console_command(console, "pa-stop", console_stop_path_animation);
 	add_vi_console_command(console, "pa-normalize", console_normalize_path_animation);
 	add_vi_console_command(console, "pa-help", console_help_path_animation);
-	scm_c_eval_string("(define (console-pa-show-points console args) \
-	                     (if (< (length args) 2) \
-						     (format #f \"not enough arguments\") \
-							 (let ((id (if (string->number (second args)) \
-							               (string->number (second args)) \
-										   (find-path-animation (second args))))) \
-							   (if (< id 0) \
-							       (format #f \"no such path animation\") \
-                                   (format #f \"~a\" (path-animation-positions id))))))");
-	add_vi_console_command_scm(console, "pa-nodes", scm_c_eval_string("console-pa-show-points"));
+#ifdef WITH_GUILE
+	if (cgl_use_guile) {
+		scm_c_eval_string("(define (console-pa-show-points console args) \
+							 (if (< (length args) 2) \
+								 (format #f \"not enough arguments\") \
+								 (let ((id (if (string->number (second args)) \
+											   (string->number (second args)) \
+											   (find-path-animation (second args))))) \
+								   (if (< id 0) \
+									   (format #f \"no such path animation\") \
+									   (format #f \"~a\" (path-animation-positions id))))))");
+		add_vi_console_command_scm(console, "pa-nodes", scm_c_eval_string("console-pa-show-points"));
+	}
+#endif
 }
 
 #ifdef WITH_GUILE

@@ -26,6 +26,7 @@ float path_animation_speed(path_animation_ref ref, float factor);
 void evaluate_path_animation_at(path_animation_ref ref, animation_time_t time);
 
 void change_path_node_tension(path_animation_ref ref, int node, float tension);
+void normalize_speed_along_path(path_animation_ref ref);
 
 define_array(path_animation);
 

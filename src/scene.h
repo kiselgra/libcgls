@@ -112,6 +112,8 @@ void finalize_single_material_pass(single_material_pass_ref ref);
 void finalize_single_material_passes_for_array(struct drawelement_array *array);
 void render_single_material_pass(single_material_pass_ref ref);
 
+void register_single_material_shader_fragment(const char *name, const char *source, int u, char **U);
+
 define_array(scene);
 define_array(single_material_pass);
 

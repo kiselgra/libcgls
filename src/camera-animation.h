@@ -16,6 +16,7 @@ define_array(camera_animation);
 
 camera_animation_ref make_camera_animation(const char *name, camera_ref cam);
 void add_current_view_to_camera_animation(camera_animation_ref ref, float t);
+void add_node_to_camera_animation(camera_animation_ref ref, vec3f *pos, vec3f *dir, vec3f *up, float t);
 
 camera_animation_ref find_camera_animation(const char *name);
 struct camera_animation_list* list_camera_animations();

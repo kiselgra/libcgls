@@ -46,6 +46,7 @@ void light_representation_mode_if_off(light_ref ref, bool render);
 bool dim_light_representation_if_off(light_ref ref);
 void light_representation_dim_mode_if_off(light_ref ref, bool render);
 
+light_ref find_light(const char *name);
 
 
 // deferred

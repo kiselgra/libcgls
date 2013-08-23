@@ -630,7 +630,7 @@ struct single_material_shader_fragment {
 
 static struct single_material_shader_fragment *single_material_shader_fragments = 0;
 
-static void register_single_material_shader_fragment(const char *name, const char *source, int u, char **U) {
+void register_single_material_shader_fragment(const char *name, const char *source, int u, char **U) {
 	struct single_material_shader_fragment *new = malloc(sizeof(struct single_material_shader_fragment));
 	new->name = strdup(name);
 	new->source = strdup(source);

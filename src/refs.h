@@ -4,6 +4,7 @@
 #define REF(X) typedef struct { int id; } X##_ref;
 
 REF(camera_animation);
+REF(command_animation);
 REF(console);
 REF(drawelement);
 REF(light);

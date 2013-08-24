@@ -162,6 +162,7 @@ extern "C" {
 		scm_throw(scm_from_locale_symbol("cmdline-error"), 
 		          scm_list_2(what, 
 		                    scm_from_locale_string("invalid option. use hemi, hemi-dir, model, filetype")));
+		return SCM_BOOL_F; // for -Wreturn-type.
 	}
 
 	void register_scheme_functions_for_cmdline() {

@@ -196,7 +196,10 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
  *	Note that these are two versions, implementing the same logic for both <tt>load_objfile_*</tt> calls.
  *
  */
-static drawelement_ref example_make_drawelem(const char *name, mesh_ref mesh, material_ref mat, unsigned int start, unsigned int len) {}
+static drawelement_ref example_make_drawelem(const char *name, mesh_ref mesh, material_ref mat, unsigned int start, unsigned int len) {
+	drawelement_ref r = { -1 };
+	return r;
+}
 
 static void load_objfile_and_create_objects_with_single_vbo_general(
                         const char *filename, const char *object_name, vec3f *bb_min, vec3f *bb_max,

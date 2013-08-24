@@ -48,7 +48,8 @@ library_include_HEADERS = drawelement.h objloader.h scene.h c-utils.h basename.h
 
 # setting c++ flags:
 # AM_CXXFLAGS = -Wall -ansi -pedantic -ggdb -pg
-AM_CXXFLAGS = -ffor-scope
+AM_CXXFLAGS = -ffor-scope -Werror=return-type
+AM_CFLAGS = -Werror=return-type
 
 # setting c preprocessor flags for main project
 viewer_cgls_CPPFLAGS = -D PACKAGE=\"$(PACKAGE)\" -D VERSION=\"$(VERSION)\" -D DATADIR=\"$(pkgdatadir)\" -D_GNU_SOURCE @GUILE_DEF@ $(GUILE_CFLAGS) $(CGL_CFLAGS) $(AI_CFLAGS)

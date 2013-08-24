@@ -114,16 +114,15 @@ void display() {
 	curr_pos = (curr_pos+1) % samples;
 	valid_pos = (valid_pos == samples ? samples : valid_pos+1);
 
-	static int rounds = 0;
-	if (curr_pos == 0) {
-		rounds++;
-		if (rounds == 5) {
-			void keyboard(unsigned char key, int x, int y);
-			keyboard('p', 0, 0);
-			scm_c_eval_string("(format #t \"des: ~a~%\" (length (list-drawelements)))");
-			exit(0);
-		}
-	}
+// 	static int rounds = 0;
+// 	if (curr_pos == 0) {
+// 		rounds++;
+// 		if (rounds == 5) {
+// 			void keyboard(unsigned char key, int x, int y);
+// 			keyboard('p', 0, 0);
+// 			scm_c_eval_string("(format #t \"des: ~a~%\" (length (list-drawelements)))");
+// 		}
+// 	}
 
     check_for_gl_errors("display");
 	render_console(console);

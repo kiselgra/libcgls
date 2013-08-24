@@ -63,6 +63,7 @@ struct bone* find_bone(struct bone *tree, const char *name) {
 		if (found)
 			return found;
 	}
+	return 0;
 }
 
 bool traverse_bone_hierarchy(struct bone_list *list, bool (*handler)(struct bone *bone, int depth, void *data), int depth, void *data) {
@@ -95,6 +96,8 @@ struct bone* find_bone_in_skeletal_animation(skeletal_animation_ref ref, const c
 		if (found)
 			return found;
 	}
+	fprintf(stderr, "cannot find bone '%s'\n", bone_name);
+	return 0;
 }
 
 void add_animation_to_skeleton(skeletal_animation_ref ref, struct animation_sequence *seq) {

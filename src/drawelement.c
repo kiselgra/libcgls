@@ -505,6 +505,7 @@ SCM_DEFINE(s_render_drawelement_w, "render-drawelement-with", 3, 0, 0, (SCM de, 
 	shader_ref s_ref = { scm_to_int(sh) };
 	material_ref m_ref = { scm_to_int(mt) };
     render_drawelement_with(ref, s_ref, m_ref);
+	return SCM_BOOL_T;
 }
 
 SCM_DEFINE(s_drawelement_shader, "drawelement-shader", 1, 0, 0, (SCM de), "") {

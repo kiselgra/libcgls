@@ -1000,7 +1000,8 @@ void add_stock_fragment_shader_part(struct stockshader_fragments *ssf, bool use_
  * \attention does handle neither tesselation nor compute shaders, atm.
  */
 bool compile_and_link_shader_showing_log_on_error(shader_ref shader) {
-	if (!compile_and_link_shader(shader)) {
+	bool res = compile_and_link_shader(shader);
+	if (!res) {
 		fprintf(stderr, "SHADER ERROR\n");
 		if (vertex_shader_info_log(shader))
 			fprintf(stderr, "VERTEX-LOG:\n%s\n", vertex_shader_info_log(shader));
@@ -1011,6 +1012,7 @@ bool compile_and_link_shader_showing_log_on_error(shader_ref shader) {
 		if (shader_info_log(shader))
 			fprintf(stderr, "PROGRAM-LOG:\n%s\n", shader_info_log(shader));
 	}
+	return res;
 }
 
 /*

@@ -179,11 +179,19 @@ void set_path_to_animation_state_at(path_animation_ref ref, animation_time_t tim
 	
 	if (pa->track_direction) {
 		// interpolate slightly advanced position to obtain difference
-		time += (pa->node[next].time - pa->node[prev].time)/16;
+		animation_time_t offset = (pa->node[next].time - pa->node[prev].time)/16;
+		bool invert = false;;
+		if (time + offset >= pa->node[pa->nodes-1].time)
+			time -= offset, invert = true;
+		else
+			time += offset;
 		vec3f q = path_position_at(ref, time, 0, 0);
 
 		vec3f dir;
-		sub_components_vec3f(&dir, &q, &p);
+		if (!invert)
+			sub_components_vec3f(&dir, &q, &p);
+		else
+			sub_components_vec3f(&dir, &p, &q);
 		normalize_vec3f(&dir);
 
 		vec3f unit = { 0,0,-1 };

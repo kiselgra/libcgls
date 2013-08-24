@@ -283,7 +283,7 @@ void load_model_and_create_objects_with_separate_vbos(const char *filename, cons
 					for (int bone = 0; bone < 4; ++bone)
 						sum += bufs[buf][4*v + bone];
 				}
-				if (sum != 1) {
+				if (sum < 0.999) {
 					cout << "at " << v << ": sum = " << sum << endl;
 				}
 			}
@@ -434,7 +434,7 @@ struct single_bone_animation_list*  convert_single_bone_animation(aiNodeAnim *ch
 // 		found_rot = first_quat;
 // 		found_scale = first_scale;
 
-		cout << "bone " << bone_frames->bone->name << " t=" << tmin << "\t";
+// 		cout << "bone " << bone_frames->bone->name << " t=" << tmin << "\t";
 		bone_frame_list *old_head = bone_frames->keyframes;
 		if (found_pos)   make_vec3f(&curr->keyframe.translation, found_pos->mValue.x, found_pos->mValue.y, found_pos->mValue.z);
 		else             copy_vec3f(&curr->keyframe.translation, &old_head->keyframe.translation);

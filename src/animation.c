@@ -83,6 +83,8 @@ void slerp_quaterionf(quaternionf *to, const quaternionf *p, const quaternionf *
 	// this breaks: (0,0,-1) -> (-1,0,0) vs (0,0,-1) -> (-1,0,0.1)
 	// it's not in http://number-none.com/product/Understanding%20Slerp,%20Then%20Not%20Using%20It/, either.
 	// however, the bone animations break when we don't do it...
+	//
+	// workaround: see next function.
 	if (cos_phi < 0) {	
 		tmp_q.v.x = -q->v.x;
 		tmp_q.v.y = -q->v.y;
@@ -106,6 +108,26 @@ void slerp_quaterionf(quaternionf *to, const quaternionf *p, const quaternionf *
 		add_components_quaternionf(to, &tmp_p, &tmp_q);
 	}
 }
+
+void slerp_quaterionf_noflip(quaternionf *to, const quaternionf *p, const quaternionf *q, float t) {
+	quaternionf tmp_p, tmp_q;
+	float cos_phi = dot_quaternionf(p, q);
+	copy_quaternion4f(&tmp_q, q);
+
+	if (cos_phi >= 0.999999) {
+		lerp_quaterionf(to, p, q, t);
+	}
+	else {
+		float phi = acosf(cos_phi);
+		float sin_phi = sinf(phi);
+		float w_0 = sin((1-t) * phi) / sin_phi;
+		float w_1 = sin(t*phi) / sin_phi;
+		mul_quaternionf_by_scalar(&tmp_p, p, w_0);
+		mul_quaternionf_by_scalar(&tmp_q, &tmp_q, w_1);
+		add_components_quaternionf(to, &tmp_p, &tmp_q);
+	}
+}
+
 
 animation_time_t animation_time_stamp() {
 	double stamp;

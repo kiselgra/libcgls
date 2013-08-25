@@ -127,6 +127,11 @@ void stop_camera_animation(camera_animation_ref ref) {
 	stop_path_animation(ca->path);
 }
 
+path_animation_ref camera_animation_path(camera_animation_ref ref) {
+	struct camera_animation *ca = camera_animations + ref.id;
+	return ca->path;
+}
+
 static void find_nodes_for_cam_animation(struct camera_animation *ca, float time, int *next, int *prev) {
 	*next = -1;
 	for (int i = 0; i < ca->nodes; ++i)
@@ -158,12 +163,12 @@ void set_camera_to_animation_state_at(camera_animation_ref ref, animation_time_t
 		quaternionf dir_from, dir_to, dir;
 		make_quaternionf(&dir_from, &ca->node[p].dir, 0);
 		make_quaternionf(&dir_to, &ca->node[n].dir, 0);
-		slerp_quaterionf(&dir, &dir_from, &dir_to, t);
+		slerp_quaterionf_noflip(&dir, &dir_from, &dir_to, t);
 
 		quaternionf up_from, up_to, up;
 		make_quaternionf(&up_from, &ca->node[p].up, 0);
 		make_quaternionf(&up_to, &ca->node[n].up, 0);
-		slerp_quaterionf(&up, &up_from, &up_to, t);
+		slerp_quaterionf_noflip(&up, &up_from, &up_to, t);
 
 		make_lookat_matrixf(lookat_matrix_of_cam(ca->cam), &pos, &dir.v, &up.v);
 	}
@@ -335,6 +340,11 @@ SCM_DEFINE(s_stop_ca, "stop-camera-animation", 1, 0, 0, (SCM ca), "") {
 	camera_animation_ref ref = { scm_to_int(ca) };
 	stop_camera_animation(ref);
 	return SCM_BOOL_T;
+}
+
+SCM_DEFINE(s_ca_path, "camera-animation-path", 1, 0, 0, (SCM ca), "") {
+	camera_animation_ref ref = { scm_to_int(ca) };
+	return scm_from_int(camera_animation_path(ref).id);
 }
 
 SCM_DEFINE(s_change_ca_speed, "change-camera-animation-speed!", 2, 0, 0, (SCM ca, SCM factor), "") {

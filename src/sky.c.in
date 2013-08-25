@@ -84,5 +84,21 @@ drawelement_ref make_skybox_with_spherical_mapping(const char *dename, const cha
 }
 
 
+#ifdef WITH_GUILE
+
+SCM_DEFINE(s_make_skybox_with_spherical_mapping, "make-skybox-with-spherical-mapping", 2, 0, 0, (SCM name, SCM file), "") {
+	char *n = scm_to_locale_string(name);
+	char *f = scm_to_locale_string(file);
+	drawelement_ref de = make_skybox_with_spherical_mapping(n, f);
+	free(n);
+	free(f);
+	return scm_from_int(de.id);
+}
+
+void register_scheme_functions_for_sky() {
+#include "sky.x"
+}
+
+#endif
 
 

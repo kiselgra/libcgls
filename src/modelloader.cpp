@@ -256,7 +256,7 @@ void load_model_and_create_objects_with_separate_vbos(const char *filename, cons
 			int components_in_last_buffer = bones % 4;
 			int vertex_buffers = bones / 4 + (components_in_last_buffer!=0 ? 1 : 0);
 
-			cout << " V V V V " << (bones/4 + ((bones%4)?1:0)) << " V V V " << vertex_buffers << endl;
+// 			cout << " V V V V " << (bones/4 + ((bones%4)?1:0)) << " V V V " << vertex_buffers << endl;
 			vector<float*> bufs;
 			for (int buf = 0; buf < vertex_buffers; ++buf) {
 				float *weights = new float[4*verts];
@@ -267,7 +267,7 @@ void load_model_and_create_objects_with_separate_vbos(const char *filename, cons
 					if (bone_id >= bones)
 						continue;
 					aiBone *bone_data = group->mBones[bone_id];
-					cout << "BONE " << bone_id << ": " << bone_data->mName.data << endl;
+// 					cout << "BONE " << bone_id << ": " << bone_data->mName.data << endl;
 					for (int i = 0; i < bone_data->mNumWeights; ++i)
 						weights[4*bone_data->mWeights[i].mVertexId+b] = bone_data->mWeights[i].mWeight;
 					found_bones[bone_id] = find_bone_in_skeletal_animation(anim, (char*)bone_data->mName.data);
@@ -442,7 +442,7 @@ struct single_bone_animation_list*  convert_single_bone_animation(aiNodeAnim *ch
 		else             copy_quaternion4f(&curr->keyframe.rotation, &old_head->keyframe.rotation);
 		if (found_scale) make_vec3f(&curr->keyframe.scale, found_scale->mValue.x, found_scale->mValue.y, found_scale->mValue.z);
 		else             copy_vec3f(&curr->keyframe.scale, &old_head->keyframe.scale);
-		cout << endl;
+// 		cout << endl;
 		curr->keyframe.time = tmin;
 		// go forward
 		if (pi < pn && found_pos) ++pi;
@@ -452,10 +452,10 @@ struct single_bone_animation_list*  convert_single_bone_animation(aiNodeAnim *ch
 		curr->next = old_head;
 	}
 
-	cout << "frames for bone " << bone_frames->bone->name << ":\t ";
-	for (bone_frame_list *run = bone_frames->keyframes; run; run = run->next)
-		cout << run->keyframe.time << "\t";
-	cout << endl;
+// 	cout << "frames for bone " << bone_frames->bone->name << ":\t ";
+// 	for (bone_frame_list *run = bone_frames->keyframes; run; run = run->next)
+// 		cout << run->keyframe.time << "\t";
+// 	cout << endl;
 
 	// reverse list
 	struct bone_frame_list *rev_list = 0;

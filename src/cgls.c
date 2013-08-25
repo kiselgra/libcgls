@@ -12,6 +12,7 @@ void register_scheme_functions_for_cgls_modelloader();
 void register_scheme_functions_for_console();
 void register_scheme_functions_for_path_animation();
 void register_scheme_functions_for_skeletal_animation();
+void register_scheme_functions_for_sky();
 void register_scheme_functions_for_stock_shader();
 
 void register_cgls_scheme_functions() {
@@ -26,6 +27,7 @@ void register_cgls_scheme_functions() {
 	register_scheme_functions_for_console();
 	register_scheme_functions_for_path_animation();
 	register_scheme_functions_for_skeletal_animation();
+	register_scheme_functions_for_sky();
 	register_scheme_functions_for_stock_shader();
 }
 

@@ -22,6 +22,7 @@ struct scene {
 	bool show_light_representations;
 
 	drawelement_ref skybox;
+	bool cull;
 
     unsigned int aux_type;
 	void *aux;
@@ -90,6 +91,7 @@ scene_ref make_scene(const char *name) { // no pun intended.
 	scene->apply_lights = 0;
 	scene->show_light_representations = true;
 	scene->skybox.id = -1;
+	scene->cull = true;
 
 	return ref;
 }
@@ -199,6 +201,16 @@ void set_scene_skybox(scene_ref ref, drawelement_ref de) {
 	scenes[ref.id].skybox = de;
 }
 
+void enable_backface_culling_for_scene(scene_ref ref, bool yes) {
+	struct scene *scene = scenes+ref.id;
+	scene->cull = yes;
+}
+
+bool using_backface_culling_for_scene(scene_ref ref) {
+	struct scene *scene = scenes+ref.id;
+	return scene->cull;
+}
+
 /*! \brief Render the scene.
  *
  * 	Traversal.
@@ -295,6 +307,11 @@ void render_scene_with_shader(scene_ref ref, shader_ref shader, uniform_setter_t
 }
 
 void default_scene_renderer(scene_ref ref) {
+	struct scene *scene = scenes+ref.id;
+	if (scene->cull) {
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_BACK);
+	}
 	if (use_single_shader_for_scene(ref)) {
 		shader_ref shader = single_shader_for_scene(ref);
 		for (drawelement_node *run = scene_drawelements(ref); run; run = run->next) {
@@ -332,6 +349,9 @@ void default_scene_renderer(scene_ref ref) {
 #endif
 			}
 // 		printf("rendered %d of %d\n", c, all);
+	}
+	if (scene->cull) {
+		glDisable(GL_CULL_FACE);
 	}
 }
 
@@ -464,13 +484,19 @@ bool must_be_graph_scene(scene_ref ref, const char *fun) {
 
 void graph_scene_traverser(scene_ref ref) {
 	graph_scene_or_return(ref);
+	struct scene *scene = scenes+ref.id;
 	struct graph_scene_aux *gs = scene_aux(ref);
 	bool use_single_shader = use_single_shader_for_scene(ref);
 	shader_ref shader = single_shader_for_scene(ref);
 	uniform_setter_t uniform_setter = single_shader_extra_uniform_handler(ref);
 
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_BACK);
+	if (scene->cull) {
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_BACK);
+	}
+	else
+		glDisable(GL_CULL_FACE);
+
 	if (use_single_shader)
 		for (struct by_mesh *by_mesh = gs->meshes; by_mesh; by_mesh = by_mesh->next) {
 			bind_mesh_to_gl(by_mesh->mesh);
@@ -539,7 +565,9 @@ void graph_scene_traverser(scene_ref ref) {
 				if (!drawelement_hidden(run->ref))
 					render_drawelement_box(run->ref);
 #endif
-	glDisable(GL_CULL_FACE);
+	if (scene->cull) {
+		glDisable(GL_CULL_FACE);
+	}
 }
 
 void graph_scene_bulk_traverser(scene_ref ref) {
@@ -866,6 +894,20 @@ SCM_DEFINE(s_is_graph_scene, "is-graph-scene", 1, 0, 0, (SCM scene), "") {
 	return scm_from_bool(is_graph_scene(s));
 }
 
+SCM_DEFINE(s_graph_set_bfc, "enable-backface-culling-for-scene", 2, 0, 0, (SCM scene, SCM yn), "") {
+	scene_ref s = { scm_to_int(scene) };
+	bool on = scm_is_true(yn);
+	bool prev = using_backface_culling_for_scene(s);
+	enable_backface_culling_for_scene(s, on);
+	return scm_from_bool(prev);
+}
+
+SCM_DEFINE(s_graph_using_bfc, "using-backface-culling-for-scene", 1, 0, 0, (SCM scene), "") {
+	scene_ref s = { scm_to_int(scene) };
+	bool ret = using_backface_culling_for_scene(s);
+	return scm_from_bool(ret);
+}
+
 SCM_DEFINE(s_graph_scene_bulk_des, "graph-scene-bulk-drawelements", 1, 0, 0, (SCM scene), "") {
 	scene_ref s = { scm_to_int(scene) };
 	SCM list = SCM_EOL;
@@ -927,6 +969,21 @@ SCM_DEFINE(s_register_single_material_fragment, "register-single-material-shader
 	for (int i = 0; i < u; ++i)
 		U[i] = scm_to_locale_string(scm_list_ref(uniforms, scm_from_int(i)));
 	register_single_material_shader_fragment(n, c, u, U);
+	return SCM_BOOL_T;
+}
+
+SCM_DEFINE(s_scene_has_sb, "scene-with-skybox", 1, 0, 0, (SCM scene), "") {
+	scene_ref s = { scm_to_int(scene) };
+	drawelement_ref ref = scene_skybox(s);
+	if (ref.id >= 0)
+		return scm_from_int(ref.id);
+	return SCM_BOOL_F;
+}
+
+SCM_DEFINE(s_scene_set_sb, "change-scene-skybox!", 2, 0, 0, (SCM scene, SCM drawelem), "") {
+	scene_ref s = { scm_to_int(scene) };
+	drawelement_ref d = { scm_to_int(drawelem) };
+	set_scene_skybox(s, d);
 	return SCM_BOOL_T;
 }
 

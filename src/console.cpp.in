@@ -226,7 +226,7 @@ static void update_console(console *c) {
 	cairo_select_font_face(cr, "DejaVu Serif", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
 	cairo_set_source_rgb(cr, 1, 1, 1);
 	cairo_show_text(cr, c->lines.back().c_str());
-	cairo_surface_write_to_png(c->cairo_surface, "cai.png");
+	// cairo_surface_write_to_png(c->cairo_surface, "cai.png");
 	bind_texture(c->tex, 0);
 	unsigned char *data = cairo_image_surface_get_data(c->cairo_surface);
 	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, c->screen_w, c->height, GL_RGBA, GL_UNSIGNED_BYTE, data);

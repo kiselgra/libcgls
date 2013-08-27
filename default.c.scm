@@ -16,7 +16,7 @@
   (set! x-res w)
   (set! y-res h))
 
-(load-shader-file "default.shader")
+;(load-shader-file "default.shader")
 
 (let ((home (getenv "HOME")))
   (append-image-path (string-append home "/render-data/images"))
@@ -74,14 +74,12 @@
 	    (set! near (/ near 10)))
 	  (while (< far (* distance 2))
 	    (set! far (* far 2)))
-      (let ((hack 'hack)
-            (pos (list 1310.883545 -183.867874 64.422928 ))
-            (dir (list -0.596740 0.798600 -0.078347 ))
-            (up (list -0.074134 0.042352 0.996349)))
-	  (let ((cam (make-perspective-camera "cam" pos dir up 35 (/ x-res y-res) near far)))
-	  ;(let ((cam (make-perspective-camera "cam" pos (list 0 0 -1) (list 0 1 0) 35 (/ x-res y-res) near far)))
+	  (let ((cam (make-perspective-camera "cam" pos (list 0 0 -1) (list 0 1 0) 35 (/ x-res y-res) near far)))
+	  ;(let ((cam (make-perspective-camera "cam" (list 104.608742 201.353149 119.378754) (list -0.885435 -0.002314 -0.464753) (list -0.018183 0.999392 0.029667) 35 (/ x-res y-res) near far)))
+
+
         (use-camera cam))
-      (set-move-factor! (/ distance 20))))))
+      (set-move-factor! (/ distance 20)))))
 
 (gl:enable gl#depth-test)
 (format #t "Leaving ~a.~%" (current-filename))

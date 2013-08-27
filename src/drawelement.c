@@ -386,6 +386,19 @@ drawelement_ref find_drawelement(const char *name) {
 	return ref;
 }
 
+struct drawelement_list* find_drawelements_matching(const char *name) {
+    struct drawelement_list *ret = 0;
+    for (int i = 0; i < next_drawelement_index; ++i) {
+		if (strstr(drawelements[i].name, name) != 0) {
+			struct drawelement_list *elem = malloc(sizeof(struct drawelement_list));
+			elem->next = ret;
+			elem->ref.id = i;
+			ret = elem;
+		}
+	}
+	return ret;
+}
+
 // !!! this does not work when we start removing drawelements!
 struct drawelement_list* list_drawelements() {
 	if (next_drawelement_index == 0)
@@ -625,6 +638,7 @@ SCM_DEFINE(s_TMP_mem_barr, "memory-barrier!!", 0, 0, 0, (), "") {
 
 void register_scheme_functions_for_drawelement() {
 #include "drawelement.x"
+    scm_c_eval_string("(define (drawelements-matching str) (filter (lambda (x) (string-contains x str)) (list-drawelements)))");
 }
 
 #endif

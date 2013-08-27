@@ -59,6 +59,7 @@ bool drawelement_hidden(drawelement_ref ref);
 void render_drawelement(drawelement_ref ref);
 drawelement_ref find_drawelement(const char *name);
 struct drawelement_list* list_drawelements();
+struct drawelement_list* find_drawelements_matching(const char *name);
 
 #if CGLS_DRAWELEMENT_BB_VIS == 1
 void drawelement_show_bounding_box(drawelement_ref ref, bool yes);

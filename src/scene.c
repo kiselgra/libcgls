@@ -236,23 +236,16 @@ void render_scene_to_buffer(scene_ref ref, framebuffer_ref target) {
 	unbind_framebuffer(target);
 }
 
-//!	\copydoc render_scene
-void render_scene_deferred(scene_ref ref, framebuffer_ref gbuffer) {
+//! just fill the given gbuffer
+void render_scene_to_gbuffer(scene_ref ref, framebuffer_ref gbuffer) {
 	bind_framebuffer(gbuffer);
 	struct scene *scene = scenes+ref.id;
 	scene->trav(ref);
 	unbind_framebuffer(gbuffer);
+}
 
-	/*
-	glClearColor(0,0,0,0);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	static drawelement_ref debug = { -1 };
-	if (!valid_drawelement_ref(debug))
-		debug = make_stock_gbuffer_default_drawelement(gbuffer, "debug", 0);
-	render_drawelement(debug);
-	return;
-	*/
-
+void render_scene_from_gbuffer(scene_ref ref, framebuffer_ref gbuffer) {
+	struct scene *scene = scenes+ref.id;
 	if (scene->apply_lights)
 		scene->apply_lights(scene->lights);
 	if (scene->show_light_representations)
@@ -277,18 +270,36 @@ void render_scene_deferred(scene_ref ref, framebuffer_ref gbuffer) {
 }
 
 //!	\copydoc render_scene
+void render_scene_deferred(scene_ref ref, framebuffer_ref gbuffer) {
+	render_scene_to_gbuffer(ref, gbuffer);
+
+	/*
+	glClearColor(0,0,0,0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	static drawelement_ref debug = { -1 };
+	if (!valid_drawelement_ref(debug))
+		debug = make_stock_gbuffer_default_drawelement(gbuffer, "debug", 0);
+	render_drawelement(debug);
+	return;
+	*/
+	
+	render_scene_from_gbuffer(ref, gbuffer);
+}
+
+//!	\copydoc render_scene
 void render_scene_deferred_to_buffer(scene_ref ref, framebuffer_ref gbuffer, framebuffer_ref target) {
-	bind_framebuffer(gbuffer);
-	struct scene *scene = scenes+ref.id;
-	scene->trav(ref);
-	unbind_framebuffer(gbuffer);
+	render_scene_to_gbuffer(ref, gbuffer);
+
+// 	bind_framebuffer(target);
+// 	if (scene->apply_lights)
+// 		scene->apply_lights(scene->lights);
+// 	if (scene->show_light_representations)
+// 		for (struct light_list *run = scene->lights; run; run = run->next)
+// 			render_light_representation(run->ref);
+// 	unbind_framebuffer(target);
 
 	bind_framebuffer(target);
-	if (scene->apply_lights)
-		scene->apply_lights(scene->lights);
-	if (scene->show_light_representations)
-		for (struct light_list *run = scene->lights; run; run = run->next)
-			render_light_representation(run->ref);
+	render_scene_from_gbuffer(ref, gbuffer);
 	unbind_framebuffer(target);
 }
 

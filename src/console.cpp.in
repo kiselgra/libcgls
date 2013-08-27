@@ -487,8 +487,12 @@ console_ref make_vi_console(const char *name, int screen_w, int screen_h) {
 	add_vi_console_command(ref, "echo", vi_command_echo);
 	add_vi_console_command(ref, "eval", vi_command_eval);
 	add_vi_console_command(ref, "help", vi_command_default_help);
-	scm_c_eval_string("(define (vi-command-default-scm-help console args) (format #f \"this is also a really lame ass emacs-style console, you can register commands by supplying a guile/scheme procedure. Maybe you could be interested in the scheme console, too?\"))");
-	add_vi_console_command_scm(ref, "help-scm", scm_c_eval_string("vi-command-default-scm-help"));
+#ifdef WITH_GUILE
+    if (cgl_use_guile) {
+	    scm_c_eval_string("(define (vi-command-default-scm-help console args) (format #f \"this is also a really lame ass emacs-style console, you can register commands by supplying a guile/scheme procedure. Maybe you could be interested in the scheme console, too?\"))");
+        add_vi_console_command_scm(ref, "help-scm", scm_c_eval_string("vi-command-default-scm-help"));
+    }
+#endif
 	return ref;
 }
 

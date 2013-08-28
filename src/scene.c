@@ -50,6 +50,7 @@ struct single_material_pass {
 	char *fragment_source;
 	bool closed;
 	char *fragment;
+	bool cull;
 };
 
 #include <libcgl/mm.h>
@@ -649,6 +650,7 @@ single_material_pass_ref make_single_material_pass(const char *name, struct draw
 		smp->uniform[i] = strdup(uniform[i]);
 	smp->fragment_source = strdup(fragment_source);
 	smp->fragment = 0;
+	smp->cull = true;
 	return ref;
 }
 
@@ -829,8 +831,10 @@ void finalize_single_material_passes_for_array(struct drawelement_array *array) 
 
 void render_single_material_pass(single_material_pass_ref refx) {
 	struct single_material_pass *smp = material_passes + refx.id;
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_BACK);
+	if (smp->cull) {
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_BACK);
+	}
 	
 	for (struct smp_by_mesh *bm = smp->by_mesh; bm; bm = bm->next) {
 		bind_mesh_to_gl(bm->mesh);
@@ -857,7 +861,17 @@ void render_single_material_pass(single_material_pass_ref refx) {
 		unbind_mesh_from_gl(bm->mesh);
 	}
 }
-	
+
+void enable_backface_culling_for_material_pass(single_material_pass_ref ref, bool yes) {
+	struct single_material_pass *pass = material_passes+ref.id;
+	pass->cull = yes;
+}
+
+bool using_backface_culling_for_material_pass(single_material_pass_ref ref) {
+	struct single_material_pass *pass = material_passes+ref.id;
+	return pass->cull;
+}
+
 
 
 // 

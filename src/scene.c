@@ -437,7 +437,7 @@ void graph_scene_drawelement_inserter(scene_ref ref, drawelement_ref de) {
 		material_ref mat = make_material(mat_name, &c, &c, &c);
 		shader_ref bulk_shader = { -1 };
 		new_entry->bulk_de = make_drawelement(name, mesh, bulk_shader, mat);
-		bulk_shader = make_stock_shader(0, new_entry->bulk_de, 0, true);
+		bulk_shader = make_stock_shader(0, new_entry->bulk_de, 0, true, 0);
 		drawelement_change_shader(new_entry->bulk_de, bulk_shader);
 		//! \attention when different model transformations are applied to different submeshes, our scheme (copying the first we get a hold of) will break.
 		copy_matrix4x4f(drawelement_trafo(new_entry->bulk_de), drawelement_trafo(de));

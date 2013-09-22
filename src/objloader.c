@@ -147,7 +147,7 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 			continue;
 		
 		if (!valid_shader_ref(drawelement_shader(de))) {
-			shader_ref shader = make_stock_shader(0, de, 0, true);
+			shader_ref shader = make_stock_shader(0, de, 0, true, 0);
 			drawelement_change_shader(de, shader);
 		}
 	}
@@ -322,7 +322,7 @@ static void load_objfile_and_create_objects_with_single_vbo_general(
 			continue;
 		
 		if (!valid_shader_ref(drawelement_shader(de))) {
-			shader_ref shader = make_stock_shader(0, de, 0, true);
+			shader_ref shader = make_stock_shader(0, de, 0, true, 0);
 			drawelement_change_shader(de, shader);
 		}
 	}

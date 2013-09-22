@@ -341,7 +341,7 @@ void load_model_and_create_objects_with_separate_vbos(const char *filename, cons
 		prepend_drawelement_uniform_handler(de, (uniform_setter_t)bone_matrix_uniform_handler);
 
 		if (!valid_shader_ref(drawelement_shader(de))) {
-			shader_ref shader = make_stock_shader(0, de, 0, true);
+			shader_ref shader = make_stock_shader(0, de, 0, true, 0);
 			drawelement_change_shader(de, shader);
 		}
 	}

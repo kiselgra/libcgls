@@ -518,7 +518,9 @@ void graph_scene_traverser(scene_ref ref) {
 				bind_shader(shader);
 				for (drawelement_node *deno = by_mat->drawelements; deno; deno = deno->next) {
 					if (!drawelement_hidden(deno->ref)) {
-						shader_ref old_shader = drawelement_change_shader(by_mat->drawelements->ref, shader);
+						// not sure why i changed the shader of the material group, as the uniforms are taken from the drawelement's shader.
+						// shader_ref old_shader = drawelement_change_shader(by_mat->drawelements->ref, shader);
+						shader_ref old_shader = drawelement_change_shader(deno->ref, shader);
 						if (uniform_setter)
 							prepend_drawelement_uniform_handler(deno->ref, uniform_setter);
 						if (drawelement_using_index_range(deno->ref))
@@ -527,7 +529,8 @@ void graph_scene_traverser(scene_ref ref) {
 							bind_uniforms_and_render_drawelement_nonindexed(deno->ref);
 						if (uniform_setter)
 							pop_drawelement_uniform_handler(deno->ref);
-						drawelement_change_shader(by_mat->drawelements->ref, old_shader);
+						// drawelement_change_shader(by_mat->drawelements->ref, old_shader);
+						drawelement_change_shader(deno->ref, old_shader);
 					}
 				}
 				unbind_shader(shader);

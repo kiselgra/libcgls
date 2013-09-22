@@ -900,7 +900,6 @@ const char* stock_effect_hemisphere_lighting() {
 const char* stock_light_representation_shader() {
 	return
 		shader{
-			#version 150 core
 			uniform vec3 light_col;
 			out vec4 out_col;
 			void main() {
@@ -1056,8 +1055,9 @@ shader_ref make_stock_shader(const char *name, drawelement_ref de, struct stocks
 	struct stockshader_fragments local;
 	if (!ssf) {
 		init_stockshader_fragments(&local);
-		ssf = make_stock_shader_fragments(de, &local, consider_material, fragment_base);
+		ssf = &local;
 	}
+	make_stock_shader_fragments(de, ssf, consider_material, fragment_base);
 	
 	char *sname = 0;
 	if (!name) {

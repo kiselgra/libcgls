@@ -314,14 +314,12 @@ drawelement_ref build_spot_light_representation_drawelement(const char *lightnam
 	// get stock shader
 	struct stockshader_fragments ssf;
 	init_stockshader_fragments(&ssf);
-	make_stock_shader_fragments(rep, &ssf, true, 0);
 	stockshader_add_uniform(&ssf, "light_col");
 	// remove fragment code and add new fragment code
 	stockshader_clear_fsource(&ssf);
-	stockshader_add_fsource(&ssf, stock_light_representation_shader());
 	// go on
 	char *n2 = strappend("shader for lightrep of ", lightname);
-	shader = make_stock_shader(n2, rep, &ssf, true, 0);
+	shader = make_stock_shader(n2, rep, &ssf, true, stock_light_representation_shader());
 	drawelement_change_shader(rep, shader);
 	prepend_drawelement_uniform_handler(rep, (uniform_setter_t)default_matrix_uniform_handler);
 	prepend_drawelement_uniform_handler(rep, (uniform_setter_t)default_material_uniform_handler);

@@ -74,6 +74,7 @@ void scene_rendering_of_light_representations(scene_ref ref, bool on);
 
 void set_scene_skybox(scene_ref ref, drawelement_ref de);
 drawelement_ref scene_skybox(scene_ref ref);
+void use_alternate_shaders(scene_ref ref, shader_ref *as, uniform_setter_t extra_handler);
 
 void render_scene_to_gbuffer(scene_ref ref, framebuffer_ref gbuffer);
 void render_scene_from_gbuffer(scene_ref ref, framebuffer_ref gbuffer);
@@ -104,7 +105,13 @@ extern vec4f cgls_scene_clear_color;
 
 
 
-
+struct custom_shader_fragment {
+	struct custom_shader_fragment *next;
+	char *name;
+	char *source;
+	int uniforms;
+	char **uniform;
+};
 
 single_material_pass_ref make_single_material_pass(const char *name, struct drawelement_list *drawelements, const char *fragment_source, int uniforms, char **uniform, uniform_setter_t extra_handler);
 single_material_pass_ref make_single_material_pass_using_array(const char *name, struct drawelement_array *array, const char *fragment_source, int uniforms, char **uniform, uniform_setter_t extra_handler);
@@ -117,7 +124,8 @@ void render_single_material_pass(single_material_pass_ref ref);
 void enable_backface_culling_for_material_pass(single_material_pass_ref ref, bool yes);
 bool using_backface_culling_for_material_pass(single_material_pass_ref ref);
 
-void register_single_material_shader_fragment(const char *name, const char *source, int u, char **U);
+void register_custom_shader_fragment(const char *name, const char *source, int u, char **U);
+struct custom_shader_fragment* find_shader_fragment(const char *name);
 
 define_array(scene);
 define_array(single_material_pass);

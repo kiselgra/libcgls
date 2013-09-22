@@ -26,6 +26,8 @@ struct scene {
 
     unsigned int aux_type;
 	void *aux;
+
+	shader_ref *alterante_shaders;
 };
 
 struct smp_by_shader {
@@ -93,6 +95,7 @@ scene_ref make_scene(const char *name) { // no pun intended.
 	scene->show_light_representations = true;
 	scene->skybox.id = -1;
 	scene->cull = true;
+	scene->alterante_shaders = 0;
 
 	return ref;
 }
@@ -210,6 +213,27 @@ void enable_backface_culling_for_scene(scene_ref ref, bool yes) {
 bool using_backface_culling_for_scene(scene_ref ref) {
 	struct scene *scene = scenes+ref.id;
 	return scene->cull;
+}
+
+/*! \brief Transparently change shaders for all drawelements of the scene.
+ *
+ *  The provided array is index by drawelement ids, so it might necessarily be sparse.
+ *  To revert to the original behaviour just call with 0.
+ *  \note If such an array is set the shaders are taken from this list exclusively.
+ *  \note There is no additional check if a shader to be used is valid. I.e
+ *        there must be a valid shader in the array for each drawelement of the
+ *        scene.
+ *  \note In the same spirit: The supplied shaders are used instead of the
+ *        shader that would otherwise be bound. For scenes with more advanced
+ *        grouping this does not guarantee that a drawelement is drawn using
+ *        its assigned replacement shader, but might use some proxy
+ *        drawelement's replacement shader.
+ *  \attention Correctly implemented for graph-scene, only. Sorry later me.
+ */
+void use_alternate_shaders(scene_ref ref, shader_ref *as, uniform_setter_t extra_handler) {
+	struct scene *scene = scenes+ref.id;
+	scene->alterante_shaders = as;
+	scene->extra_uniform_handler = extra_handler;
 }
 
 /*! \brief Render the scene.
@@ -537,6 +561,49 @@ void graph_scene_traverser(scene_ref ref) {
 			}
 			unbind_mesh_from_gl(by_mesh->mesh);
 		}
+	else if (scene->alterante_shaders) {
+		frustum_culling_t data;
+		populate_frustum_culling_info(current_camera(), &data);
+		int a = 0, c = 0;
+		shader_ref old;
+		for (struct by_mesh *by_mesh = gs->meshes; by_mesh; by_mesh = by_mesh->next) {
+			bind_mesh_to_gl(by_mesh->mesh);
+			for (struct by_material *by_mat = by_mesh->materials; by_mat; by_mat = by_mat->next) {
+				// we'd have to separate material uniforms (textures [incl.
+				// binding], ...) and drawelement uniforms (object trafo)
+				shader = scene->alterante_shaders[by_mat->drawelements->ref.id];
+				bind_shader(shader);
+				for (drawelement_node *deno = by_mat->drawelements; deno; deno = deno->next) {
+#if CGLS_DRAWELEMENT_BB_VIS == 1
+					if (!drawelement_shows_bounding_box(deno->ref)) {
+#endif
+						a++;
+					if (!drawelement_hidden(deno->ref)) {
+						vec3f min, max;
+						bounding_box_of_drawelement(deno->ref, &min, &max);
+						if (!drawelement_has_bounding_box(deno->ref) || aabb_in_frustum(&data, &min, &max)) {
+							c++;
+							old = drawelement_change_shader(deno->ref, shader);	// for uniform lists.
+							if (uniform_setter)
+								prepend_drawelement_uniform_handler(deno->ref, uniform_setter);
+							if (drawelement_using_index_range(deno->ref))
+								bind_uniforms_and_render_indices_of_drawelement(deno->ref);
+							else
+								bind_uniforms_and_render_drawelement_nonindexed(deno->ref);
+							if (uniform_setter)
+								pop_drawelement_uniform_handler(deno->ref);
+							drawelement_change_shader(deno->ref, old);
+						}
+					}
+#if CGLS_DRAWELEMENT_BB_VIS == 1
+					}
+#endif
+				}
+				unbind_shader(shader);
+			}
+			unbind_mesh_from_gl(by_mesh->mesh);
+		}
+	}
 	else {
 		frustum_culling_t data;
 		populate_frustum_culling_info(current_camera(), &data);
@@ -664,18 +731,12 @@ single_material_pass_ref make_single_material_pass_using_array(const char *name,
 	return ref;
 }
 
-struct single_material_shader_fragment {
-	struct single_material_shader_fragment *next;
-	char *name;
-	char *source;
-	int uniforms;
-	char **uniform;
-};
 
-static struct single_material_shader_fragment *single_material_shader_fragments = 0;
 
-void register_single_material_shader_fragment(const char *name, const char *source, int u, char **U) {
-	struct single_material_shader_fragment *new = malloc(sizeof(struct single_material_shader_fragment));
+static struct custom_shader_fragment *single_material_shader_fragments = 0;
+
+void register_custom_shader_fragment(const char *name, const char *source, int u, char **U) {
+	struct custom_shader_fragment *new = malloc(sizeof(struct custom_shader_fragment));
 	new->name = strdup(name);
 	new->source = strdup(source);
 	new->uniforms = u;
@@ -685,9 +746,16 @@ void register_single_material_shader_fragment(const char *name, const char *sour
 	new->next = single_material_shader_fragments;
 	single_material_shader_fragments = new;
 }
+	
+struct custom_shader_fragment* find_shader_fragment(const char *name) {
+	for (struct custom_shader_fragment *run = single_material_shader_fragments; run; run = run->next)
+		if (strcmp(run->name, name) == 0)
+			return run;
+	return 0;
+}
 
 single_material_pass_ref make_single_material_pass_from_fragment(const char *name, struct drawelement_list *drawelements, const char *fragment, uniform_setter_t extra_handler) {
-	for (struct single_material_shader_fragment *run = single_material_shader_fragments; run; run = run->next)
+	for (struct custom_shader_fragment *run = single_material_shader_fragments; run; run = run->next)
 		if (strcmp(run->name, fragment) == 0)
 			return make_single_material_pass(name, drawelements, run->source, run->uniforms, run->uniform, extra_handler);
 	single_material_pass_ref bad = { -1 };
@@ -695,7 +763,7 @@ single_material_pass_ref make_single_material_pass_from_fragment(const char *nam
 }
 
 single_material_pass_ref make_single_material_pass_from_fragment_using_array(const char *name, struct drawelement_array *array, const char *fragment, uniform_setter_t extra_handler) {
-	for (struct single_material_shader_fragment *run = single_material_shader_fragments; run; run = run->next)
+	for (struct custom_shader_fragment *run = single_material_shader_fragments; run; run = run->next)
 		if (strcmp(run->name, fragment) == 0)
 			return make_single_material_pass_using_array(name, array, run->source, run->uniforms, run->uniform, extra_handler);
 	single_material_pass_ref bad = { -1 };
@@ -996,7 +1064,7 @@ SCM_DEFINE(s_register_single_material_fragment, "register-single-material-shader
 	char **U = malloc(sizeof(char*)*u);
 	for (int i = 0; i < u; ++i)
 		U[i] = scm_to_locale_string(scm_list_ref(uniforms, scm_from_int(i)));
-	register_single_material_shader_fragment(n, c, u, U);
+	register_custom_shader_fragment(n, c, u, U);
 	return SCM_BOOL_T;
 }
 
@@ -1017,6 +1085,7 @@ SCM_DEFINE(s_scene_set_sb, "change-scene-skybox!", 2, 0, 0, (SCM scene, SCM draw
 
 void register_scheme_functions_for_scene() {
 #include "scene.x"
+	scm_c_eval_string("(define register-shader-fragment register-single-material-shader-fragment)");
 }
 
 #endif

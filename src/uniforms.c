@@ -102,6 +102,7 @@ void append_scheme_uniform_handler(struct uniform_handler_node **chain, SCM hand
 
 define_slist(global_uniform_handler_node, void *ref; uniform_setter_t handler);
 struct global_uniform_handler_node *global_handlers = 0;
+bool cgls_muffle_missing_uniform_handler_warnings = false;
 
 void bind_handled_uniforms(struct uniform_handler_node *chain, shader_ref shader, void *thing, const char *entity_type, const char *entity_name) {
 	for (int i = 0; i < shader_uniforms(shader); ++i) {
@@ -134,7 +135,7 @@ void bind_handled_uniforms(struct uniform_handler_node *chain, shader_ref shader
 					break;
 				node = node->next;
 			}
-			if (!node)
+			if (!node && !cgls_muffle_missing_uniform_handler_warnings)
 				printf("WARNING: cannot find a handler for uniform %s of shader %s when attached to %s %s.\n", 
 						name, shader_name(shader), entity_type, entity_name);
 		}

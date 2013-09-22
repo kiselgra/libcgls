@@ -43,6 +43,9 @@ void push_global_uniform_handler(void *ref, uniform_setter_t handler);
 void* pop_global_uniform_handler();
 
 
+
+extern bool cgls_muffle_missing_uniform_handler_warnings;
+
 #ifdef __cplusplus
 }
 #endif

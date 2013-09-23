@@ -55,14 +55,15 @@ drawelement_ref make_stock_gbuffer_default_drawelement(framebuffer_ref fbo, cons
 drawelement_ref make_stock_gbuffer_default_drawelement_with_shader(framebuffer_ref fbo, const char *effect_name, shader_ref shader);
 
 
-const char* stock_gbuffer_using_vertex_shader();
+const char* stock_gbuffer_using_vertex_shader(void);
 
-const char* stock_effect_copy_depthbuffer();
-const char* stock_effect_headmounted_spot();
-const char* stock_effect_hemisphere_lighting();
-const char* stock_effect_spot();
+const char* stock_effect_copy_depthbuffer(void);
+const char* stock_effect_headmounted_spot(void);
+const char* stock_effect_hemisphere_lighting(void);
+const char* stock_effect_ambient_light(void);
+const char* stock_effect_spot(void);
  
-const char* stock_light_representation_shader();
+const char* stock_light_representation_shader(void);
 
 extern drawelement_ref stock_deferred_copydepth;
 

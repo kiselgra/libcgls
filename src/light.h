@@ -58,6 +58,7 @@ void render_light_representation(light_ref ref);
 // derived (usable) light types
 light_ref make_headmounted_spotlight(const char *name, framebuffer_ref gbuffer, float cutoff);
 light_ref make_hemispherical_light(const char *name, framebuffer_ref gbuffer, vec3f *up);
+light_ref make_ambient_light(const char *name, framebuffer_ref gbuffer, vec3f *color);
 light_ref make_spotlight(const char *name, framebuffer_ref gbuffer, vec3f *pos, vec3f *dir, vec3f *up, float cutoff);
 light_ref make_spotlight_from_camera(const char *name, framebuffer_ref gbuffer, camera_ref cam);
 drawelement_ref build_spot_light_representation_drawelement(const char *lightname, light_ref ref, float size_scale, float cutoff);

@@ -124,7 +124,7 @@ enum settings {
 
 enum settings settings = modulate_texture_by_color | ignore_ambient;
 
-bool ign_amb() {
+bool ign_amb(void) {
 	return settings & ignore_ambient;
 }
 
@@ -134,7 +134,7 @@ bool ign_amb() {
  * 	@{
  */
 
-const char* vertex_pos_norm_notex() {
+const char* vertex_pos_norm_notex(void) {
 	return
 		shader{
 			#version 420 core
@@ -156,7 +156,7 @@ const char* vertex_pos_norm_notex() {
 		}shader;
 }
 
-const char* vertex_pos_norm_notex_path() {
+const char* vertex_pos_norm_notex_path(void) {
 	return
 		shader{
 			#version 420 core
@@ -179,7 +179,7 @@ const char* vertex_pos_norm_notex_path() {
 		}shader;
 }
 
-const char* vertex_pos_norm_tex() {
+const char* vertex_pos_norm_tex(void) {
 	return
 		shader{
 			#version 420 core
@@ -204,7 +204,7 @@ const char* vertex_pos_norm_tex() {
 		}shader;
 }
 
-const char* vertex_pos_norm_tex_path() {
+const char* vertex_pos_norm_tex_path(void) {
 	return
 		shader{
 			#version 420 core
@@ -230,7 +230,7 @@ const char* vertex_pos_norm_tex_path() {
 		}shader;
 }
 
-const char* vertex_pos_norm_notex_upto_8_bones() {
+const char* vertex_pos_norm_notex_upto_8_bones(void) {
 	return
 		shader{
 			#version 420 core
@@ -252,7 +252,7 @@ const char* vertex_pos_norm_notex_upto_8_bones() {
 		}shader;
 }
 
-const char* vertex_pos_norm_tex_upto_8_bones() {
+const char* vertex_pos_norm_tex_upto_8_bones(void) {
 	return
 		shader{
 			#version 420 core
@@ -277,7 +277,7 @@ const char* vertex_pos_norm_tex_upto_8_bones() {
 		}shader;
 }
 
-const char* vertex_pos_norm_notex_upto_24_bones() {	// THIS IS *NOT* THE ONE
+const char* vertex_pos_norm_notex_upto_24_bones(void) {	// THIS IS *NOT* THE ONE
 	return
 		shader{
 			#version 420 core
@@ -346,7 +346,7 @@ const char* vertex_pos_norm_notex_upto_24_bones() {	// THIS IS *NOT* THE ONE
 		}shader;
 }
 
-const char* vertex_pos_norm_tex_upto_24_bones() {	// THIS IS THE ONE
+const char* vertex_pos_norm_tex_upto_24_bones(void) {	// THIS IS THE ONE
 	return
 		shader{
 			#version 420 core
@@ -411,7 +411,7 @@ const char* vertex_pos_norm_tex_upto_24_bones() {	// THIS IS THE ONE
 		}shader;
 }
 
-const char* vertex_pos_norm_tex_upto_24_bones_path() {	// THIS IS THE ONE, too
+const char* vertex_pos_norm_tex_upto_24_bones_path(void) {	// THIS IS THE ONE, too
 	return
 		shader{
 			#version 420 core
@@ -634,7 +634,7 @@ const char* fragment_part_no_diff_no_mask(const char ***u) {
 		}shader;
 }
 
-const char* dummy_fragment_shader() {
+const char* dummy_fragment_shader(void) {
 	return
 		shader{
 			// looks like the driver is just pasting the src files together... m( #version 150 core
@@ -675,7 +675,7 @@ const char* dummy_fragment_shader() {
 		}shader;
 }
 
-const char* stock_gbuffer_creation_fragment_shader() {
+const char* stock_gbuffer_creation_fragment_shader(void) {
 	return
 		shader{
 			// looks like the driver is just pasting the src files together... m( #version 150 core
@@ -708,7 +708,7 @@ const char* stock_gbuffer_creation_fragment_shader() {
 }
 
 
-const char* stock_gbuffer_using_vertex_shader() {
+const char* stock_gbuffer_using_vertex_shader(void) {
 	return
 		shader{
 			#version 150 core
@@ -722,7 +722,7 @@ const char* stock_gbuffer_using_vertex_shader() {
 		}shader;
 }
 
-const char* stock_show_gbuffer_debug_shader() {
+const char* stock_show_gbuffer_debug_shader(void) {
 	return
 		shader{
 			#version 150 core
@@ -750,7 +750,7 @@ const char* stock_show_gbuffer_debug_shader() {
 }
 
 //! copy depth buffer (sorry, extra pass for this one).
-const char* stock_effect_copy_depthbuffer() {
+const char* stock_effect_copy_depthbuffer(void) {
 	return
 		shader{
 			#version 150 core
@@ -766,7 +766,7 @@ const char* stock_effect_copy_depthbuffer() {
 }
 
 //! a very basic spotlight (which requires no further uniforms).
-const char* stock_effect_headmounted_spot() {
+const char* stock_effect_headmounted_spot(void) {
 	return
 		shader{
 			#version 150 core
@@ -814,7 +814,7 @@ const char* stock_effect_headmounted_spot() {
  * 	\param light_col vec3
  *  \note the spot parameters are understood to be in eye space.
  */
-const char* stock_effect_spot() {
+const char* stock_effect_spot(void) {
 	return
 		shader{
 			#version 150 core
@@ -868,7 +868,7 @@ const char* stock_effect_spot() {
  *
  *  \note you also have to add then to the resulting shader.
  */
-const char* stock_effect_hemisphere_lighting() {
+const char* stock_effect_hemisphere_lighting(void) {
 	return
 		shader{
 			#version 150 core
@@ -891,13 +891,31 @@ const char* stock_effect_hemisphere_lighting() {
 		}shader;
 }
 
+const char* stock_effect_ambient_light(void) {
+	return
+		shader{
+			#version 150 core
+			in vec2 tc;
+			uniform sampler2D gbuffer_diffuse;
+			uniform sampler2D gbuffer_normal;
+            uniform vec3 light_col;
+			out vec4 out_col;
+			void main() {
+				vec3 n = normalize(texture(gbuffer_normal, tc).xyz);
+				if (n.length() == 0) discard;
+				vec3 diffuse = texture(gbuffer_diffuse, tc).rgb;
+				out_col = vec4(light_col * diffuse, 0.);
+			}
+		}shader;
+}
+
 //! @}
 
 /*! \brief render light to a (non deferred) color buffer, potentially after applying a gbuffer to the target.
  *	\ingroup lighting
  *	\param ambient_color color of the light (directly written to framebuffer).
  */
-const char* stock_light_representation_shader() {
+const char* stock_light_representation_shader(void) {
 	return
 		shader{
 			uniform vec3 light_col;
@@ -1291,7 +1309,7 @@ SCM_DEFINE(s_make_stock_shader, "make-stock-shader", 3, 0, 0, (SCM name, SCM de,
 	return scm_from_int(ret.id);
 }
 
-void register_scheme_functions_for_stock_shader() {
+void register_scheme_functions_for_stock_shader(void) {
 #include "stock-shader.x"
 }
 

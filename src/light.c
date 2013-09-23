@@ -396,6 +396,15 @@ light_ref make_hemispherical_light(const char *name, framebuffer_ref gbuffer, ve
 	return ref;
 }
 
+light_ref make_ambient_light(const char *name, framebuffer_ref gbuffer, vec3f *color) {
+	light_ref ref = make_light(name);
+	change_light_color(ref, color);
+	drawelement_ref deferred = make_stock_gbuffer_default_drawelement(gbuffer, name, stock_effect_ambient_light());
+	add_shader_uniform(drawelement_shader(deferred), "light_col");
+	light_use_deferred_drawelement(ref, deferred);
+	return ref;
+}
+
 light_ref find_light(const char *name) {
 	light_ref ref = { -1 };
 	if (strlen(name) == 0) return ref;

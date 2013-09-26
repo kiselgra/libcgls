@@ -855,6 +855,7 @@ const char* stock_effect_spot(void) {
 						out_col.rgb += vec3(specular.rgb * spot_factor * i);
 					}
 				}
+                out_col.rgb = pow(out_col.rgb, vec3(0.80));
 			}
 		}shader;
 }
@@ -887,6 +888,7 @@ const char* stock_effect_hemisphere_lighting(void) {
 //                 float factor = max(0, 0.5*(1+dot(n, normalize(vec3(0,1,0)))));
                 float factor = max(0, 0.5*(1+dot(n, normalize(light_up))));
                 out_col = vec4(light_col * diffuse.rgb * factor, 0.);
+                out_col.rgb = pow(out_col.rgb, vec3(0.80));
 			}
 		}shader;
 }
@@ -905,6 +907,7 @@ const char* stock_effect_ambient_light(void) {
 				if (n.length() == 0) discard;
 				vec3 diffuse = texture(gbuffer_diffuse, tc).rgb;
 				out_col = vec4(light_col * diffuse, 0.);
+                out_col.rgb = pow(out_col.rgb, vec3(0.80));
 			}
 		}shader;
 }

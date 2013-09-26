@@ -74,6 +74,8 @@ void scene_rendering_of_light_representations(scene_ref ref, bool on);
 
 void set_scene_skybox(scene_ref ref, drawelement_ref de);
 drawelement_ref scene_skybox(scene_ref ref);
+void render_skybox_to_buffer(scene_ref ref, framebuffer_ref gbuffer);
+
 void use_alternate_shaders(scene_ref ref, shader_ref *as, uniform_setter_t extra_handler);
 
 void render_scene_to_gbuffer(scene_ref ref, framebuffer_ref gbuffer);

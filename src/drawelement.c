@@ -53,6 +53,9 @@ struct drawelement {
 	skeletal_animation_ref skeletal_animation;
 	path_animation_ref path_animation;
 	bool hidden;
+	bool render_instanced;
+	int instances;
+	texture_ref instance_trafos;
 };
 
 #include <libcgl/mm.h>
@@ -91,6 +94,10 @@ drawelement_ref make_drawelement(const char *name, mesh_ref mr, shader_ref sr, m
 #if CGLS_DRAWELEMENT_BB_VIS == 1
 	de->show_bb = false;
 #endif
+
+	de->render_instanced = false;
+	de->instances = 1;
+	de->instance_trafos.id = -1;
 // 	printf("create drawelement %s.\n", de->name);
 	return ref;
 }
@@ -287,7 +294,10 @@ void bind_drawelement_uniforms(struct drawelement *de, drawelement_ref ref) {
 void bind_uniforms_and_render_indices_of_drawelement(drawelement_ref ref) {
 	struct drawelement *de = drawelements + ref.id;
 	bind_drawelement_uniforms(de, ref);
-	glDrawElements(mesh_primitive_type(de->mesh), de->indices, GL_UNSIGNED_INT, (void*)(de->index_buffer_start*sizeof(GLint)));
+	if (!de->render_instanced)
+		glDrawElements(mesh_primitive_type(de->mesh), de->indices, GL_UNSIGNED_INT, (void*)(de->index_buffer_start*sizeof(GLint)));
+	else
+		glDrawElementsInstanced(mesh_primitive_type(de->mesh), de->indices, GL_UNSIGNED_INT, (void*)(de->index_buffer_start*sizeof(GLint)), de->instances);
 }
 
 void bind_uniforms_and_render_drawelement_nonindexed(drawelement_ref ref) {
@@ -325,8 +335,10 @@ void render_drawelement(drawelement_ref ref) {
 	bind_mesh_to_gl(de->mesh);
 	if (!de->use_index_range)
 		draw_mesh(de->mesh);
-	else
+	else if (!de->render_instanced)
 		glDrawElements(mesh_primitive_type(de->mesh), de->indices, GL_UNSIGNED_INT, (void*)(de->index_buffer_start*sizeof(GLint)));
+	else
+		glDrawElementsInstanced(mesh_primitive_type(de->mesh), de->indices, GL_UNSIGNED_INT, (void*)(de->index_buffer_start*sizeof(GLint)), de->instances);
 
 	unbind_mesh_from_gl(de->mesh);
 
@@ -459,6 +471,50 @@ path_animation_ref drawelement_path_animation(drawelement_ref ref) {
 	return drawelements[ref.id].path_animation;
 }
 
+/*! \note Instancing does only apply to indexed drawelements, (atm). */
+void enable_instancing_for_drawelement(drawelement_ref ref, int n) {
+	struct drawelement *de = drawelements + ref.id;
+	de->render_instanced = true;
+	de->instances = n;
+}
+
+void disable_instancing_for_drawelement(drawelement_ref ref, int n) {
+	struct drawelement *de = drawelements + ref.id;
+	de->render_instanced = false;
+}
+
+bool drawelement_with_instancing(drawelement_ref ref) {
+	struct drawelement *de = drawelements + ref.id;
+	return de->render_instanced;
+}
+
+/*! \note This may return any number given to \ref enable_instancing_for_drawelement.
+ * 	To be sure that instancing is really disabled use \ref drawelement_with_instancing.
+ */
+int drawelement_instances(drawelement_ref ref) {
+	struct drawelement *de = drawelements + ref.id;
+	return de->instances;
+}
+
+/*! hand in a texture buffer containing the (encoded) transformations for all instanced.
+ *  \note you have to take care that the sizes match, yourself.
+ *  \note see \ref make_buffer_for_instance_trafos and \ref upload_instance_matrices in \ref stockshader.c.in.
+ */
+void drawelement_set_instance_trafos(drawelement_ref ref, texture_ref texbuf) {
+	struct drawelement *de = drawelements + ref.id;
+	if (valid_texture_ref(de->instance_trafos)) {
+		fprintf(stderr, "ERROR: you already have a texture holding instance trafos on drawelement '%s'. The material does not yet support switching textures.\n",
+		        de->name);
+		exit(EXIT_FAILURE);
+	}
+	de->instance_trafos = texbuf;
+	material_add_texture_as(de->material, de->instance_trafos, "instance_trafos");
+}
+
+texture_ref drawelement_instance_trafos(drawelement_ref ref) {
+	struct drawelement *de = drawelements + ref.id;
+	return de->instance_trafos;
+}
 
 //! @}
 
@@ -630,6 +686,14 @@ SCM_DEFINE(s_de_path_anim, "drawelement-path", 1, 0, 0, (SCM de), "") {
 	drawelement_ref de_ref = { scm_to_int(de) };
 	return scm_from_int(drawelement_path_animation(de_ref).id);
 }
+
+SCM_DEFINE(s_de_set_instance, "set-drawelement-instances!", 2, 0, 0, (SCM de, SCM n), "") {
+	drawelement_ref de_ref = { scm_to_int(de) };
+	int N = scm_to_int(n);
+	enable_instancing_for_drawelement(de_ref, N);
+	return SCM_BOOL_T;
+}
+
 
 SCM_DEFINE(s_TMP_mem_barr, "memory-barrier!!", 0, 0, 0, (), "") {
     glMemoryBarrier(GL_ALL_BARRIER_BITS);

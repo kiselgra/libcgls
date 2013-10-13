@@ -394,7 +394,7 @@ void default_scene_renderer(scene_ref ref) {
 #endif
 					vec3f min, max;
 					bounding_box_of_drawelement(run->ref, &min, &max);
-					if (!drawelement_has_bounding_box(run->ref) || aabb_in_frustum(&data, &min, &max)) {
+					if (!drawelement_has_bounding_box(run->ref) || drawelement_with_instancing(run->ref) || aabb_in_frustum(&data, &min, &max)) {
 						c++;
 						render_drawelement(run->ref);
 					}
@@ -602,7 +602,7 @@ void graph_scene_traverser(scene_ref ref) {
 					if (!drawelement_hidden(deno->ref)) {
 						vec3f min, max;
 						bounding_box_of_drawelement(deno->ref, &min, &max);
-						if (!drawelement_has_bounding_box(deno->ref) || aabb_in_frustum(&data, &min, &max)) {
+						if (!drawelement_has_bounding_box(deno->ref) || drawelement_with_instancing(deno->ref) || aabb_in_frustum(&data, &min, &max)) {
 							c++;
 							old = drawelement_change_shader(deno->ref, shader);	// for uniform lists.
 							if (uniform_setter)
@@ -644,7 +644,7 @@ void graph_scene_traverser(scene_ref ref) {
 					if (!drawelement_hidden(deno->ref)) {
 						vec3f min, max;
 						bounding_box_of_drawelement(deno->ref, &min, &max);
-						if (!drawelement_has_bounding_box(deno->ref) || aabb_in_frustum(&data, &min, &max)) {
+						if (!drawelement_has_bounding_box(deno->ref) || drawelement_with_instancing(deno->ref) || aabb_in_frustum(&data, &min, &max)) {
 							c++;
 							if (drawelement_using_index_range(deno->ref))
 								bind_uniforms_and_render_indices_of_drawelement(deno->ref);
@@ -902,7 +902,7 @@ void finalize_single_material_pass(single_material_pass_ref ref) {
 					break;
 				}
 			}
-			add_stock_vertex_shader_part(&ssf, true, use_tc, drawelement_number_of_bones(bs->des->ref), drawelement_with_path(bs->des->ref));
+			add_stock_vertex_shader_part(&ssf, true, use_tc, drawelement_number_of_bones(bs->des->ref), drawelement_with_path(bs->des->ref), drawelement_with_instancing(bs->des->ref));
 			char *sname = 0;
 			int n = asprintf(&sname, "single-material-shader for pass '%s' based on shader '%s'", smp->name, shader_name(bs->shader));
 			bs->shader = make_shader(sname, stockshader_inputs(&ssf));

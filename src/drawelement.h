@@ -83,6 +83,13 @@ path_animation_ref drawelement_path_animation(drawelement_ref ref);
 
 bool bone_matrix_uniform_handler(drawelement_ref *ref, const char *uniform, int location);
 
+void enable_instancing_for_drawelement(drawelement_ref ref, int n);
+void disable_instancing_for_drawelement(drawelement_ref ref, int n);
+int drawelement_instances(drawelement_ref);
+bool drawelement_with_instancing(drawelement_ref);
+texture_ref drawelement_instance_trafos(drawelement_ref ref);
+void drawelement_set_instance_trafos(drawelement_ref ref, texture_ref texbuf);
+
 #ifdef __cplusplus
 }
 #endif

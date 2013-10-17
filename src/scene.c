@@ -274,17 +274,17 @@ void render_skybox_to_buffer(scene_ref ref, framebuffer_ref gbuffer) {
 	if (valid_drawelement_ref(scene->skybox)) {
 		bind_framebuffer(gbuffer);
 		float near = camera_near(current_camera()),
-			  far = camera_far(current_camera()),
-			  aspect = camera_aspect(current_camera()),
-			  fovy = camera_fovy(current_camera());
-		change_projection_of_cam(current_camera(), fovy, aspect, near, 1e10);
+			  far = camera_far(current_camera());
+// 		change_projection_of_cam(current_camera(), fovy, aspect, near, 1e10);
+		change_near_far_of_cam(current_camera(), near, 1e10);
 		recompute_gl_matrices_of_cam(current_camera());
 		int depthfunc = 0;
 		glGetIntegerv(GL_DEPTH_FUNC, &depthfunc);
 		glDepthFunc(GL_LEQUAL);
 		render_drawelement(scene->skybox);
 		glDepthFunc(depthfunc);
-		change_projection_of_cam(current_camera(), fovy, aspect, near, far);
+// 		change_projection_of_cam(current_camera(), fovy, aspect, near, far);
+		change_near_far_of_cam(current_camera(), near, far);
 		recompute_gl_matrices_of_cam(current_camera());
 		unbind_framebuffer(gbuffer);
 	}
@@ -300,17 +300,17 @@ void render_scene_from_gbuffer(scene_ref ref, framebuffer_ref gbuffer) {
 
 	if (valid_drawelement_ref(scene->skybox)) {
 		float near = camera_near(current_camera()),
-			  far = camera_far(current_camera()),
-			  aspect = camera_aspect(current_camera()),
-			  fovy = camera_fovy(current_camera());
-		change_projection_of_cam(current_camera(), fovy, aspect, near, 1e10);
+			  far = camera_far(current_camera());
+// 		change_projection_of_cam(current_camera(), fovy, aspect, near, 1e10);
+		change_near_far_of_cam(current_camera(), near, 1e10);
 		recompute_gl_matrices_of_cam(current_camera());
 		int depthfunc = 0;
 		glGetIntegerv(GL_DEPTH_FUNC, &depthfunc);
 		glDepthFunc(GL_LEQUAL);
 		render_drawelement(scene->skybox);
 		glDepthFunc(depthfunc);
-		change_projection_of_cam(current_camera(), fovy, aspect, near, far);
+// 		change_projection_of_cam(current_camera(), fovy, aspect, near, far);
+		change_near_far_of_cam(current_camera(), near, far);
 		recompute_gl_matrices_of_cam(current_camera());
 	}
 }

@@ -185,6 +185,13 @@ void render_console(console_ref ref) {
 	glEnable(GL_DEPTH_TEST);
 }
 
+void show_message_on_console(console_ref ref, const char *message) {
+	struct console *console = consoles + ref.id;
+    console->lines.push_back(message);
+    console->visible = true;
+	console->update_required = true;
+}
+
 bool evaluate_console_command(console_ref ref) {
 	struct console *console = consoles + ref.id;
 	char *response = 0;

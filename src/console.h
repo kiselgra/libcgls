@@ -38,6 +38,8 @@ void add_vi_console_command_scm(console_ref ref, const char *name, SCM handler);
 void add_vi_console_command(console_ref ref, const char *name, vi_command_t handler);
 #endif
 
+void show_message_on_console(console_ref ref, const char *message);
+
 define_array(console);
 
 #ifdef __cplusplus

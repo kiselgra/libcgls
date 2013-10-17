@@ -34,11 +34,21 @@ static const char* skybox_fragment_shader_spherical() {
 			uniform sampler2D tex;
 			const float pi = 3.1415927;
 			void main() {
+                /*
+				vec3 a_coords  = normalize(boxdir);
+				float r = length(a_coords);
+                float lon = atan(a_coords.z, a_coords.x);
+                float lat = acos(a_coords.y / r);
+                vec2 rads = vec2(1.0 / (pi * 2.0), 1.0 / pi);
+                vec2 sphere_coord = vec2(lon, lat) * rads;
+				out_col = textureLod(tex, sphere_coord, 0);
+				gl_FragDepth = 1;
+                */
+
 				vec3 dir = normalize(boxdir);
 				float phi = (pi + atan(dir.x,dir.z)) / (2.0*pi);
 				float h = (dir.y+1.0)/2.0;
-				out_col = texture(tex, vec2(phi,h));
-// 				out_col = vec4(phi,h,0,1);
+				out_col = textureLod(tex, vec2(phi,h), 0);
 				gl_FragDepth = 1;
 			}
 		}shader;

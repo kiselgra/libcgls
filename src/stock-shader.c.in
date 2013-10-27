@@ -134,6 +134,7 @@ bool ign_amb(void) {
  * 	@{
  */
 
+/*
 const char* vertex_pos_norm_notex(void) {
 	return
 		shader{
@@ -358,7 +359,7 @@ const char* vertex_pos_norm_notex_upto_24_bones(void) {	// THIS IS *NOT* THE ONE
 				if (bones > 21)	bone_trafo += bone_matrices[21] * bone_weight_06.y;
 				if (bones > 22)	bone_trafo += bone_matrices[22] * bone_weight_06.z;
 				if (bones > 23)	bone_trafo += bone_matrices[23] * bone_weight_06.w;
-				/*
+				/ *
 				for (int i = 0; i < 4; ++i) {
 					bone_trafo += bone_matrices[0+i] * bone_weight_01[i];
 					bone_trafo += bone_matrices[4+i] * bone_weight_02[i];
@@ -367,7 +368,7 @@ const char* vertex_pos_norm_notex_upto_24_bones(void) {	// THIS IS *NOT* THE ONE
 					if (i < 3) bone_trafo += bone_matrices[16+i] * bone_weight_05[i];
 // 					bone_trafo += bone_matrices[20+i] * bone_weight_06[i];
 				}
-				*/
+				* /
 				pos_wc = model * bone_trafo * vec4(in_pos, 1);
 				norm_wc = mat3(model) * mat3(bone_trafo) * in_norm; // assuming model is not strange.
 				gl_Position = proj * view * pos_wc;
@@ -505,6 +506,9 @@ const char* vertex_pos_norm_tex_upto_24_bones_path(void) {	// THIS IS THE ONE, t
 			}
 		}shader;
 }
+*/
+
+#include "shadertest.c"
 
 const char* fragment_part_no_no_no_no(const char ***u) {
 	static const char *uniforms[] = {
@@ -968,8 +972,10 @@ void apply_to_bound_gbuffer(shader_ref shader) {
  * 	@{
  */
 
+int L = 0;
 void add_stock_vertex_shader_part(struct stockshader_fragments *ssf, bool use_normals, bool use_texcoords, int bones, bool path, bool instanced) {
 	const char *src = 0;
+	#if 0
 	if (!path) {
 		if (!instanced) {
 			if      ( use_normals && !use_texcoords) { if (bones == 0)       src = vertex_pos_norm_notex();
@@ -983,6 +989,7 @@ void add_stock_vertex_shader_part(struct stockshader_fragments *ssf, bool use_no
 													   else { fprintf(stderr, "tooo many bones!\n"); exit(1); }
 			}
 		}
+		/*
 		else {
 			if      ( use_normals && !use_texcoords) { if (bones == 0)       src = vertex_pos_norm_notex_instanced();
 // 													   else if (bones <= 8)  src = vertex_pos_norm_notex_upto_8_bones();
@@ -995,6 +1002,7 @@ void add_stock_vertex_shader_part(struct stockshader_fragments *ssf, bool use_no
 // 													   else { fprintf(stderr, "tooo many bones!\n"); exit(1); }
 // 			}
 		}
+		*/
 	}
 	else {
 		if      ( use_normals && !use_texcoords) { if (bones == 0)       src = vertex_pos_norm_notex_path();
@@ -1008,6 +1016,12 @@ void add_stock_vertex_shader_part(struct stockshader_fragments *ssf, bool use_no
 												   else { fprintf(stderr, "tooo many bones!\n"); exit(1); }
 		}
 	}
+	#endif
+	src = select_vertex_shader(use_texcoords, use_texcoords, path, bones);
+	for (int i = 0; i < strlen(src); ++i)
+		if (src[i] == '\n')
+			L++;
+	printf("stock shader generated %d lines\n", L);
 
 	if (bones) {
 		stockshader_add_uniform(ssf, "bone_matrices");

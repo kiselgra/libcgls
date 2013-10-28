@@ -18,6 +18,7 @@ libcgls_la_SOURCES = 	\
 						command-animation.c command-animation.h \
 						console.cpp console.h \
 						drawelement.c drawelement.h \
+						gen-vertex-shaders.c gen-vertex-shaders.h \
 						interaction.c interaction.h \
 						light.c light.h \
 						material.c material.h \
@@ -77,10 +78,10 @@ endif
 .cpp.xx: $<
 	m4 @cgldata@/mm.m4 $< > $@
 
-shadertest.c: shadertest.c.in
-	awk -f shaderhack.awk shadertest.c.in > shadertest.c
+gen-vertex-shaders.c: gen-vertex-shaders.c.in
+	awk -f shaderhack.awk gen-vertex-shaders.c.in > gen-vertex-shaders.c
 
-stock-shader.c: stock-shader.c.in shadertest.c
+stock-shader.c: stock-shader.c.in
 	awk -f shaderhack.awk stock-shader.c.in > stock-shader.c
 
 picking.c: picking.c.in

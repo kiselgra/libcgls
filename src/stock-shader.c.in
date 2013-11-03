@@ -161,6 +161,7 @@ const char* vertex_pos_norm_notex(void) {
 */
 
 
+/*
 const char* fragment_part_no_no_no_no(const char ***u) {
 	static const char *uniforms[] = {
 		"ambient_color",
@@ -317,6 +318,7 @@ const char* fragment_part_no_diff_no_mask(const char ***u) {
 			}
 		}shader;
 }
+*/
 
 const char* dummy_fragment_shader(void) {
 	return
@@ -659,6 +661,9 @@ void add_stock_vertex_shader_part(struct stockshader_fragments *ssf, bool use_no
 	stockshader_add_vsource(ssf, src);
 }
 
+// #include "gb.c"
+int LL = 0;
+
 void add_stock_fragment_shader_part(struct stockshader_fragments *ssf, bool use_normals, bool ambient_tex, bool diffuse_tex, bool specular_tex, bool mask_tex) {
 	if (ign_amb())
 		ambient_tex = false;
@@ -667,6 +672,7 @@ void add_stock_fragment_shader_part(struct stockshader_fragments *ssf, bool use_
 
 	const char *src = 0;
 	const char **uniforms = 0;
+	/*
 	if      (  !ambient_tex  &&  !diffuse_tex  &&  !specular_tex  &&  !mask_tex)    src = fragment_part_no_no_no_no(&uniforms);
 	else if (  !ambient_tex  &&   diffuse_tex  &&  !specular_tex  &&  !mask_tex)    src = fragment_part_no_diff_no_no(&uniforms);
 	else if (  !ambient_tex  &&   diffuse_tex  &&  !specular_tex  &&   mask_tex)    src = fragment_part_no_diff_no_mask(&uniforms);
@@ -675,6 +681,23 @@ void add_stock_fragment_shader_part(struct stockshader_fragments *ssf, bool use_
 // 	else if (   ambient_tex  &&   diffuse_tex  &&  !specular_tex  &&  !mask_tex)    src = fragment_part_no_diff_no_no(&uniforms);
 // 	else if (   ambient_tex  &&   diffuse_tex  &&  !specular_tex  &&   mask_tex)    src = fragment_part_no_diff_no_mask(&uniforms);
 	else src = fragment_part_no_no_no_no(&uniforms);
+	*/
+// 	if      (  !ambient_tex  &&  !diffuse_tex  &&  !specular_tex  &&  !mask_tex)    src = gbuffer_fragment_part_mask_no__amb_no__diff_col__spec_col(&uniforms);
+// 	else if (  !ambient_tex  &&   diffuse_tex  &&  !specular_tex  &&  !mask_tex)    src = gbuffer_fragment_part_mask_no__amb_no__diff_ct__spec_col(&uniforms);
+// 	else if (  !ambient_tex  &&   diffuse_tex  &&  !specular_tex  &&   mask_tex)    src = gbuffer_fragment_part_mask_tex__amb_no__diff_ct__spec_col(&uniforms);
+// 	else if (  !ambient_tex  &&   diffuse_tex  &&   specular_tex  &&  !mask_tex)    src = gbuffer_fragment_part_mask_no__amb_no__diff_ct__spec_ct(&uniforms);
+// // 	else if (   ambient_tex  &&  !diffuse_tex  &&  !specular_tex  &&  !mask_tex)    src = fragment_part_no_no_no_no(&uniforms);
+// // 	else if (   ambient_tex  &&   diffuse_tex  &&  !specular_tex  &&  !mask_tex)    src = fragment_part_no_diff_no_no(&uniforms);
+// // 	else if (   ambient_tex  &&   diffuse_tex  &&  !specular_tex  &&   mask_tex)    src = fragment_part_no_diff_no_mask(&uniforms);
+// 	else src = gbuffer_fragment_part_mask_no__amb_no__diff_col__spec_col(&uniforms);
+	
+	
+	src = select_gbuffer_fragment_part(mask_tex, true, false, true, diffuse_tex, true, specular_tex, &uniforms);
+
+	for (int i = 0; i < strlen(src); ++i)
+		if (src[i] == '\n')
+			LL++;
+	printf("generated gb: %d\n", LL);
 
 	for (int i = 0; uniforms[i]; ++i)
 		stockshader_add_uniform(ssf, uniforms[i]);

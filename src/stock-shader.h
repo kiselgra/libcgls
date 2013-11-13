@@ -69,6 +69,7 @@ const char* stock_effect_spot(void);
 const char* stock_light_representation_shader(void);
 
 extern drawelement_ref stock_deferred_copydepth;
+extern bool cgls_deferred;
 
 
 #ifdef __cplusplus

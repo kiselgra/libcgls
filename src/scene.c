@@ -315,6 +315,15 @@ void render_scene_from_gbuffer(scene_ref ref, framebuffer_ref gbuffer) {
 	}
 }
 
+void render_gbuffer_visualization(scene_ref ref, framebuffer_ref gbuffer) {
+	glClearColor(0,0,0,0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	static drawelement_ref debug = { -1 };
+	if (!valid_drawelement_ref(debug))
+		debug = make_stock_gbuffer_default_drawelement(gbuffer, "debug", 0);
+	render_drawelement(debug);
+}
+
 //!	\copydoc render_scene
 void render_scene_deferred(scene_ref ref, framebuffer_ref gbuffer) {
 	render_scene_to_gbuffer(ref, gbuffer);
@@ -457,6 +466,7 @@ void graph_scene_drawelement_inserter(scene_ref ref, drawelement_ref de) {
 		fprintf(stderr, "Called graph_scene_drawelement_inserter on scene of type %d (expected %d).\n", scene_aux_type(ref), scene_type_graph);
 		return;
 	}
+	printf("------ inserting de %s.\n", drawelement_name(de));
 	default_scene_drawelement_inserter(ref, de);
 	mesh_ref mesh = drawelement_mesh(de);
 	material_ref material = drawelement_material(de);

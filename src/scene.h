@@ -85,6 +85,7 @@ void render_scene(scene_ref ref);
 void render_scene_deferred(scene_ref ref, framebuffer_ref gbuffer);
 void render_scene_to_buffer(scene_ref ref, framebuffer_ref target);
 void render_scene_deferred_to_buffer(scene_ref ref, framebuffer_ref gbuffer, framebuffer_ref target);
+void render_gbuffer_visualization(scene_ref ref, framebuffer_ref gbuffer);
 
 void render_scene_with_shader(scene_ref ref, shader_ref shader, uniform_setter_t extra_handler);
 	

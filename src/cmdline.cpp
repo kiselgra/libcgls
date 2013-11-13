@@ -1,5 +1,6 @@
 #include "cmdline.h"
 
+#include <libcgl/glut.h>
 
 #include <argp.h>
 #include <string>
@@ -28,6 +29,7 @@ static struct argp_option options[] =
     { "include-path", 'I', "path", 0, "Path to search for the config file. Default: " DATADIR "."},
     { "res", 'r', "w,h", 0, "Window resolution."},
     { "factor", 'f', "x", 0, "Drawelement collapse threshold."},
+	{ "forward", 'F', 0, 0, "Use forward rendering, instead of deferred shading."},
 	{ 0 }
 };	
 
@@ -62,6 +64,8 @@ static error_t parse_options(int key, char *arg, argp_state *state)
 {
 	// call argp_usage to stop program execution if something is wrong
 	
+	extern bool cgls_deferred;
+
 	string sarg;
 	if (arg)
 		sarg = arg;
@@ -75,6 +79,9 @@ static error_t parse_options(int key, char *arg, argp_state *state)
     case 'I':   cmdline.include_path = strdup(arg); break;
     case 'r':   cmdline.res = read_vec2f(sarg); break;
     case 'f':   cmdline.collapse_factor = atof(arg); break;
+	case 'F':	cgls_deferred = false; 
+				enable_glut_multisampling(); 
+				break;
 	
 	case ARGP_KEY_ARG:		// process arguments. 
 							// state->arg_num gives number of current arg

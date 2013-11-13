@@ -1,5 +1,5 @@
-#ifndef __GEN_GBUFFER-SHADERS_H__ 
-#define __GEN_GBUFFER-SHADERS_H__ 
+#ifndef __GEN_GBUFFER_SHADERS_H__ 
+#define __GEN_GBUFFER_SHADERS_H__ 
 
 #ifdef __cplusplus
 extern "C" {

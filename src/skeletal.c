@@ -6,6 +6,7 @@ void make_translation_matrix4x4f(matrix4x4f *mat, vec3f *transl); // defined in 
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <float.h>
 
 #include "drawelement.h"
 

@@ -10,8 +10,8 @@
 #include <libcgl/libcgl.h>
 
 #include <stdlib.h>
-
 #include <stdio.h>
+#include <time.h>
 
 #include "basename.h"
 #include <libgen.h>

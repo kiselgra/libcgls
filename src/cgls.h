@@ -14,9 +14,9 @@
 extern "C" {
 #endif
 void register_cgls_scheme_functions();
-#endif
 #ifdef __cplusplus
 }
+#endif
 #endif
 
 #endif

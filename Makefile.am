@@ -23,11 +23,11 @@ pkgconfig_DATA = libcgls.pc
 
 #EXTRA_DIST += libcgl.pc revision
 
-scheme_DATA = default.c.scm default.scm default.shader dp.scm std.scm depth-array-oit.scm tsm.scm poster.scm tess.scm
-shader_DATA = tsm.shader poster.shader tess.shader
+scheme_DATA = default.c.scm default.scm default.shader dp.scm std.scm depth-array-oit.scm poster.scm tess.scm
+shader_DATA = poster.shader tess.shader
 
 schemedir = $(pkgdatadir)
 shaderdir = $(pkgdatadir)
-EXTRA_DIST = $(scheme_DATA)
+EXTRA_DIST = $(scheme_DATA) $(shader_DATA)
 
 ACLOCAL_AMFLAGS = -I m4

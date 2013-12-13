@@ -4,6 +4,7 @@
 #include "c-utils.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 
 /*! \defgroup uniforms Uniform Handling
  *
@@ -19,6 +20,7 @@
  *  \ingroup uniforms
  */
 
+#ifdef WITH_GUILE
 //! debugging only.
 static void print_chain(struct uniform_handler_node *chain) {
 	int i = 0;
@@ -34,6 +36,7 @@ static void print_chain(struct uniform_handler_node *chain) {
 		exit(-1);
 	}
 }
+#endif
 
 /*! \addtogroup uniforms
  * 	@{

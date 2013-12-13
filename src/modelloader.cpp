@@ -12,6 +12,7 @@
 #include <sstream>
 #include <iomanip>
 #include <vector>
+#include <float.h>
 
 #if LIBCGLS_HAVE_ASSIMP_2 == 1
 #include <assimp/assimp.hpp>

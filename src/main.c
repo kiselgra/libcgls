@@ -15,6 +15,7 @@
 
 #include <libcgl/libcgl.h>
 #include <libcgl/wall-time.h>
+#include <libcgl/debug.h>
 
 #include <GL/freeglut.h>
 #include <string.h>
@@ -234,18 +235,24 @@ void actual_main()
 	push_interaction_mode(make_default_cgls_interaction_mode());
 	push_interaction_mode(make_viewer_mode());
 
+#ifdef WITH_GUILE
 	register_cgls_scheme_functions();
 	void register_scheme_functions_for_cmdline();
 	register_scheme_functions_for_cmdline();
+#endif
 
     gbuffer = make_stock_deferred_buffer("gbuffer", cmdline.res.x, cmdline.res.y, GL_RGBA8, GL_RGBA8, GL_RGBA16F, GL_RGBA32F, GL_DEPTH_COMPONENT24);
 
+#ifdef WITH_GUILE
     char *config = 0;
     int n = asprintf(&config, "%s/%s", cmdline.include_path, cmdline.config);
 	load_configfile(config);
     free(config);
 	scene_ref scene = { 0 };
 	the_scene = scene;
+#else
+#warning example applicaiton cannot run without guile support.
+#endif
 	
 	struct drawelement_array picking_des = make_drawelement_array();
 	push_drawelement_list_to_array(scene_drawelements(the_scene), &picking_des);

@@ -92,6 +92,9 @@ void render_scene_with_shader(scene_ref ref, shader_ref shader, uniform_setter_t
 void default_scene_renderer(scene_ref ref);
 void graph_scene_traverser(scene_ref ref);
 
+void enable_backface_culling_for_scene(scene_ref ref, bool yes);
+bool using_backface_culling_for_scene(scene_ref ref);
+
 /*! traverses the toplevel nodes (different models/scenes) of the scene.
  *  does not bind shaders, this will have to be done before calling \ref render_scene.
  */

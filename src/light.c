@@ -228,7 +228,7 @@ void render_light_representation_with_shader(light_ref ref, shader_ref shader, u
 	vec4f in = { (V).x, (V).y, (V).z, 0 }, res; \
 	multiply_matrix4x4f_vec4f(&res, view, &in); \
 	(V).x = res.x; (V).y = res.y; (V).z = res.z;
-	
+
 bool basic_light_uniform_handler(light_ref *ref, const char *uniform, int location) {
 	if (looking_for("light_col")) {
 		vec3f col = *light_color(*ref);
@@ -439,9 +439,31 @@ SCM_DEFINE(s_light_color_x, "set-light-color!", 2, 0, 0, (SCM id, SCM col), "") 
 	return SCM_BOOL_T;
 }
 
+SCM_DEFINE(s_light_pos, "light-pos", 1, 0, 0, (SCM id), "") {
+	vec3f v;
+	light_ref ref = { scm_to_int(id) };
+	extract_pos_vec3f_of_matrix(&v, light_trafo(ref));
+	return vec3f_to_list(&v);
+}
+
+SCM_DEFINE(s_light_dir, "light-dir", 1, 0, 0, (SCM id), "") {
+	vec3f v;
+	light_ref ref = { scm_to_int(id) };
+	extract_dir_vec3f_of_matrix(&v, light_trafo(ref));
+	return vec3f_to_list(&v);
+}
+
+SCM_DEFINE(s_light_up, "light-up", 1, 0, 0, (SCM id), "") {
+	vec3f v;
+	light_ref ref = { scm_to_int(id) };
+	extract_up_vec3f_of_matrix(&v, light_trafo(ref));
+	return vec3f_to_list(&v);
+}
+
 void register_scheme_functions_for_light() {
 #ifndef SCM_MAGIC_SNARFER
 #include "light.x"
+	scm_c_eval_string("(define (light-config-for-animation id) (list 'add-node-to-camera-animation 'light-anim (light-pos id) (light-dir id) (light-up id) 't))");
 #endif
 }
 

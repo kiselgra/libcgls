@@ -49,12 +49,12 @@ void show_anims(aiScene const *scene);
 void add_animations(aiScene const *scene, skeletal_animation_ref skel_anim);
 
 vec4f col_to_vec4f(const aiColor4D &c) {
-	vec4f col = { c.r, c.g, c.b, c.a };
+	vec4f col = vec4f(c.r, c.g, c.b, c.a);
 	return col;
 }
 
 vec3f ass_imp_vec3_to_vec3f(const aiVector3D &v) {
-	vec3f ret = { v.x, v.y, v.z };
+	vec3f ret = vec3f(v.x, v.y, v.z);
 	return ret;
 }
 

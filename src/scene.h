@@ -85,11 +85,15 @@ void render_scene(scene_ref ref);
 void render_scene_deferred(scene_ref ref, framebuffer_ref gbuffer);
 void render_scene_to_buffer(scene_ref ref, framebuffer_ref target);
 void render_scene_deferred_to_buffer(scene_ref ref, framebuffer_ref gbuffer, framebuffer_ref target);
+void render_gbuffer_visualization(scene_ref ref, framebuffer_ref gbuffer);
 
 void render_scene_with_shader(scene_ref ref, shader_ref shader, uniform_setter_t extra_handler);
 	
 void default_scene_renderer(scene_ref ref);
 void graph_scene_traverser(scene_ref ref);
+
+void enable_backface_culling_for_scene(scene_ref ref, bool yes);
+bool using_backface_culling_for_scene(scene_ref ref);
 
 /*! traverses the toplevel nodes (different models/scenes) of the scene.
  *  does not bind shaders, this will have to be done before calling \ref render_scene.

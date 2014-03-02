@@ -41,13 +41,21 @@ AC_SUBST(CGL_LDFLAGS)
 cgldata="$(pkg-config --variable=datadir libcgl)"
 AC_SUBST([cgldata])
 
-ifdef([GUILE_FLAGS], [can_use_guile="yes"], [can_use_guile="no"])
-if test "x$can_use_guile" = "xyes" ; then
-	GUILE_FLAGS
-	GUILE_DEF="-DWITH_GUILE"
-else
-	GUILE_DEF=""
-fi
+AC_ARG_WITH([guile], [AS_HELP_STRING([--with-guile], [Wether to use guile. Default: yes.])], choose_guile=$withval, choose_guile="yes")
+AS_IF(
+	[test "x$choose_guile" == "xyes"],
+	[
+		ifdef([GUILE_FLAGS], [can_use_guile="yes"], [can_use_guile="no"])
+		if test "x$can_use_guile" = "xyes" ; then
+			GUILE_FLAGS
+			GUILE_DEF="-DWITH_GUILE"
+		else
+			GUILE_DEF=""
+		fi
+	],
+	[
+		GUILE_DEF=""
+	])
 AC_SUBST([GUILE_DEF])
 AM_CONDITIONAL([CAN_USE_GUILE], [test "x$can_use_guile" = "xyes"])
 

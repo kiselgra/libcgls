@@ -2,6 +2,7 @@
 
 #include <sys/time.h>
 #include <stdio.h>
+#include <math.h>
 
 static void print_matrix(const matrix4x4f *m, int d) {
 	for (int i = 0; i < d; ++i) printf(" ");	printf("%6.6f %6.6f %6.6f %6.6f\n", m->col_major[0], m->col_major[4], m->col_major[8], m->col_major[12]);

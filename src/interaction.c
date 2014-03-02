@@ -12,6 +12,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <ctype.h>
+#include <math.h>
 
 float cgls_interaction_scale = 1;
 

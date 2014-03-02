@@ -15,6 +15,7 @@
 
 #include <libcgl/libcgl.h>
 #include <libcgl/wall-time.h>
+#include <libcgl/debug.h>
 
 #include <GL/freeglut.h>
 #include <string.h>
@@ -33,6 +34,7 @@ framebuffer_ref gbuffer;
 // drawelement_ref deferred_spot, deferred_hemi;//, deferred_copydepth;
 picking_buffer_ref picking;
 drawelement_ref selected_de = { -1 };
+bool gb_debug = false;
 
 bool hemi_uniform_handler(drawelement_ref *dummy, const char *uniform, int location) {
 	if (strcmp(uniform, "hemi_dir") == 0) {
@@ -77,10 +79,13 @@ void display() {
     glFinish();
 	wall_time_t start = wall_time_in_ms();
 
-    bind_framebuffer(gbuffer);
+	if (cgls_deferred)
+    	bind_framebuffer(gbuffer);
 	glClearColor(0,0,0,1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    unbind_framebuffer(gbuffer);
+	if (cgls_deferred)
+    	unbind_framebuffer(gbuffer);
+
 	/*
     bind_framebuffer(gbuffer);
 
@@ -100,7 +105,16 @@ void display() {
 	glDisable(GL_BLEND);
 	glEnable(GL_DEPTH_TEST);
 	*/
-	render_scene_deferred(the_scene, gbuffer);
+// 	render_scene_deferred(the_scene, gbuffer);
+	if (cgls_deferred) {
+		render_scene_to_gbuffer(the_scene, gbuffer);
+		if (!gb_debug)
+			render_scene_from_gbuffer(the_scene, gbuffer);
+		else
+			render_gbuffer_visualization(the_scene, gbuffer);
+	}
+	else
+		render_scene(the_scene);
 
 	if (valid_drawelement_ref(selected_de))
 		highlight_object(picking, selected_de);
@@ -192,10 +206,15 @@ void advance_anim(interaction_mode *m, int x, int y) {
 	evaluate_skeletal_animation_at(ar, time);
 }
 
+void toggle_gb(interaction_mode *m, int x, int y) {
+	gb_debug = !gb_debug;
+}
+
 interaction_mode* make_viewer_mode() {
 	interaction_mode *m = make_interaction_mode("viewer");
 	add_function_key_to_mode(m, 'p', cgls_interaction_no_button, show_fps);
 	add_function_key_to_mode(m, ' ', cgls_interaction_no_button, advance_anim);
+	add_function_key_to_mode(m, '~', cgls_interaction_no_button, toggle_gb);
 	return m;
 }
 
@@ -216,18 +235,24 @@ void actual_main()
 	push_interaction_mode(make_default_cgls_interaction_mode());
 	push_interaction_mode(make_viewer_mode());
 
+#ifdef WITH_GUILE
 	register_cgls_scheme_functions();
 	void register_scheme_functions_for_cmdline();
 	register_scheme_functions_for_cmdline();
+#endif
 
     gbuffer = make_stock_deferred_buffer("gbuffer", cmdline.res.x, cmdline.res.y, GL_RGBA8, GL_RGBA8, GL_RGBA16F, GL_RGBA32F, GL_DEPTH_COMPONENT24);
 
+#ifdef WITH_GUILE
     char *config = 0;
     int n = asprintf(&config, "%s/%s", cmdline.include_path, cmdline.config);
 	load_configfile(config);
     free(config);
 	scene_ref scene = { 0 };
 	the_scene = scene;
+#else
+#warning example applicaiton cannot run without guile support.
+#endif
 	
 	struct drawelement_array picking_des = make_drawelement_array();
 	push_drawelement_list_to_array(scene_drawelements(the_scene), &picking_des);
@@ -262,7 +287,7 @@ void actual_main()
 	vec3f u = { 0.172540,0.846205,-0.504150};
 	light_ref spot = make_spotlight("spot", gbuffer, &p, &d, &u, 10);
 	change_light_color3f(spot, 1, .5, .5);
-	add_light_to_scene(the_scene, spot);
+// 	add_light_to_scene(the_scene, spot);
 	push_drawelement_to_array(light_representation(spot), &picking_des);
 
 	{
@@ -271,7 +296,7 @@ void actual_main()
 		  up = { 0,1,0 };
 	camera_ref c = make_perspective_cam("testcam", &pos, &dir, &up, 20, 1, 1, 1000);
 	light_ref camspot = make_spotlight_from_camera("camspot", gbuffer, c);
-	add_light_to_scene(the_scene, camspot);
+// 	add_light_to_scene(the_scene, camspot);
 	push_drawelement_to_array(light_representation(camspot), &picking_des);
 	}
 

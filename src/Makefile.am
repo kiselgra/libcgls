@@ -5,7 +5,7 @@ BUILT_SOURCES = drawelement.xx scene.xx material.xx picking.xx light.xx console.
 BUILT_SOURCES += objloader.x cmdline.x material.x drawelement.x scene.x console.x modelloader-scm.x skeletal.x path.x stock-shader.x camera-animation.x light.x command-animation.x sky.x
 BUILT_SOURCES += stock-shader.c picking.c console.cpp sky.c
 
-EXTRA_DIST = stock-shader.c.in picking.c.in console.cpp.in sky.c.in
+EXTRA_DIST = stock-shader.c.in picking.c.in console.cpp.in sky.c.in gen-vertex-shaders.c.in gen-gbuffer-shaders.c.in
 
 # libconfigfiles_la_SOURCES = grammar.yy  lexer.ll  parser.h  token.h lexer.h config_creator.h configfile.h configfile.cpp
 libcgls_la_SOURCES = 	\
@@ -18,6 +18,8 @@ libcgls_la_SOURCES = 	\
 						command-animation.c command-animation.h \
 						console.cpp console.h \
 						drawelement.c drawelement.h \
+						gen-vertex-shaders.c gen-vertex-shaders.h \
+						gen-gbuffer-shaders.c gen-gbuffer-shaders.h \
 						interaction.c interaction.h \
 						light.c light.h \
 						material.c material.h \
@@ -76,6 +78,12 @@ endif
 
 .cpp.xx: $<
 	m4 @cgldata@/mm.m4 $< > $@
+
+gen-vertex-shaders.c: gen-vertex-shaders.c.in
+	awk -f shaderhack.awk gen-vertex-shaders.c.in > gen-vertex-shaders.c
+
+gen-gbuffer-shaders.c: gen-gbuffer-shaders.c.in
+	awk -f shaderhack.awk gen-gbuffer-shaders.c.in > gen-gbuffer-shaders.c
 
 stock-shader.c: stock-shader.c.in
 	awk -f shaderhack.awk stock-shader.c.in > stock-shader.c

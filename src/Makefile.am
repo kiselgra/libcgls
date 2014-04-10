@@ -1,8 +1,8 @@
 lib_LTLIBRARIES = libcgls.la
-bin_PROGRAMS = viewer-cgls #tsm
+bin_PROGRAMS = viewer-cgls perf-cgls #tsm
 
 BUILT_SOURCES = drawelement.xx scene.xx material.xx picking.xx light.xx console.xx skeletal.xx path.xx camera-animation.xx command-animation.xx
-BUILT_SOURCES += objloader.x cmdline.x material.x drawelement.x scene.x console.x modelloader-scm.x skeletal.x path.x stock-shader.x camera-animation.x light.x command-animation.x sky.x
+BUILT_SOURCES += objloader.x cmdline.x material.x drawelement.x scene.x console.x modelloader-scm.x skeletal.x path.x stock-shader.x camera-animation.x light.x command-animation.x sky.x perf-main.x perf.x
 BUILT_SOURCES += stock-shader.c picking.c console.cpp sky.c
 
 EXTRA_DIST = stock-shader.c.in picking.c.in console.cpp.in sky.c.in gen-vertex-shaders.c.in gen-gbuffer-shaders.c.in
@@ -38,6 +38,10 @@ viewer_cgls_SOURCES = $(libcgls_la_SOURCES) \
 					    main.c \
                         cmdline.cpp cmdline.h
 
+perf_cgls_SOURCES = $(libcgls_la_SOURCES) \
+					    perf.c perf.h \
+						perf-main.cpp
+
 #tsm_SOURCES = $(libcgls_la_SOURCES) tsm.cpp tsm-cmdline.h tsm-cmdline.cpp
 
 # for bison/flex
@@ -53,15 +57,20 @@ library_include_HEADERS = drawelement.h objloader.h scene.h c-utils.h basename.h
 AM_CXXFLAGS = -ffor-scope -Werror=return-type
 AM_CFLAGS = -Werror=return-type
 
+CGLS_CPPFLAGS = -D PACKAGE=\"$(PACKAGE)\" -D VERSION=\"$(VERSION)\" -D DATADIR=\"$(pkgdatadir)\" -D_GNU_SOURCE @GUILE_DEF@ $(GUILE_CFLAGS) $(CGL_CFLAGS) $(AI_CFLAGS)
+CGLS_LFLAGS = $(GUILE_LDFLAGS) $(CGL_LIBS) $(AI_LIBS)
 # setting c preprocessor flags for main project
-viewer_cgls_CPPFLAGS = -D PACKAGE=\"$(PACKAGE)\" -D VERSION=\"$(VERSION)\" -D DATADIR=\"$(pkgdatadir)\" -D_GNU_SOURCE @GUILE_DEF@ $(GUILE_CFLAGS) $(CGL_CFLAGS) $(AI_CFLAGS)
-viewer_cgls_LDFLAGS = $(GUILE_LDFLAGS) $(CGL_LIBS) $(AI_LIBS)
+viewer_cgls_CPPFLAGS = $(CGLS_CPPFLAGS)
+viewer_cgls_LDFLAGS = $(CGLS_LFLAGS)
+
+perf_cgls_CPPFLAGS = $(CGLS_CPPFLAGS)
+perf_cgls_LDFLAGS = $(CGLS_LFLAGS)
 
 #tsm_CPPFLAGS = -D PACKAGE=\"$(PACKAGE)\" -D VERSION=\"$(VERSION)\" -D DATADIR=\"$(pkgdatadir)\" -D_GNU_SOURCE @GUILE_DEF@ $(GUILE_CFLAGS) $(CGL_CFLAGS)
 #tsm_LDFLAGS = $(GUILE_LDFLAGS) $(CGL_LIBS)
 
-libcgls_la_CPPFLAGS = -D PACKAGE=\"$(PACKAGE)\" -D VERSION=\"$(VERSION)\" -D DATADIR=\"$(pkgdatadir)\" -D_GNU_SOURCE @GUILE_DEF@ $(GUILE_CFLAGS) $(CGL_CFLAGS) $(AI_CFLAGS)
-libcgls_la_LIBADD = $(GUILE_LDFLAGS) $(CGL_LIBS) $(AI_LIBS)
+libcgls_la_CPPFLAGS = $(CGLS_CPPFLAGS)
+libcgls_la_LIBADD = $(CGLS_LFLAGS)
 
 SUFFIXES: .x .xx
 

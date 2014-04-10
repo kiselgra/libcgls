@@ -192,6 +192,13 @@ void evaluate_camera_animation_at(camera_animation_ref ref, animation_time_t tim
 	set_camera_to_animation_state_at(ref, time);
 }
 
+void normalize_camera_speed_along_path(camera_animation_ref ref) {
+	struct camera_animation *ca = camera_animations + ref.id;
+	normalize_speed_along_path(ca->path);
+	for (int i = 0; i < ca->nodes; ++i)
+		ca->node[i].time = path_animation_node_time(ca->path, i);
+}
+
 char* camera_animation_script(camera_animation_ref ref) {
 	struct camera_animation *ca = camera_animations + ref.id;
 	int nodes = ca->nodes;
@@ -200,8 +207,7 @@ char* camera_animation_script(camera_animation_ref ref) {
 		lines[i] = 0;
 	asprintf(lines, "(let ((ca (make-camera-animation \"%s\" (find-camera \"%s\"))))\n", ca->name, camera_name(ca->cam));
 	for (int i = 0; i < nodes; ++i) {
-		vec3f path_position_at(path_animation_ref ref, animation_time_t time, int *N, int *P);
-		vec3f pos = path_position_at(ca->path, ca->node[i].time, 0, 0);
+		vec3f pos = path_animation_node_position(ca->path, i);
 		asprintf(lines+i+1, "  (add-node-to-camera-animation ca (list %f %f %f) (list %f %f %f) (list %f %f %f) %f)\n",
 				 pos.x, pos.y, pos.z,
 		         ca->node[i].dir.x, ca->node[i].dir.y, ca->node[i].dir.z,

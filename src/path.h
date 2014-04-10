@@ -34,6 +34,11 @@ path_animation_ref find_path_animation(const char *name);
 struct path_animation_list* list_path_animations();
 bool valid_path_animation_ref(path_animation_ref ref);
 
+// internal info
+int path_animation_nodes(path_animation_ref);
+float path_animation_node_time(path_animation_ref, int n);
+vec3f path_animation_node_position(path_animation_ref, int n);
+
 // console.
 void add_path_commands_to_viconsole(console_ref console);
 

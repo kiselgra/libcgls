@@ -232,6 +232,18 @@ void evaluate_path_animation_at(path_animation_ref ref, animation_time_t time) {
 	set_path_to_animation_state_at(ref, time);
 }
 
+int path_animation_nodes(path_animation_ref ref) {
+	return path_animations[ref.id].nodes;
+}
+
+float path_animation_node_time(path_animation_ref ref, int n) {
+	return path_animations[ref.id].node[n].time;
+}
+
+vec3f path_animation_node_position(path_animation_ref ref, int n) {
+	return path_animations[ref.id].node[n].pos;
+}
+
 /*! we approximate the arc length by the sum of a number of linear paths. cheap, yeah :/ */
 void normalize_speed_along_path(path_animation_ref ref) {
 	struct path_animation *pa = path_animations + ref.id;

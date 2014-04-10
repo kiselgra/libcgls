@@ -28,6 +28,9 @@ void start_camera_animation(camera_animation_ref ref);
 void stop_camera_animation(camera_animation_ref ref);
 void evaluate_camera_animation_at(camera_animation_ref ref, animation_time_t time);
 
+//! simply normalizes the underlying path animation and adapts the lookat time values appropriately.
+void normalize_camera_speed_along_path(camera_animation_ref ref);
+
 char* camera_animation_script(camera_animation_ref ref);
 
 // console

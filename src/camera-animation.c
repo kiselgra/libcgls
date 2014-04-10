@@ -192,6 +192,35 @@ void evaluate_camera_animation_at(camera_animation_ref ref, animation_time_t tim
 	set_camera_to_animation_state_at(ref, time);
 }
 
+char* camera_animation_script(camera_animation_ref ref) {
+	struct camera_animation *ca = camera_animations + ref.id;
+	int nodes = ca->nodes;
+	char *lines[nodes+1];
+	for (int i = 0; i < nodes+1; ++i)
+		lines[i] = 0;
+	asprintf(lines, "(let ((ca (make-camera-animation \"%s\" (find-camera \"%s\"))))\n", ca->name, camera_name(ca->cam));
+	for (int i = 0; i < nodes; ++i) {
+		vec3f path_position_at(path_animation_ref ref, animation_time_t time, int *N, int *P);
+		vec3f pos = path_position_at(ca->path, ca->node[i].time, 0, 0);
+		asprintf(lines+i+1, "  (add-node-to-camera-animation ca (list %f %f %f) (list %f %f %f) (list %f %f %f) %f)\n",
+				 pos.x, pos.y, pos.z,
+		         ca->node[i].dir.x, ca->node[i].dir.y, ca->node[i].dir.z,
+				 ca->node[i].up.x, ca->node[i].up.y, ca->node[i].up.z,
+				 ca->node[i].time);
+	}
+	int len = 0;
+	for (int i = 0; i < nodes+1; ++i)
+		len += strlen(lines[i]);
+	char *res = malloc(len+1);
+	res[0] = 0;
+	for (int i = 0; i < nodes+1; ++i) {
+		strcat(res, lines[i]);
+		free(lines[i]);
+	}
+	res[len-1] = ')';
+	return res;
+}
+
 // 
 // console
 //
@@ -371,6 +400,11 @@ SCM_DEFINE(s_ca_nodes, "camera-animation-config", 1, 0, 0, (SCM id), "") {
 																  SCM_UNDEFINED);
 }
 
+SCM_DEFINE(s_ca_print, "print-cam-animation-script", 1, 0, 0, (SCM id), "") {
+	camera_animation_ref ref = { scm_to_int(id) };
+	printf("%s\n", camera_animation_script(ref));
+	return SCM_BOOL_T;
+}
 
 void register_scheme_functions_for_camera_animation() {
 #include "camera-animation.x"

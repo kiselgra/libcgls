@@ -124,7 +124,7 @@ matrix4x4f* path_matrix_of_animation(path_animation_ref ref) {
 static void find_nodes_for_path_animation(struct path_animation *pa, float time, int *next, int *prev) {
 	*next = -1;
 	for (int i = 0; i < pa->nodes; ++i)
-		if (pa->node[i].time > time) {
+		if (pa->node[i].time >= time) {
 			*next = i;
 			break;
 		}

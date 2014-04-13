@@ -20,6 +20,7 @@ static struct argp_option options[] =
 	// --[opt]		short/const		arg-descr		?		option-descr
 //     { "config", 'c', "configfile", 0, "Scheme file to supply instructions."},
 //     { "include-path", 'I', "path", 0, "Path to search for the config file. Default: " DATADIR "."},
+    { "output", 'o', "file", 0, "Output file for performance information."},
     { "res", 'r', "w,h", 0, "Window resolution."},
     { "factor", 'f', "x", 0, "Drawelement collapse threshold."},
 	{ 0 }
@@ -42,7 +43,7 @@ vec2i read_vec2i(const std::string &s) {
 	return v;
 }
 
-char *config = 0, *include_path = 0, *perf_file = 0;
+char *config = 0, *include_path = 0, *perf_file = 0, *outfile = 0;
 vec2i res(1366, 768);
 extern float collapse_factor;
 
@@ -63,6 +64,7 @@ static error_t parse_options(int key, char *arg, argp_state *state)
 //     case 'I':   include_path = strdup(arg); break;
     case 'r':   res = read_vec2i(sarg); break;
     case 'f':   collapse_factor = atof(arg); break;
+    case 'o':   outfile = strdup(arg); break;
 	case ARGP_KEY_ARG:		// process arguments. 
 							// state->arg_num gives number of current arg
 				if (perf_file)
@@ -125,7 +127,7 @@ int main(int argc, char **argv)
 // 	int guile_mode = guile_cfg_only;
 // 	int guile_mode = with_guile;
 // 	startup_cgl("name", 4, 2, argc, argv, (int)cmdline.res.x, (int)cmdline.res.y, actual_main, guile_mode, false, 0);
-	enter("default performance run", 4, 3, res.x, res.y, perf_file);
+	enter("default performance run", 4, 3, res.x, res.y, perf_file, outfile);
 
 	return 0;
 }

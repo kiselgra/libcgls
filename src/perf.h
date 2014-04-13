@@ -12,7 +12,7 @@ extern "C" {
 
 // 	extern bool make_gbuffer;
 
-	void enter(const char *name, int glmaj, int glmin, int res_x, int res_y, const char *configfile);
+	void enter(const char *name, int glmaj, int glmin, int res_x, int res_y, const char *configfile, const char *outfile);
 
 #ifdef __cplusplus
 }

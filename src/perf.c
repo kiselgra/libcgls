@@ -45,6 +45,7 @@ bool playback = false;
 
 char *user_config = 0;
 char *model_file, *config_file, *cam_file;
+const char *performance_output = 0;
 define_slist(stringlist, char *entry);
 struct stringlist *config_paths = 0,
 				  *model_paths = 0;
@@ -76,6 +77,31 @@ char* find_file_in(const char *basename, struct stringlist *paths)
 			free(str);
 		}
 	return 0;
+}
+void save_timings() {
+	if (performance_output) {
+		FILE *out = fopen(performance_output, "w");
+		if (!out) {
+			perror("cannot write to given file.");
+			quit(1);
+		}
+		double sum = 0;
+		for (int i = 0; i < number_of_samples; ++i) {
+			fprintf(out, "%f ", times[i]);
+			sum += times[i];
+		}
+		double avg = sum/number_of_samples;
+		fprintf(out, ";;\n");
+		fprintf(out, "\n");
+		fprintf(out, "perf file: %s\n", user_config);
+		fprintf(out, "model file: %s\n", model_file);
+		fprintf(out, "config file: %s\n", config_file);
+		fprintf(out, "cam file: %s\n", cam_file);
+		fprintf(out, "\n");
+		fprintf(out, "avg time (ms): %g\n", avg);
+		fprintf(out, "avg fps: %g\n", 1000.0/avg);
+		fclose(out);
+	}
 }
 
 void display() {
@@ -133,7 +159,7 @@ void display() {
 	times[curr_pos] = end-start;
 	curr_pos = (curr_pos+1);
 	if (samples ==  curr_pos) {
-		fprintf(stderr, "!  !  !\n   NOT ENO TIME SAMPLE\n!  !  !\n\n");
+		fprintf(stderr, "!  !  !\n   NOT ENOGH TIME SAMPLES\n!  !  !\n\n");
 		exit(1);
 	}
 	valid_pos = (valid_pos == samples ? samples : valid_pos+1);
@@ -146,6 +172,7 @@ void display() {
 	curr_time = curr_time + animation_step;
 	if (++sample == number_of_samples) {
 		fprintf(stderr, "took all samples. quitting.\n");
+		save_timings();
 		quit(0);
 	}
 }
@@ -312,13 +339,14 @@ void actual_main()
 }
 
 
-void enter(const char *name, int glmaj, int glmin, int res_x, int res_y, const char *configfile) {
+void enter(const char *name, int glmaj, int glmin, int res_x, int res_y, const char *configfile, const char *outfile) {
 // 	int guile_mode = guile_cfg_only;
 	int guile_mode = with_guile;
 	user_config = strdup(configfile);
 	char *fake[] = { 0 };
 	screen_res_x = res_x;
 	screen_res_y = res_y;
+	performance_output = outfile;
 	startup_cgl(name, glmaj, glmin, 0, fake, res_x, res_y, actual_main, guile_mode, false, 0);
 }
 

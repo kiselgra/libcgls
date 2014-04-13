@@ -48,6 +48,9 @@ char *model_file, *config_file, *cam_file;
 define_slist(stringlist, char *entry);
 struct stringlist *config_paths = 0,
 				  *model_paths = 0;
+int number_of_samples = 2048;
+double animation_duration = 0;
+double animation_step = 1;
 
 char* find_file_in(const char *basename, struct stringlist *paths)
 {
@@ -77,8 +80,8 @@ char* find_file_in(const char *basename, struct stringlist *paths)
 
 void display() {
 	static struct timeval tv;
-	double curr_time;
-	curr_time = animation_time_stamp();
+	static double curr_time = 0;
+	static int sample = 0;
 
 	for (struct skeletal_animation_list *animations = list_skeletal_animations(); animations; animations = animations->next) {
 		change_skeletal_animation_speed(animations->ref, 0.5);
@@ -139,6 +142,12 @@ void display() {
 	render_console(console);
 
 	swap_buffers();
+	
+	curr_time = curr_time + animation_step;
+	if (++sample == number_of_samples) {
+		fprintf(stderr, "took all samples. quitting.\n");
+		quit(0);
+	}
 }
 
 void idle() {
@@ -292,7 +301,9 @@ void actual_main()
 	camera_animation_ref ca_ref = cas->ref;
 	for (struct camera_animation_list *run = cas; run; run = run->next)
 		ca_ref = run->ref;
-	start_camera_animation(ca_ref);
+	start_camera_animation_with_timestamp(ca_ref, 0);
+	animation_duration = camera_animation_time(cas->ref, camera_animation_nodes(cas->ref)-1) * 1000;
+	animation_step = animation_duration / number_of_samples;
 
 	if (init_post)
 		init_post();
@@ -357,6 +368,11 @@ SCM_DEFINE(s_cam_file, "camera-file", 1, 0, 0, (SCM name), "") {
 
 SCM_DEFINE(s_model_file, "model", 1, 0, 0, (SCM name), "") {
 	model_file = scm_to_locale_string(name);
+	return SCM_BOOL_F;
+}
+
+SCM_DEFINE(s_samples, "samples", 1, 0, 0, (SCM n), "") {
+	number_of_samples = scm_to_int(n);
 	return SCM_BOOL_F;
 }
 

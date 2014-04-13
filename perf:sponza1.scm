@@ -5,3 +5,4 @@
 (model-paths "." "/home/kai/render-data/models/")
 (config-paths "." "/usr/local/share/libcgls/" "/soft/devtools/kai/render-data/share/libcgls")
 
+(samples 1000)

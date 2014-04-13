@@ -114,6 +114,13 @@ float camera_animation_speed(camera_animation_ref ref, float factor) {
 
 void start_path_animation_with_timestamp(path_animation_ref ref, animation_time_t stamp);
 
+void start_camera_animation_with_timestamp(camera_animation_ref ref, animation_time_t stamp) {
+	struct camera_animation *ca = camera_animations + ref.id;
+	ca->animation_start_time = stamp;
+	ca->running = true;
+	start_path_animation_with_timestamp(ca->path, ca->animation_start_time);
+}
+
 void start_camera_animation(camera_animation_ref ref) {
 	struct camera_animation *ca = camera_animations + ref.id;
 	ca->animation_start_time = animation_time_stamp();
@@ -130,6 +137,14 @@ void stop_camera_animation(camera_animation_ref ref) {
 path_animation_ref camera_animation_path(camera_animation_ref ref) {
 	struct camera_animation *ca = camera_animations + ref.id;
 	return ca->path;
+}
+
+int camera_animation_nodes(camera_animation_ref ref) {
+	return camera_animations[ref.id].nodes;
+}
+
+float camera_animation_time(camera_animation_ref ref, int n) {
+	return camera_animations[ref.id].node[n].time;
 }
 
 static void find_nodes_for_cam_animation(struct camera_animation *ca, float time, int *next, int *prev) {

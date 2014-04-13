@@ -25,6 +25,7 @@ void change_camera_animation_speed(camera_animation_ref ref, float factor);
 
 float camera_animation_speed(camera_animation_ref ref, float factor);
 void start_camera_animation(camera_animation_ref ref);
+void start_camera_animation_with_timestamp(camera_animation_ref ref, animation_time_t stamp);
 void stop_camera_animation(camera_animation_ref ref);
 void evaluate_camera_animation_at(camera_animation_ref ref, animation_time_t time);
 
@@ -32,6 +33,9 @@ void evaluate_camera_animation_at(camera_animation_ref ref, animation_time_t tim
 void normalize_camera_speed_along_path(camera_animation_ref ref);
 
 char* camera_animation_script(camera_animation_ref ref);
+
+float camera_animation_time(camera_animation_ref ref, int n);
+int camera_animation_nodes(camera_animation_ref ref);
 
 // console
 

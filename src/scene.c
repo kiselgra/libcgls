@@ -197,6 +197,11 @@ void scene_rendering_of_light_representations(scene_ref ref, bool on) {
 	scene->show_light_representations = on;
 }
 
+struct light_list* scene_lights(scene_ref ref) {
+	struct scene *scene = scenes+ref.id;
+	return scene->lights;
+}
+
 drawelement_ref scene_skybox(scene_ref ref) {
 	return scenes[ref.id].skybox;
 }

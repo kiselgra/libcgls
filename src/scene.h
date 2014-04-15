@@ -71,6 +71,7 @@ void scene_set_lighting(scene_ref ref, scene_light_application_t app);
 void add_light_to_scene(scene_ref ref, light_ref light);
 bool scene_render_light_representations(scene_ref ref);
 void scene_rendering_of_light_representations(scene_ref ref, bool on);
+struct light_list* scene_lights(scene_ref ref);
 
 void set_scene_skybox(scene_ref ref, drawelement_ref de);
 drawelement_ref scene_skybox(scene_ref ref);

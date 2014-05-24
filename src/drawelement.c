@@ -102,6 +102,28 @@ drawelement_ref make_drawelement(const char *name, mesh_ref mr, shader_ref sr, m
 	return ref;
 }
 
+/*! \brief clone drawelement, i.e. copy all refs and internal data.
+ *
+ * 	This is useful to generate drawelements representing the same geometry but
+ * 	using different shading appraoches (e.g. forward vs deferred).
+ *
+ * 	if new_name is 0 a generic name is used.
+ */
+drawelement_ref clone_drawelement(drawelement_ref ref, const char *new_name) {
+	drawelement_ref new = allocate_drawelement_ref();
+	struct drawelement *old_de = drawelements+ref.id;
+	struct drawelement *de = drawelements+new.id;
+	*de = *old_de;
+	if (new_name)
+		de->name = strdup(new_name);
+	else {
+		de->name = 0;
+		int c = asprintf(&de->name, "clone of %s", old_de->name);
+		if (c <= 0) perror("asprintf in clone_drawelement");
+	}
+	return new;
+}
+
 const char* drawelement_name(drawelement_ref ref) {
 	struct drawelement *de = drawelements + ref.id;
 	return de->name;

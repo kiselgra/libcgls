@@ -138,4 +138,60 @@
  *  };
  *  \endcode
  *
+ *  \subsection def_gb_ws GBuffer in World Space
+ *  The GBuffer is in eye space. Right now there is not much to do about it.
+ *  Having this more configurable would touch a little more code that will be under performance review sometime (hopefully) soon.
+ *  See \ref shaders_uniform_handler for how to provide the inverse viewing matrix to your shader to reverse the computation.
+ *
+ *
+ *
+ *  \section shaders Shaders & Uniforms
+ *
+ *  \subsection shaders_uniform_handler Provide a Custom Uniform Handler
+ *  Imagine you want to provide the inverse of the viewing matrix to your shader (see \ref def_gb_ws).
+ *  You could extract the gl viewing matrix (NB this is not the lookat matrix)
+ *  from the camera, invert it, and add a uniform handler to your drawelements.
+ * 	\code 
+ *	matrix4x4f inv_view;
+ *	...
+ *		matrix4x4f *view = gl_view_matrix_of_cam(current_camera());
+ *  	invert_matrix4x4f(&inv_view, view);
+ *  	prepend_drawelement_uniform_handler(de, (uniform_setter_t)my_custom_uniform_handler);
+ *  \endcode
+ *
+ *  The uniform handler could look like this (the layout is somewhat canonical):
+ * 	\code 
+ *  bool default_matrix_uniform_handler(drawelement_ref *ref, const char *uniform, int location) {
+ *  	if (strcmp(uniform, "inv_view") == 0)
+ *  		glUniformMatrix4fv(location, 1, GL_FALSE, inv_view.col_major);
+ *  	else
+ *  		return false;
+ *  	return true;
+ *  }
+ *  \endcode
+ *  		
+ *  See the code of
+ * 	\code 
+ *  default_matrix_uniform_handler(drawelement_ref *ref, const char *uniform, int location)
+ *  \endcode
+ *  for a larger example.
+ *
+ *  Note that the uniform handler returns wether it was able to assign the uniform.
+ *  It is sensible to have the most common uniform handler at the beginning of the list.
+ *
+ *  You can also use uniform layout specifications to get around using uniform
+ *  handlers altogether (well, for your custom code, the framework can't know
+ *  about those when rendering the scene).
+ *  
+ *
+ *
+ *
+ * \section camera Camera Operations
+ *
+ * \subsection camera_extract_matrix Extract Matrix from Camera
+ * See \ref shaders_uniform_handler
+ *
+ *
+ *
+ *
  */

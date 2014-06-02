@@ -1039,7 +1039,7 @@ drawelement_ref make_stock_gbuffer_default_drawelement(framebuffer_ref fbo, cons
 
 	return de;
 }
-	
+
 /*! \brief create a default gbuffer drawelement (screen aligned quad with texcoords) with appropriate material. the caller must provide a conforming shader.
  *
  *  \param effect_name will be used as name for the drawelement, the material and the shader. so take care.

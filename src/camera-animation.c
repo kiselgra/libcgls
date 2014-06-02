@@ -220,14 +220,16 @@ char* camera_animation_script(camera_animation_ref ref) {
 	char *lines[nodes+1];
 	for (int i = 0; i < nodes+1; ++i)
 		lines[i] = 0;
-	asprintf(lines, "(let ((ca (make-camera-animation \"%s\" (find-camera \"%s\"))))\n", ca->name, camera_name(ca->cam));
+	int c = asprintf(lines, "(let ((ca (make-camera-animation \"%s\" (find-camera \"%s\"))))\n", ca->name, camera_name(ca->cam));
+	if (c <= 0) perror("asprintf in camera_animation_script");
 	for (int i = 0; i < nodes; ++i) {
 		vec3f pos = path_animation_node_position(ca->path, i);
-		asprintf(lines+i+1, "  (add-node-to-camera-animation ca (list %f %f %f) (list %f %f %f) (list %f %f %f) %f)\n",
+		c=asprintf(lines+i+1, "  (add-node-to-camera-animation ca (list %f %f %f) (list %f %f %f) (list %f %f %f) %f)\n",
 				 pos.x, pos.y, pos.z,
 		         ca->node[i].dir.x, ca->node[i].dir.y, ca->node[i].dir.z,
 				 ca->node[i].up.x, ca->node[i].up.y, ca->node[i].up.z,
 				 ca->node[i].time);
+		if (c <= 0) perror("asprintf in camera_animation_script");
 	}
 	int len = 0;
 	for (int i = 0; i < nodes+1; ++i)

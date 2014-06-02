@@ -6,7 +6,7 @@
  *
  * 	\section main About
  *
- * 	The cgls library is an extension to the more basic cgl library.
+ *  The cgls library is an extension to the more basic cgl library.
  *  The name is cgl plus s, for scheme (in both senses).
  *  
  *  As cgl strives to provide means, cgls implements a certain policy on top of it.
@@ -20,13 +20,23 @@
  *
  *  Regarding "Refs", see the cgl documentation.
  *   
- *	All structures and methods are provided for use from C and Scheme.
+ *  All structures and methods are provided for use from C and Scheme.
  *  
- *	The framework is supposed to be easily adaptable to special rendering needs. Let's see how this plays out :)
+ *  The framework is supposed to be easily adaptable to special rendering needs. Let's see how this plays out :)
  *
  *
- *	To start digging around we suggest using the `Modules' tab.
- *	The example viewer program (see \ref main.c) as well as the default Scheme startup file (see \ref defaultscm) might also be interesting.
+ *  To start digging around we suggest using the `Modules' tab.
+ *  The example viewer program (see \ref main.c) as well as the default Scheme startup file (see \ref defaultscm) might also be interesting.
+ *
+ *
+ *
+ *  \section tut Howtos
+ *
+ *  There is a place where we accumulate examples of how cgls can be used to achieve some scheme.
+ *  This especially includes how to achive things in cgls in general. :)
+ *
+ *  See \ref tutorials.
+ *
  *
  *
  *  \section license License & Terms of use.
@@ -36,6 +46,8 @@
  *  May be used under the Terms of the GNU GPL v3 or later.
  *
  *  It would be nice if you would stall any redistribution until this project has established a fixed website :)
+ *
+ *
  *
  *  \section deps Dependencies and build instructions
  *
@@ -49,4 +61,81 @@
  * \include default.c.scm
  * 
  * Sorry for the bad syntax highlighting. Doxygen is leaving us alone here...
+ */
+
+/*! \page tutorials Howtos
+ *
+ *  \section deferred_vs_forward Deferred and Forward Rendering
+ *
+ *  \subsection def_basic Basic Choice
+ *  You can control whether you want the framework to use forward or deferred rendering using the variable
+ *  \code cgls_deferred.\endcode
+ *  This takes care to generate the appropriate shaders during scene loading.
+ *
+ *  Note that you still have to invoke the appropriate render calls.
+ *  You can combine
+ *  \code
+ *  render_scene_to_gbuffer(...)	// and
+ *  render_scene_from_gbuffer(...)
+ *  \endcode
+ *  or just use
+ *  \code
+ *  render_scene_deferred(...)
+ *  \endcode
+ *  to render using deferred shading. To render using forward shading use
+ *  \code
+ *  render_scene(...)
+ *  \endcode
+ *  Note that \c render_scene can also be used to render to a gbuffer if the shader setup is suitable for deferred rendering.
+ *  In this case \c render_scene will not be able to produce a forward shaded image but just render the first output variable (usually diffuse in cgls).
+ *
+ *
+ *
+ *  \subsection def_switching Using Forward and Deferred Shading in an Application
+ *
+ *  The original documentation of \c cgls_deferred does not say so, but you can change it after the scene is generated.
+ *  In the following example we assume that the scene was loaded with \c cgls_deferred activated.
+ *
+ *  The hack is now to just open up a second scene (right now this produces a runtime warning as it is not thoroughly tested yet)
+ *  and add to it a copy of each drawelement in the original scene. Then, with \c cgls_deferred inverted, you can regenerate the
+ *  shaders for each such copied drawelement to support forward shading:
+ *
+ *  \code
+ *  forward_scene = make_graph_scene("forward");
+ *  cgls_deferred = false;
+ *  for (drawelement_node *run = scene_drawelements(the_scene); run; run = run->next) {
+ *  		drawelement_ref de = clone_drawelement(run->ref, 0);
+ *  		drawelement_change_shader(de, make_stock_shader(0, de, 0, true, 0));
+ *  		scene_add_drawelement(forward_scene, de);
+ *  }
+ *  cgls_deferred = true;
+ *  \endcode
+ *  
+ *  When rendering this can be used as follows (direct example from an application, noop stands for no-op):
+ *
+ *  \code
+ *  class noop_forward : public dof_algorithm {
+ *  	public:
+ *  		noop_forward() : dof_algorithm("noop_forward") {}
+ *  		virtual void render() {
+ *  			glClearColor(0,0,0,1);
+ *  			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+ *  			::render_scene(forward_scene);
+ *  		}
+ *  };
+ *  
+ *  class noop_deferred : public dof_algorithm {
+ *  	public:
+ *  		noop_deferred() : dof_algorithm("noop_deferred") {}
+ *  		virtual void render() {
+ *  			bind_framebuffer(gbuffer);
+ *  			glClearColor(0,0,0,1);
+ *  			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+ *  			::render_scene(the_scene);
+ *  			unbind_framebuffer(gbuffer);
+ *  			render_scene_deferred(the_scene, gbuffer);
+ *  		}
+ *  };
+ *  \endcode
+ *
  */

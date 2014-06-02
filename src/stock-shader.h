@@ -48,7 +48,7 @@ texture_ref make_buffer_for_instance_trafos(const char *name, int n);
 // deferred part
 
 enum {
-    stock_ds_flag_position_in_world = 01,
+    stock_ds_flag_position_in_world = 00001,
 };
 
 framebuffer_ref make_stock_deferred_buffer(const char *name, unsigned int width, unsigned int height, 

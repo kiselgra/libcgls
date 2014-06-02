@@ -50,7 +50,7 @@ light_ref find_light(const char *name);
 
 
 // deferred
-void apply_deferred_lights(struct light_list *lights);
+void apply_deferred_lights(framebuffer_ref gbuffer, struct light_list *lights);
 void apply_single_deferred_light(light_ref ref);
 void render_light_representation_with_shader(light_ref ref, shader_ref shader, uniform_setter_t handler);
 void render_light_representation(light_ref ref);
@@ -62,6 +62,7 @@ light_ref make_ambient_light(const char *name, framebuffer_ref gbuffer, vec3f *c
 light_ref make_spotlight(const char *name, framebuffer_ref gbuffer, vec3f *pos, vec3f *dir, vec3f *up, float cutoff);
 light_ref make_spotlight_from_camera(const char *name, framebuffer_ref gbuffer, camera_ref cam);
 drawelement_ref build_spot_light_representation_drawelement(const char *lightname, light_ref ref, float size_scale, float cutoff);
+light_ref make_rectangular_light(const char *name, framebuffer_ref gbuffer, vec3f *pos, vec3f *dir, vec3f *up, float width, float height);
 
 // uniform handlers for lights
 bool basic_light_uniform_handler(light_ref *ref, const char *uniform, int location);

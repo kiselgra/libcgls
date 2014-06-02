@@ -175,11 +175,12 @@ void apply_single_deferred_light(light_ref ref) {
 			pop_global_uniform_handler();
 }
 
-void apply_deferred_lights(struct light_list *lights) {
+void apply_deferred_lights(framebuffer_ref gbuffer, struct light_list *lights) {
 // 	glClearColor(0.1,0.1,0.4,0);
 	glClearColor(cgls_scene_clear_color.x, cgls_scene_clear_color.y, cgls_scene_clear_color.z, cgls_scene_clear_color.w);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	render_drawelement(stock_deferred_copydepth);
+// 	render_drawelement(stock_deferred_copydepth);
+	copy_gbuffer_depth(gbuffer);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE);
 	glDisable(GL_DEPTH_TEST);
@@ -372,6 +373,59 @@ light_ref make_spotlight_from_camera(const char *name, framebuffer_ref gbuffer, 
 
 	replace_light_trafo(ref, lookat_matrix_of_cam(cam));
 	replace_drawelement_trafo(rep, lookat_matrix_of_cam(cam));
+	light_use_as_representation(ref, rep);
+
+	return ref;
+}
+
+drawelement_ref build_rectangular_light_representation_drawelement(const char *lightname, light_ref ref, float size_scale_x, float size_scale_y) {
+	char *n = strappend("material for repr of rectlight ", lightname);
+	vec3f null = { 0,0,0 };
+	material_ref mat = make_material3f(n, light_color(ref), &null, &null);
+	matrix4x4f scale; vec3f v = { size_scale_x, size_scale_y, 1 };
+	make_scale_matrix4x4f(&scale, &v);
+	mesh_ref mesh = make_quad(lightname, &scale);
+	
+	shader_ref shader = { -1 };
+	drawelement_ref rep = make_drawelement(lightname, mesh, shader, mat);
+	
+	// get stock shader
+	struct stockshader_fragments ssf;
+	init_stockshader_fragments(&ssf);
+	stockshader_add_uniform(&ssf, "light_col");
+	// remove fragment code and add new fragment code
+	stockshader_clear_fsource(&ssf);
+	// go on
+	char *n2 = strappend("shader for lightrep of ", lightname);
+	shader = make_stock_shader(n2, rep, &ssf, true, stock_light_representation_shader());
+	drawelement_change_shader(rep, shader);
+	prepend_drawelement_uniform_handler(rep, (uniform_setter_t)default_matrix_uniform_handler);
+	prepend_drawelement_uniform_handler(rep, (uniform_setter_t)default_material_uniform_handler);
+	free(n);
+	free(n2);
+	return rep;
+}
+
+light_ref make_rectangular_light(const char *name, framebuffer_ref gbuffer, 
+                                 vec3f *pos, vec3f *dir, vec3f *up, float width, float height) {
+	light_ref ref = make_light(name);
+	float *aux = malloc(sizeof(float)*2);
+	aux[0] = width;
+	aux[1] = height;
+	set_light_aux(ref, spot_light_t, aux);
+	add_light_uniform_handler(ref, stock_spotlight_uniform_handler);
+	
+	drawelement_ref deferred = make_stock_gbuffer_default_drawelement(gbuffer, name, stock_effect_spot());
+	light_use_deferred_drawelement(ref, deferred);
+	add_shader_uniform(drawelement_shader(deferred), "light_pos");
+	add_shader_uniform(drawelement_shader(deferred), "light_dir");
+	add_shader_uniform(drawelement_shader(deferred), "light_col");
+	add_shader_uniform(drawelement_shader(deferred), "spot_cos_cutoff");
+
+	drawelement_ref rep = build_rectangular_light_representation_drawelement(name, ref, width, height);
+
+	make_lookat_matrixf(light_trafo(ref), pos, dir, up);
+	replace_drawelement_trafo(rep, light_trafo(ref));
 	light_use_as_representation(ref, rep);
 
 	return ref;

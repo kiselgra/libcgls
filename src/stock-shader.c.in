@@ -484,6 +484,22 @@ const char* stock_effect_copy_depthbuffer(void) {
 		}shader;
 }
 
+//! copy depth buffer (sorry, extra pass for this one).
+const char* stock_effect_copy_depthbuffer_fixed_location(void) {
+	return
+		shader{
+			#version 150 core
+			uniform layout(binding = 0) sampler2D gbuffer_depth;
+			out vec4 out_col;
+			in vec2 tc;
+			
+			void main() {
+				float d = texture(gbuffer_depth, tc).r;
+				gl_FragDepth = d;
+			}
+		}shader;
+}
+
 //! a very basic spotlight (which requires no further uniforms).
 const char* stock_effect_headmounted_spot(void) {
 	return
@@ -868,6 +884,39 @@ void upload_instance_matrices(texture_ref target, matrix4x4f *mat, int n) {
 //! @}
 
 drawelement_ref stock_deferred_copydepth = { -1 };
+static mesh_ref stock_deferred_copydepth_quad = { -1 };
+static shader_ref stock_deferred_copydepth_shader = { -1 };
+static bool stock_deferred_copydepth_is_initialized = false;
+
+void copy_gbuffer_depth(framebuffer_ref gbuffer) {
+	bind_shader(stock_deferred_copydepth_shader);
+	bind_mesh_to_gl(stock_deferred_copydepth_quad);
+	texture_ref depth = framebuffer_depth_texture(gbuffer);
+	bind_texture(depth, 0);
+	draw_mesh(stock_deferred_copydepth_quad);
+	unbind_texture(depth);
+	unbind_mesh_from_gl(stock_deferred_copydepth_quad);
+	unbind_shader(stock_deferred_copydepth_shader);
+}
+
+void initialize_stock_deferred_copydepth() {
+	if (stock_deferred_copydepth_is_initialized)
+		return;
+	stock_deferred_copydepth_is_initialized = true;
+	stock_deferred_copydepth_quad = make_quad_with_tc("stock copy depth quad", 0);
+	
+	stock_deferred_copydepth_shader = make_shader("stock copy depth shader", 2);
+	struct stockshader_fragments ssf;
+	init_stockshader_fragments(&ssf);
+	stockshader_add_input(&ssf, "in_pos");
+	stockshader_add_input(&ssf, "in_tc");
+	stockshader_add_vsource(&ssf, stock_gbuffer_using_vertex_shader());
+	stockshader_add_fsource(&ssf, stock_effect_copy_depthbuffer_fixed_location());
+
+	populate_shader_with_fragments(stock_deferred_copydepth_shader, &ssf);
+	compile_and_link_shader_showing_log_on_error(stock_deferred_copydepth_shader);
+	free_stockshader_fragments(&ssf);
+}
 
 /*! \brief create a default gbuffer usable with the stock shaders.
  *
@@ -927,7 +976,11 @@ framebuffer_ref make_stock_deferred_buffer(const char *name, unsigned int width,
 	free(position_name);
 	free(depth_name);
 
+	// BUG: this is generated per-gbuffer and replaces the global instance by a drawelement bound to the textures of a specific gbuffer.
 	stock_deferred_copydepth = make_stock_gbuffer_default_drawelement(fbo, "stock copy depth", stock_effect_copy_depthbuffer());
+
+	// Solution: we provide a copy-depth operation that is not tied to a specific gubffer. See copy_gbuffer_depth.
+	initialize_stock_deferred_copydepth();
 
 	return fbo;
 }

@@ -179,6 +179,16 @@ void actual_main()
 // 		add_light_to_scene(the_scene, spot);
 // 		push_drawelement_to_array(light_representation(spot), &picking_des);
 // 	}
+	
+	{
+		vec3f p = { 311.678131,204.546875,-91.080360 };
+		vec3f d = { 0.443330,-0.523770,-0.727411 };
+		vec3f u = { 0.172540,0.846205,-0.504150};
+		light_ref rect = make_rectangular_light("rect", gbuffer, &p, &d, &u, 140, 70);
+		change_light_color3f(rect, 1, .5, .5);
+		add_light_to_scene(the_scene, rect);
+		push_drawelement_to_array(light_representation(rect), &picking_des);
+	}
 
 // 	{
 // 		vec3f pos = { 0,10,0 },
@@ -211,7 +221,7 @@ int main(int argc, char **argv)
 {	
 	parse_cmdline(argc, argv);
 	
-	cgls_deferred = false;
+	cgls_deferred = true;
 // 	int guile_mode = guile_cfg_only;
 	int guile_mode = with_guile;
 	startup_cgl("name", 4, 2, argc, argv, (int)cmdline.res.x, (int)cmdline.res.y, actual_main, guile_mode, false, 0);

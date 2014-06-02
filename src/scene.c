@@ -298,7 +298,7 @@ void render_skybox_to_buffer(scene_ref ref, framebuffer_ref gbuffer) {
 void render_scene_from_gbuffer(scene_ref ref, framebuffer_ref gbuffer) {
 	struct scene *scene = scenes+ref.id;
 	if (scene->apply_lights)
-		scene->apply_lights(scene->lights);
+		scene->apply_lights(gbuffer, scene->lights);
 	if (scene->show_light_representations)
 		for (struct light_list *run = scene->lights; run; run = run->next)
 			render_light_representation(run->ref);

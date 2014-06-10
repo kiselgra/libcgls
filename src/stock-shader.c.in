@@ -574,7 +574,7 @@ const char* stock_effect_spot(void) {
 						vec4 specular = texture(gbuffer_specular, tc);
 // 						vec3 h = normalize(l+v);
 // 						float i = pow(clamp(dot(h, n), 0, 1), specular.a);
-						float i = pow(max(dot(r, v), 0), specular.a);
+						float i = max(0, pow(max(dot(r, v), 0), specular.a));
 						out_col.rgb += vec3(specular.rgb * spot_factor * i);
 // 						out_col.rgb = vec3(clamp(dot(r, v), 0, 1));
 					}

@@ -211,7 +211,7 @@ int main(int argc, char **argv)
 {	
 	parse_cmdline(argc, argv);
 	
-	cgls_deferred = false;
+	cgls_deferred = true;
 // 	int guile_mode = guile_cfg_only;
 	int guile_mode = with_guile;
 	startup_cgl("name", 4, 2, argc, argv, (int)cmdline.res.x, (int)cmdline.res.y, actual_main, guile_mode, false, 0);

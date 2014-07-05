@@ -488,7 +488,7 @@ const char* stock_effect_copy_depthbuffer(void) {
 const char* stock_effect_copy_depthbuffer_fixed_location(void) {
 	return
 		shader{
-			#version 150 core
+			#version 420 core
 			uniform layout(binding = 0) sampler2D gbuffer_depth;
 			out vec4 out_col;
 			in vec2 tc;

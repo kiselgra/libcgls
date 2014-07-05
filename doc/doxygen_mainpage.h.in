@@ -184,12 +184,66 @@
  *  about those when rendering the scene).
  *  
  *
+ *  \subsection shaderreload Shader Reloading & Shader Error On-Screen Display
+ *  Usually when shaders don't compile the program crashes and you have to sift
+ *  through the output to find the shader error messages.
+ *  Another annoyance is that when while reloading shaders (during interactive
+ *  development) a simple error can crash your program.
+ *  To get rid of these we provide shader reloading and appropriate error
+ *  display (i.e. not going into normal rendering).
+ *
+ *  In your initialization code, after all shader loading is done, use this
+ *  \code
+ *  make_shader_error_display(cmdline.res.x, cmdline.res.y);
+ *  reload_shaders();
+ *  \endcode
+ *  to initialize the shader reloading error handler and reload the shaders right on the spot.
+ *  We havt to reload them because the system does a few things after the
+ *  shaders are loaded and we can't know when your last shader file is read.
+ *
+ *  In your display function add this
+ *  \code
+ *  if (cgl_shader_reload_pending)
+ *  	reload_shaders();
+ *  \endcode
+ *  to trigger a reload after the standard interaction handler (see \ref cgls_interaction_mode) caught the key 'R'.
+ *
+ *  After that you can use
+ *  \code
+ *  if (shader_errors_present()) {
+ *  	render_shader_error_message();
+ *  	swap_buffers();
+ *  	return;
+ *  }
+ *  \endcode
+ *  to just show the shader errors on screen and idle while they are not fixed.
+ *  With the first reload_shaders above your proram will now start into the error message if a shader did not compile.
+ *
+ *  \note If you can't see the error message then you are probably missing pango(-dev). Just install it and rebuild cgl/cgls.
+ *
+ *  
+ *  \subsection automaticshaderreload Automatic Shader Reloading
+ *  Please read \ref shaderreload before.
+ *
+ *  The automatic shader reloading system notices (via inotify, btw) if a shader file has changed and automatically triggers a reload.
+ *
+ *  To integrate it you have to initialize shader reloading after all your shader files have been loaded by
+ *  \code
+ *  activate_automatic_shader_reload();
+ *  \endcode
+ *  and since GL is not multi-threaded you have to trigger the appropriate reloads in your display routine, a nice place might be after \c reload_shaders, see \ref shaderreload.
+ *  \code
+ *  reload_modified_shader_files();
+ *  \endcode
+ *
+ *  \note Even checking might hit performance as we poll inotify's file descriptor during this call.
  *
  *
- * \section camera Camera Operations
  *
- * \subsection camera_extract_matrix Extract Matrix from Camera
- * See \ref shaders_uniform_handler
+ *  \section camera Camera Operations
+ *
+ *  \subsection camera_extract_matrix Extract Matrix from Camera
+ *  See \ref shaders_uniform_handler
  *
  *
  *

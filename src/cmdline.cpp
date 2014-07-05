@@ -1,6 +1,7 @@
 #include "cmdline.h"
 
 #include <libcgl/glut.h>
+#include <libcgl/shader.h>
 
 #include <argp.h>
 #include <string>
@@ -18,7 +19,7 @@ static char doc[]       = PACKAGE ": description";
 static char args_doc[]  = "argumentdescription";
 
 // long option without corresponding short option have to define a symbolic constant >= 300
-// enum { FIRST = 300, REMOVE, OPTS };
+enum { FIRST = 300, NOULOC, OPTS };
 
 static struct argp_option options[] = 
 {
@@ -30,6 +31,7 @@ static struct argp_option options[] =
     { "res", 'r', "w,h", 0, "Window resolution."},
     { "factor", 'f', "x", 0, "Drawelement collapse threshold."},
 	{ "forward", 'F', 0, 0, "Use forward rendering, instead of deferred shading."},
+	{ "Wno-uloc", NOULOC, 0, 0, "Don't issue warnings about uniforms with location 0."},
 	{ 0 }
 };	
 
@@ -82,6 +84,7 @@ static error_t parse_options(int key, char *arg, argp_state *state)
 	case 'F':	cgls_deferred = false; 
 				enable_glut_multisampling(); 
 				break;
+	case NOULOC: cgl_verbose_shader_handling = false; break;
 	
 	case ARGP_KEY_ARG:		// process arguments. 
 							// state->arg_num gives number of current arg

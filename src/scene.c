@@ -471,7 +471,6 @@ void graph_scene_drawelement_inserter(scene_ref ref, drawelement_ref de) {
 		fprintf(stderr, "Called graph_scene_drawelement_inserter on scene of type %d (expected %d).\n", scene_aux_type(ref), scene_type_graph);
 		return;
 	}
-	printf("------ inserting de %s.\n", drawelement_name(de));
 	default_scene_drawelement_inserter(ref, de);
 	mesh_ref mesh = drawelement_mesh(de);
 	material_ref material = drawelement_material(de);

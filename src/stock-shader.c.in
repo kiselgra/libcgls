@@ -393,7 +393,7 @@ const char* stock_gbuffer_creation_fragment_shader(void) {
 				vec4 pos_ec = view * pos_wc;
 
                 out_diff = diffuse();
-                out_spec = vec4(specular().rgb, shininess);
+                out_spec = vec4(specular().rgba);
                 out_norm = vec4(n, 0);
                 out_pos = pos_ec;
 			}
@@ -448,6 +448,7 @@ const char* stock_show_gbuffer_debug_shader(void) {
 			uniform sampler2D gbuffer_diffuse;
 			uniform sampler2D gbuffer_normal;
 			uniform sampler2D gbuffer_depth;
+			uniform sampler2D gbuffer_specular;
 			out vec4 out_col;
 			in vec2 tc;
 			void main() {
@@ -463,6 +464,7 @@ const char* stock_show_gbuffer_debug_shader(void) {
 					if (length(texture(gbuffer_normal, tc2 - vec2(1,1)).rgb) < 0.1)
 						out_col = vec4(1,0,0,1);
 					else out_col = vec4(0,0,0,1);
+					out_col = vec4(texture(gbuffer_specular, tc2).aaa*.5, 1);
 				}
 			}
 		}shader;
@@ -583,14 +585,17 @@ const char* stock_effect_spot(void) {
 						vec3 diffuse = texture(gbuffer_diffuse, tc).rgb;
 						out_col.rgb += spot_factor * ndotl * diffuse * light_col;
 
-						vec3 v = -normalize(pos_ec);
+						vec3 r = normalize(2*dot(n,l)*n-l);
+						vec3 v = normalize(pos_ec)*vec3(1,1,-1);
 						vec4 specular = texture(gbuffer_specular, tc);
-						vec3 h = normalize(l+v);
-						float i = pow(clamp(dot(h, n), 0, 1), specular.a);
+// 						vec3 h = normalize(l+v);
+// 						float i = pow(clamp(dot(h, n), 0, 1), specular.a);
+						float i = max(0, pow(max(dot(r, v), 0), specular.a));
 						out_col.rgb += vec3(specular.rgb * spot_factor * i);
+// 						out_col.rgb = vec3(clamp(dot(r, v), 0, 1));
 					}
 				}
-                out_col.rgb = pow(out_col.rgb, vec3(0.80));
+//                 out_col.rgb = pow(out_col.rgb, vec3(0.80));
 			}
 		}shader;
 }
@@ -699,7 +704,7 @@ void add_stock_vertex_shader_part(struct stockshader_fragments *ssf, bool use_no
 	int vertex_inputs = (bones/4) + ((bones%4==0)?0:1);
 	char *buf = 0;
 	for (int b = 0; b < vertex_inputs; ++b) {
-		asprintf(&buf, "bone_weight_%02d", b+1);
+		int x = asprintf(&buf, "bone_weight_%02d", b+1);
 		stockshader_add_input(ssf, buf);
 		free(buf);
 	}
@@ -727,7 +732,7 @@ void add_stock_fragment_shader_part(struct stockshader_fragments *ssf, bool use_
 	for (int i = 0; i < strlen(src); ++i)
 		if (src[i] == '\n')
 			LL++;
-	printf("generated gb: %d\n", LL);
+// 	printf("generated gb: %d\n", LL);
 
 	for (int i = 0; uniforms[i]; ++i)
 		stockshader_add_uniform(ssf, uniforms[i]);

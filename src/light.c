@@ -482,6 +482,49 @@ SCM_DEFINE(s_find_light, "find-light", 1, 0, 0, (SCM name), "") {
     return scm_from_int(ref.id);
 }
 
+SCM_DEFINE(s_make_hemi_light, "make-hemispherical-light", 3, 0, 0, (SCM name, SCM gbuffer, SCM up), "") {
+	char *n = scm_to_locale_string(name);
+	framebuffer_ref gb = { scm_to_int(gbuffer) };
+	vec3f u = scm_vec_to_vec3f(up);
+	light_ref l = make_hemispherical_light(n, gb, &u);
+	free(n);
+	return scm_from_int(l.id);
+}
+
+SCM_DEFINE(s_make_spot_from_cam, "make-spotlight-from-camera", 3, 0, 0, (SCM name, SCM gbuffer, SCM cam), "") {
+	char *n = scm_to_locale_string(name);
+	framebuffer_ref gb = { scm_to_int(gbuffer) };
+	camera_ref c = { scm_to_int(cam) };
+	light_ref l = make_spotlight_from_camera(n, gb, c);
+	free(n);
+	return scm_from_int(l.id);
+}
+
+SCM_DEFINE(s_make_spot_light, "make-spotlight", 6, 0, 0, (SCM name, SCM gbuffer, SCM pos, SCM dir, SCM up, SCM cutoff), "") {
+	char *n = scm_to_locale_string(name);
+	framebuffer_ref gb = { scm_to_int(gbuffer) };
+	vec3f p = scm_vec_to_vec3f(pos);
+	vec3f d = scm_vec_to_vec3f(dir);
+	vec3f u = scm_vec_to_vec3f(up);
+	float co = scm_to_double(cutoff);
+	light_ref l = make_spotlight(n, gb, &p, &d, &u, co);
+	free(n);
+	return scm_from_int(l.id);
+}
+
+SCM_DEFINE(s_make_rect_light, "make-rectangular-light", 6, 0, 0, (SCM name, SCM gbuffer, SCM pos, SCM dir, SCM up, SCM width, SCM height), "") {
+	char *n = scm_to_locale_string(name);
+	framebuffer_ref gb = { scm_to_int(gbuffer) };
+	vec3f p = scm_vec_to_vec3f(pos);
+	vec3f d = scm_vec_to_vec3f(dir);
+	vec3f u = scm_vec_to_vec3f(up);
+	float w = scm_to_double(width);
+	float h = scm_to_double(height);
+	light_ref l = make_rectangular_light(n, gb, &p, &d, &u, w, h);
+	free(n);
+	return scm_from_int(l.id);
+}
+
 SCM_DEFINE(s_light_color, "light-color", 1, 0, 0, (SCM id), "") {
     light_ref ref = { scm_to_int(id) };
 	return vec3f_to_list(light_color(ref));

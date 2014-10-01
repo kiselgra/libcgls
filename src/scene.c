@@ -220,6 +220,19 @@ bool using_backface_culling_for_scene(scene_ref ref) {
 	return scene->cull;
 }
 
+scene_ref find_scene(const char *name) {
+	scene_ref ref = { -1 };
+	if (strlen(name) == 0) return ref;
+    for (int i = 0; i < next_scene_index; ++i) {
+        if (strcmp(scenes[i].name, name) == 0) {
+			ref.id = i;
+			return ref;
+		}
+	}
+	return ref;
+}
+
+
 /*! \brief Transparently change shaders for all drawelements of the scene.
  *
  *  The provided array is index by drawelement ids, so it might necessarily be sparse.
@@ -1009,6 +1022,13 @@ SCM_DEFINE(s_scene_add_drawelement, "add-drawelement-to-scene", 2, 0, 0, (SCM sc
 	return SCM_BOOL_T;
 }
 
+SCM_DEFINE(s_scene_add_light, "add-light-to-scene", 2, 0, 0, (SCM scene, SCM light), "") {
+	scene_ref s = { scm_to_int(scene) };
+	light_ref l = { scm_to_int(light) };
+	add_light_to_scene(s, l);
+	return SCM_BOOL_T;
+}
+
 SCM_DEFINE(s_scene_drawelements, "drawelement-of-scene", 1, 0, 0, (SCM scene), "") {
 	scene_ref s = { scm_to_int(scene) };
 	drawelement_node *node = scene_drawelements(s);
@@ -1117,6 +1137,15 @@ SCM_DEFINE(s_scene_set_sb, "change-scene-skybox!", 2, 0, 0, (SCM scene, SCM draw
 	set_scene_skybox(s, d);
 	return SCM_BOOL_T;
 }
+
+SCM_DEFINE(s_find_scene, "find-scene", 1, 0, 0, (SCM name), "") {
+    char *n = scm_to_locale_string(name);
+    scene_ref ref = find_scene(n);
+    free(n);
+    return scm_from_int(ref.id);
+}
+
+
 
 void register_scheme_functions_for_scene() {
 #include "scene.x"

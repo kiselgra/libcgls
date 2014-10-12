@@ -728,7 +728,7 @@ void add_stock_fragment_shader_part(struct stockshader_fragments *ssf, bool use_
 	const char *src = 0;
 	const char **uniforms = 0;
 	
-	src = select_gbuffer_fragment_part(mask_tex, true, false, true, diffuse_tex, true, specular_tex, normalmap, &uniforms);
+	src = select_gbuffer_fragment_part(mask_tex, normalmap, true, false, true, diffuse_tex, true, specular_tex, &uniforms);
 
 	for (int i = 0; i < strlen(src); ++i)
 		if (src[i] == '\n')

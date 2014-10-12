@@ -5,8 +5,8 @@
 extern "C" {
 #endif
 
-const char* select_gbuffer_fragment_part(bool mask_tex, bool amb_col, bool amb_tex, bool diff_col, bool diff_tex, 
-                                         bool spec_col, bool spec_tex, bool normalmap, const char ***u);
+const char* select_gbuffer_fragment_part(bool mask_tex, bool normalmap, bool amb_col, bool amb_tex, bool diff_col, bool diff_tex, 
+                                         bool spec_col, bool spec_tex, const char ***u);
 
 #ifdef __cplusplus
 }

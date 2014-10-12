@@ -394,6 +394,7 @@ const char* stock_gbuffer_creation_fragment_shader(void) {
 
                 out_diff = diffuse();
                 out_spec = vec4(specular().rgba);
+				n = normal(n, pos_ec.xyz);
                 out_norm = vec4(n, 0);
                 out_pos = pos_ec;
 			}
@@ -718,7 +719,7 @@ void add_stock_vertex_shader_part(struct stockshader_fragments *ssf, bool use_no
 // #include "gb.c"
 int LL = 0;
 
-void add_stock_fragment_shader_part(struct stockshader_fragments *ssf, bool use_normals, bool ambient_tex, bool diffuse_tex, bool specular_tex, bool mask_tex) {
+void add_stock_fragment_shader_part(struct stockshader_fragments *ssf, bool use_normals, bool ambient_tex, bool diffuse_tex, bool specular_tex, bool mask_tex, bool normalmap) {
 	if (ign_amb())
 		ambient_tex = false;
 
@@ -727,7 +728,7 @@ void add_stock_fragment_shader_part(struct stockshader_fragments *ssf, bool use_
 	const char *src = 0;
 	const char **uniforms = 0;
 	
-	src = select_gbuffer_fragment_part(mask_tex, true, false, true, diffuse_tex, true, specular_tex, &uniforms);
+	src = select_gbuffer_fragment_part(mask_tex, true, false, true, diffuse_tex, true, specular_tex, normalmap, &uniforms);
 
 	for (int i = 0; i < strlen(src); ++i)
 		if (src[i] == '\n')
@@ -794,6 +795,7 @@ struct stockshader_fragments* make_stock_shader_fragments(drawelement_ref de, st
 		if (strcmp(run->data, "ambient_tex") == 0
 		    || strcmp(run->data, "diffuse_tex") == 0
 		    || strcmp(run->data, "specular_tex") == 0
+		    || strcmp(run->data, "normalmap") == 0
 		    || strcmp(run->data, "mask_tex") == 0) {
 			tc = true;
 			break;

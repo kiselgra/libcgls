@@ -170,15 +170,15 @@ void actual_main()
 		add_light_to_scene(the_scene, hemi);
 	}
 
-// 	{
-// 		vec3f p = { 311.678131,204.546875,-91.080360 };
-// 		vec3f d = { 0.443330,-0.523770,-0.727411 };
-// 		vec3f u = { 0.172540,0.846205,-0.504150};
-// 		light_ref spot = make_spotlight("spot", gbuffer, &p, &d, &u, 10);
-// 		change_light_color3f(spot, 1, .5, .5);
-// 		add_light_to_scene(the_scene, spot);
-// 		push_drawelement_to_array(light_representation(spot), &picking_des);
-// 	}
+	{
+		vec3f p = { 311.678131,204.546875,-91.080360 };
+		vec3f d = { 0.443330,-0.523770,-0.727411 };
+		vec3f u = { 0.172540,0.846205,-0.504150};
+		light_ref spot = make_spotlight("spot", gbuffer, &p, &d, &u, 10);
+		change_light_color3f(spot, 1, 1, 1);
+		add_light_to_scene(the_scene, spot);
+		push_drawelement_to_array(light_representation(spot), &picking_des);
+	}
 	
 	{
 		vec3f p = { 311.678131,204.546875,-91.080360 };

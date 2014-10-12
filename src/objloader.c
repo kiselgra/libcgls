@@ -80,6 +80,7 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 		if (m->tex_d) add_texture_if_found(mat, m->tex_d, &p, "diffuse_tex");
 		if (m->tex_s) add_texture_if_found(mat, m->tex_s, &p, "specular_tex");
 		if (m->tex_alpha) add_texture_if_found(mat, m->tex_alpha, &p, "mask_tex");
+		if (m->tex_bump) add_texture_if_found(mat, m->tex_bump, &p, "normalmap");
 		material_set_specular_exponent(mat, m->spec_exp);
 	}
 
@@ -261,6 +262,7 @@ static void load_objfile_and_create_objects_with_single_vbo_general(
 		if (m->tex_d) add_texture_if_found(mat, m->tex_d, &p, "diffuse_tex");
 		if (m->tex_s) add_texture_if_found(mat, m->tex_s, &p, "specular_tex");
 		if (m->tex_alpha) add_texture_if_found(mat, m->tex_alpha, &p, "mask_tex");
+		if (m->tex_bump) add_texture_if_found(mat, m->tex_bump, &p, "normalmap");
 		material_set_specular_exponent(mat, m->spec_exp);
 	}
 

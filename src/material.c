@@ -181,8 +181,9 @@ struct stockshader_fragments* material_stock_shader_fragment(material_ref ref, s
 	bool diffuse_tex  = has_texture_called("diffuse_tex");
 	bool specular_tex = has_texture_called("specular_tex");
 	bool mask_tex     = has_texture_called("mask_tex");
+	bool normalmap    = has_texture_called("normalmap");
 	
-	add_stock_fragment_shader_part(ssf, true, ambient_tex, diffuse_tex, specular_tex, mask_tex);
+	add_stock_fragment_shader_part(ssf, true, ambient_tex, diffuse_tex, specular_tex, mask_tex, normalmap);
 // 	mat->shader = make_shader("test", stockshader_inputs(&ssf));
 // 	populate_shader_with_fragments(mat->shader, &ssf);
 // 	compile_and_link_shader_showing_log_on_error(mat->shader);

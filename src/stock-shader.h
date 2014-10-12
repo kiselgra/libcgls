@@ -36,7 +36,7 @@ void stockshader_clear_fsource(struct stockshader_fragments *ssf);
 
 // void stock_shader(struct stockshader_fragments *ssf, bool ambient_tex, bool diffuse_tex, bool specular_tex, bool mask_tex, int bones);
 void add_stock_vertex_shader_part(struct stockshader_fragments *ssf, bool use_normals, bool use_tc, int bones, bool path, bool instanced);
-void add_stock_fragment_shader_part(struct stockshader_fragments *ssf, bool use_normals, bool ambient_tex, bool diffuse_tex, bool specular_tex, bool mask_tex);
+void add_stock_fragment_shader_part(struct stockshader_fragments *ssf, bool use_normals, bool ambient_tex, bool diffuse_tex, bool specular_tex, bool mask_tex, bool normalmap);
 struct stockshader_fragments* make_stock_shader_fragments(drawelement_ref de, struct stockshader_fragments *ssf, bool consider_material, const char *frag_source);
 shader_ref make_stock_shader(const char *name, drawelement_ref de, struct stockshader_fragments *ssf, bool consider_material, const char *fragment_base);
 

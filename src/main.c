@@ -202,6 +202,10 @@ void actual_main()
 
 	if (cgls_deferred)
 		scene_set_lighting(the_scene, apply_deferred_lights);
+	else {
+		scene_set_light_setup(the_scene, stock_forward_shading_light_setup);
+		scene_set_light_cleanup(the_scene, stock_forward_shading_light_cleanup);
+	}
 
 	console = make_vi_console("bla", cmdline.res.x, cmdline.res.y);
 
@@ -219,9 +223,9 @@ void actual_main()
 
 int main(int argc, char **argv)
 {	
+	cgls_deferred = true;
 	parse_cmdline(argc, argv);
 	
-	cgls_deferred = true;
 // 	int guile_mode = guile_cfg_only;
 	int guile_mode = with_guile;
 	startup_cgl("name", 4, 2, argc, argv, (int)cmdline.res.x, (int)cmdline.res.y, actual_main, guile_mode, false, 0);

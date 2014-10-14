@@ -193,6 +193,66 @@ void apply_deferred_lights(framebuffer_ref gbuffer, struct light_list *lights) {
 	glDisable(GL_BLEND);
 }
 
+struct stock_forward_light_uniforms {
+	int hemi_lights;
+	vec3f *hemi_dir, *hemi_col;
+};
+// we only have one.
+static struct stock_forward_light_uniforms stock_forward_light_uniform_setup;
+
+static bool stock_forward_shading_uniform_handler(struct stock_forward_light_uniforms *setup, const char *uniform, int location) {
+	if (strcmp(uniform, "hemi_dir") == 0)
+		glUniform3fv(location, setup->hemi_lights, (float*)setup->hemi_dir);
+	else if (strcmp(uniform, "hemi_col") == 0)
+		glUniform3fv(location, setup->hemi_lights, (float*)setup->hemi_col);
+	else if (strcmp(uniform, "hemi_lights") == 0)
+		glUniform1i(location, setup->hemi_lights);
+	else
+		return false;
+	return true;
+}
+
+void stock_forward_shading_light_setup(struct light_list *lights) {
+	struct stock_forward_light_uniforms *setup = &stock_forward_light_uniform_setup;
+	setup->hemi_lights = 0;
+	
+	// count light types
+	for (struct light_list *run = lights; run; run = run->next) {
+		enum built_in_light_types type = light_type(run->ref);
+		if (type == hemi_light_t)
+			setup->hemi_lights++;
+	}
+	if (setup->hemi_lights > 4) {
+		fprintf(stderr, "The stock shading system is only configured to use up to 4 hemi lights. The excess ones will be ignored.\n");
+	}
+	setup->hemi_dir = malloc(sizeof(vec3f)*setup->hemi_lights);
+	setup->hemi_col = malloc(sizeof(vec3f)*setup->hemi_lights);
+	setup->hemi_lights = 0;
+	
+	matrix4x4f *view = gl_view_matrix_of_cam(current_camera());
+
+	for (struct light_list *run = lights; run; run = run->next) {
+		enum built_in_light_types type = light_type(run->ref);
+		if (type == hemi_light_t && setup->hemi_lights < 4) {
+			vec3f *dir = (vec3f*)light_aux(run->ref);
+			vec4f in = { dir->x, dir->y, dir->z, 0 }, res;
+			multiply_matrix4x4f_vec4f(&res, view, &in);
+			setup->hemi_dir[setup->hemi_lights].x = res.x;
+			setup->hemi_dir[setup->hemi_lights].y = res.y;
+			setup->hemi_dir[setup->hemi_lights].z = res.z;
+			setup->hemi_col[setup->hemi_lights] = *light_color(run->ref);
+			setup->hemi_lights++;
+		}
+	}
+	push_global_uniform_handler(setup, (uniform_setter_t)stock_forward_shading_uniform_handler);
+}
+
+void stock_forward_shading_light_cleanup(struct light_list *lights) {
+	struct stock_forward_light_uniforms *popped = (struct stock_forward_light_uniforms*)pop_global_uniform_handler();
+	if (popped != &stock_forward_light_uniform_setup)
+		fprintf(stderr, "ERROR: we pushed the global uniform handler for forwad shading, but popped something else.\nYour uniform stack is messed up!\n");
+}
+
 //! we provide this just because of the light on/off logic (and the global uniform handler)
 void render_light_representation(light_ref ref) {
 	drawelement_ref repr = light_representation(ref);

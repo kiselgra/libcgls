@@ -43,6 +43,7 @@ typedef void (*scene_drawelement_inserter_t)(scene_ref, drawelement_ref);
 void default_scene_drawelement_inserter(scene_ref s, drawelement_ref d);
 
 typedef void (*scene_light_application_t)(framebuffer_ref gbuffer, struct light_list *);
+typedef void (*scene_light_setup_t)(struct light_list *);
 //!< a default is supplied in light.c
 
 enum { scene_type_default = 0, scene_type_graph = 1 };
@@ -69,6 +70,8 @@ drawelement_node* scene_drawelements(scene_ref ref);
 scene_ref find_scene(const char *name);
 
 void scene_set_lighting(scene_ref ref, scene_light_application_t app);
+void scene_set_light_setup(scene_ref ref, scene_light_setup_t op);
+void scene_set_light_cleanup(scene_ref ref, scene_light_setup_t op);
 void add_light_to_scene(scene_ref ref, light_ref light);
 bool scene_render_light_representations(scene_ref ref);
 void scene_rendering_of_light_representations(scene_ref ref, bool on);

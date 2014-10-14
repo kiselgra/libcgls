@@ -18,6 +18,8 @@ struct scene {
 	uniform_setter_t extra_uniform_handler; //!< valid only when rendering in single-shader mode.
 
 	scene_light_application_t apply_lights;
+	scene_light_setup_t light_setup;	//!< called before rendering. could be used to setup uniform handlers.
+	scene_light_setup_t light_cleanup;	//!< called after rendering.
 	struct light_list *lights;
 	bool show_light_representations;
 
@@ -92,6 +94,8 @@ scene_ref make_scene(const char *name) { // no pun intended.
 	scene->extra_uniform_handler = 0;
 	scene->lights = 0;
 	scene->apply_lights = 0;
+	scene->light_setup = 0;
+	scene->light_cleanup = 0;
 	scene->show_light_representations = true;
 	scene->skybox.id = -1;
 	scene->cull = true;
@@ -185,6 +189,16 @@ void add_light_to_scene(scene_ref ref, light_ref light) {
 void scene_set_lighting(scene_ref ref, scene_light_application_t app) {
 	struct scene *scene = scenes+ref.id;
 	scene->apply_lights = app;
+}
+
+void scene_set_light_setup(scene_ref ref, scene_light_setup_t op) {
+	struct scene *scene = scenes+ref.id;
+	scene->light_setup = op;
+}
+
+void scene_set_light_cleanup(scene_ref ref, scene_light_setup_t op) {
+	struct scene *scene = scenes+ref.id;
+	scene->light_cleanup = op;
 }
 
 bool scene_render_light_representations(scene_ref ref) {
@@ -581,6 +595,10 @@ void graph_scene_traverser(scene_ref ref) {
 	else
 		glDisable(GL_CULL_FACE);
 
+	// used for forward rendering
+	if (scene->light_setup)
+		scene->light_setup(scene->lights);
+
 	if (use_single_shader)
 		for (struct by_mesh *by_mesh = gs->meshes; by_mesh; by_mesh = by_mesh->next) {
 			bind_mesh_to_gl(by_mesh->mesh);
@@ -695,6 +713,8 @@ void graph_scene_traverser(scene_ref ref) {
 				if (!drawelement_hidden(run->ref))
 					render_drawelement_box(run->ref);
 #endif
+	if (scene->light_cleanup)
+		scene->light_cleanup(scene->lights);
 	if (scene->cull) {
 		glDisable(GL_CULL_FACE);
 	}

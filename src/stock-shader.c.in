@@ -416,14 +416,29 @@ const char* stock_basic_lighting_fragment_shader(void) {
 			out vec4 out_col;
 			uniform mat4 view;
 
+			uniform vec3 hemi_dir[4];
+			uniform vec3 hemi_col[4];
+			uniform int hemi_lights;
+
 			void main() {
 				if (mask() < 0.2)
 					discard;
 				vec3 n = normalize(mat3x3(transpose(inverse(view))) * norm_wc);
 				vec4 pos_ec = view * pos_wc;
 				
-                float factor = max(0, 0.5*(1+dot(n, vec3(0,1,0))));
-                out_col = vec4((diffuse() * factor).rgb, 1.0);
+                out_col = vec4(0,0,0,1);
+				vec4 diff = diffuse();
+
+				if (hemi_lights == 0) {
+					float factor = max(0, 0.5*(1+dot(n, vec3(0,1,0))));
+					out_col.rgb += diff.rgb * factor * vec3(1,.7,.7);
+				}
+				else {
+					for (int i = 0; i < hemi_lights; ++i) {
+						float factor = max(0, 0.5*(1+dot(n, hemi_dir[i])));
+						out_col.rgb += diff.rgb * hemi_col[i] * factor;
+					}
+				}
 			}
 		}shader;
 }
@@ -786,8 +801,12 @@ struct stockshader_fragments* make_stock_shader_fragments(drawelement_ref de, st
 	const char *default_shader = 0;
 	if (cgls_deferred)
 		default_shader = stock_gbuffer_creation_fragment_shader();
-	else
+	else {
 		default_shader = stock_basic_lighting_fragment_shader();
+		stockshader_add_uniform(ssf, "hemi_lights");
+		stockshader_add_uniform(ssf, "hemi_dir");
+		stockshader_add_uniform(ssf, "hemi_col");
+	}
 	stockshader_add_fsource(ssf, frag_source ? frag_source : default_shader);
 
 	bool tc = false;

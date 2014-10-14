@@ -55,6 +55,10 @@ void apply_single_deferred_light(light_ref ref);
 void render_light_representation_with_shader(light_ref ref, shader_ref shader, uniform_setter_t handler);
 void render_light_representation(light_ref ref);
 
+// forward
+void stock_forward_shading_light_setup(struct light_list *lights);
+void stock_forward_shading_light_cleanup(struct light_list *lights);
+
 // derived (usable) light types
 light_ref make_headmounted_spotlight(const char *name, framebuffer_ref gbuffer, float cutoff);
 light_ref make_hemispherical_light(const char *name, framebuffer_ref gbuffer, vec3f *up);

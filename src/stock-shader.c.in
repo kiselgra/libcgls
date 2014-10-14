@@ -419,6 +419,35 @@ const char* stock_basic_lighting_fragment_shader(void) {
 			uniform vec3 hemi_dir[4];
 			uniform vec3 hemi_col[4];
 			uniform int hemi_lights;
+					
+			uniform vec3 spot_dir[16];
+			uniform vec3 spot_pos[16];
+			uniform vec3 spot_col[16];
+			uniform float spot_cos_cutoff[16];
+			uniform int spot_lights;
+					
+			vec3 spot_contrib(in int I, in vec3 pos_ec, in vec3 n, in vec3 diffuse, in vec4 specular) {
+				vec3 l = spot_pos[I] - pos_ec;
+				l = normalize(l);
+				float ndotl = max(dot(n,l), 0.0);
+				vec3 outcol = vec3(0);
+				if (ndotl > 0.0) {
+					float cos_theta = dot(normalize(spot_dir[I]), -l);
+					if (cos_theta > spot_cos_cutoff[I]) {
+						float spot_factor = cos_theta;	// atten...
+						float cutoff = acos(spot_cos_cutoff[I]);
+						float angle = acos(cos_theta);
+						spot_factor *= 1.0 - smoothstep(cutoff * .7, cutoff, angle);
+						outcol += spot_factor * ndotl * spot_col[I] * diffuse;
+
+						vec3 r = normalize(2*dot(n,l)*n-l);
+						vec3 v = normalize(pos_ec)*vec3(1,1,-1);
+						float i = max(0, pow(max(dot(r, v), 0), specular.a));
+						outcol += vec3(specular.rgb * spot_factor * i);
+					}
+				}
+				return outcol;
+			}
 
 			void main() {
 				if (mask() < 0.2)
@@ -428,6 +457,7 @@ const char* stock_basic_lighting_fragment_shader(void) {
 				
                 out_col = vec4(0,0,0,1);
 				vec4 diff = diffuse();
+				vec4 spec = specular();
 
 				if (hemi_lights == 0) {
 					float factor = max(0, 0.5*(1+dot(n, vec3(0,1,0))));
@@ -438,6 +468,10 @@ const char* stock_basic_lighting_fragment_shader(void) {
 						float factor = max(0, 0.5*(1+dot(n, hemi_dir[i])));
 						out_col.rgb += diff.rgb * hemi_col[i] * factor;
 					}
+				}
+
+				for (int i = 0; i < spot_lights; ++i) {
+					out_col.rgb += spot_contrib(i, pos_ec.xyz, n, diff.rgb, spec);
 				}
 			}
 		}shader;
@@ -806,6 +840,11 @@ struct stockshader_fragments* make_stock_shader_fragments(drawelement_ref de, st
 		stockshader_add_uniform(ssf, "hemi_lights");
 		stockshader_add_uniform(ssf, "hemi_dir");
 		stockshader_add_uniform(ssf, "hemi_col");
+		stockshader_add_uniform(ssf, "spot_lights");
+		stockshader_add_uniform(ssf, "spot_dir");
+		stockshader_add_uniform(ssf, "spot_col");
+		stockshader_add_uniform(ssf, "spot_pos");
+		stockshader_add_uniform(ssf, "spot_cos_cutoff");
 	}
 	stockshader_add_fsource(ssf, frag_source ? frag_source : default_shader);
 

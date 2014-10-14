@@ -196,17 +196,22 @@ void apply_deferred_lights(framebuffer_ref gbuffer, struct light_list *lights) {
 struct stock_forward_light_uniforms {
 	int hemi_lights;
 	vec3f *hemi_dir, *hemi_col;
+	int spot_lights;
+	vec3f *spot_dir, *spot_col, *spot_pos;
+	float *spot_cos_cutoff;
 };
 // we only have one.
 static struct stock_forward_light_uniforms stock_forward_light_uniform_setup;
 
 static bool stock_forward_shading_uniform_handler(struct stock_forward_light_uniforms *setup, const char *uniform, int location) {
-	if (strcmp(uniform, "hemi_dir") == 0)
-		glUniform3fv(location, setup->hemi_lights, (float*)setup->hemi_dir);
-	else if (strcmp(uniform, "hemi_col") == 0)
-		glUniform3fv(location, setup->hemi_lights, (float*)setup->hemi_col);
-	else if (strcmp(uniform, "hemi_lights") == 0)
-		glUniform1i(location, setup->hemi_lights);
+	if (strcmp(uniform, "hemi_dir") == 0)               glUniform3fv(location, setup->hemi_lights, (float*)setup->hemi_dir);
+	else if (strcmp(uniform, "hemi_col") == 0)          glUniform3fv(location, setup->hemi_lights, (float*)setup->hemi_col);
+	else if (strcmp(uniform, "hemi_lights") == 0)       glUniform1i(location, setup->hemi_lights);
+	else if (strcmp(uniform, "spot_dir") == 0)          glUniform3fv(location, setup->spot_lights, (float*)setup->spot_dir);
+	else if (strcmp(uniform, "spot_pos") == 0)          glUniform3fv(location, setup->spot_lights, (float*)setup->spot_pos);
+	else if (strcmp(uniform, "spot_col") == 0)          glUniform3fv(location, setup->spot_lights, (float*)setup->spot_col);
+	else if (strcmp(uniform, "spot_cos_cutoff") == 0)   glUniform1fv(location, setup->spot_lights, (float*)setup->spot_cos_cutoff);
+	else if (strcmp(uniform, "spot_lights") == 0)       glUniform1i(location, setup->spot_lights);
 	else
 		return false;
 	return true;
@@ -221,15 +226,26 @@ void stock_forward_shading_light_setup(struct light_list *lights) {
 		enum built_in_light_types type = light_type(run->ref);
 		if (type == hemi_light_t)
 			setup->hemi_lights++;
+		else if (type == spot_light_t)
+			setup->spot_lights++;
 	}
 	if (setup->hemi_lights > 4) {
 		fprintf(stderr, "The stock shading system is only configured to use up to 4 hemi lights. The excess ones will be ignored.\n");
 	}
+	if (setup->hemi_lights > 16) {
+		fprintf(stderr, "The stock shading system is only configured to use up to 16 spot lights. The excess ones will be ignored.\n");
+	}
 	setup->hemi_dir = malloc(sizeof(vec3f)*setup->hemi_lights);
 	setup->hemi_col = malloc(sizeof(vec3f)*setup->hemi_lights);
 	setup->hemi_lights = 0;
+	setup->spot_dir = malloc(sizeof(vec3f)*setup->spot_lights);
+	setup->spot_col = malloc(sizeof(vec3f)*setup->spot_lights);
+	setup->spot_pos = malloc(sizeof(vec3f)*setup->spot_lights);
+	setup->spot_cos_cutoff = malloc(sizeof(float)*setup->spot_lights);
+	setup->spot_lights = 0;
 	
 	matrix4x4f *view = gl_view_matrix_of_cam(current_camera());
+	matrix4x4f *norm = gl_normal_matrix_for_view_of(current_camera());
 
 	for (struct light_list *run = lights; run; run = run->next) {
 		enum built_in_light_types type = light_type(run->ref);
@@ -242,6 +258,27 @@ void stock_forward_shading_light_setup(struct light_list *lights) {
 			setup->hemi_dir[setup->hemi_lights].z = res.z;
 			setup->hemi_col[setup->hemi_lights] = *light_color(run->ref);
 			setup->hemi_lights++;
+		}
+		else if (type == spot_light_t && setup->spot_lights < 16) {
+			vec3f dir, pos;
+			extract_dir_vec3f_of_matrix(&dir, light_trafo(run->ref));
+			extract_pos_vec3f_of_matrix(&pos, light_trafo(run->ref));
+			{
+				vec4f in = { dir.x, dir.y, dir.z, 0 }, res;
+				multiply_matrix4x4f_vec4f(&res, view, &in);
+				setup->spot_dir[setup->spot_lights].x = dir.x = res.x;
+				setup->spot_dir[setup->spot_lights].y = dir.y = res.y;
+				setup->spot_dir[setup->spot_lights].z = dir.z = res.z;
+			} {
+				vec4f in = { pos.x, pos.y, pos.z, 1 }, res;
+				multiply_matrix4x4f_vec4f(&res, view, &in);
+				setup->spot_pos[setup->spot_lights].x = pos.x = res.x;
+				setup->spot_pos[setup->spot_lights].y = pos.y = res.y;
+				setup->spot_pos[setup->spot_lights].z = pos.z = res.z;
+			}
+			setup->spot_col[setup->spot_lights] = *light_color(run->ref);
+			setup->spot_cos_cutoff[setup->spot_lights] = cosf(*(float*)light_aux(run->ref));
+			setup->spot_lights++;
 		}
 	}
 	push_global_uniform_handler(setup, (uniform_setter_t)stock_forward_shading_uniform_handler);

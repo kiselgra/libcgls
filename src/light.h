@@ -12,7 +12,7 @@
 extern "C" {
 #endif
 
-enum built_in_light_types { wrong_light_t, spot_light_t, hemi_light_t };
+enum built_in_light_types { wrong_light_t, spot_light_t, hemi_light_t, rect_light_t };
 
 define_slist(light_uniform_handler_node, uniform_setter_t handler);
 define_array(light);

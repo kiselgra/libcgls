@@ -509,7 +509,7 @@ light_ref make_rectangular_light(const char *name, framebuffer_ref gbuffer,
 	float *aux = malloc(sizeof(float)*2);
 	aux[0] = width;
 	aux[1] = height;
-	set_light_aux(ref, spot_light_t, aux);
+	set_light_aux(ref, rect_light_t, aux);
 	add_light_uniform_handler(ref, stock_spotlight_uniform_handler);
 	
 	drawelement_ref deferred = make_stock_gbuffer_default_drawelement(gbuffer, name, stock_effect_spot());

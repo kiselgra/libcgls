@@ -8,6 +8,7 @@
 
 
 #include <libcgl/libcgl.h>
+#include <libcgl/wall-time.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -60,7 +61,7 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 
 	obj_data objdata;
 	const char *modelname = object_name ? object_name : filename;
-	time_t start = clock();
+	wall_time_t start = wall_time_in_ms();
 	
 	char *dirname_tmp = strdup(filename);
 	prepend_image_path(dirname(dirname_tmp));
@@ -68,7 +69,7 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 
 	load_objfile(modelname, filename, &objdata, false, false, 0);
 
-	time_t mid = clock();
+	wall_time_t mid = wall_time_in_ms();
 
 	// convert the materials
 	// note: the material names are already prefixed with the model's base name.
@@ -166,10 +167,10 @@ void load_objfile_and_create_objects_with_separate_vbos(const char *filename, co
 		}
 	}	// }}}
 
-	time_t end = clock();
+	wall_time_t end = wall_time_in_ms();
 
-	printf("load: %d\n", (int)((mid-start)/CLOCKS_PER_SEC));
-	printf("post: %d\n", (int)((end-mid)/CLOCKS_PER_SEC));
+	printf("load: %6.6f ms\n", mid-start);
+	printf("post: %6.6f ms\n", end-mid);
 
 	pop_image_path_front();
 }
@@ -245,12 +246,12 @@ static void load_objfile_and_create_objects_with_single_vbo_general(
 	prepend_image_path(dirname(dirname_tmp));
 	free(dirname_tmp);
 
-	time_t start = clock();
+	wall_time_t start = wall_time_in_ms();
 
 	bool collapse_materials = true;
 	load_objfile(modelname, filename, &objdata, true, collapse_materials, merge_factor);
 	
-	time_t mid = clock();
+	wall_time_t mid = wall_time_in_ms();
 
 	// convert the materials
 	// note: the material names are already prefixed with the model's base name.
@@ -344,11 +345,11 @@ static void load_objfile_and_create_objects_with_single_vbo_general(
 			if (objdata.vertex_data[i].z > bb_max->z) bb_max->z = objdata.vertex_data[i].z;
 		}
 	}
-	time_t end = clock();
+	wall_time_t end = wall_time_in_ms();
 
 	printf("OBJ TIMINGS:\n");
-	printf("load: %d\n", (int)((mid-start)/CLOCKS_PER_SEC));
-	printf("post: %d\n", (int)((end-mid)/CLOCKS_PER_SEC));
+	printf("OBJ TIME load: %6.6f\n", mid-start);
+	printf("OBJ TIME post: %6.6f\n", end-mid);
 
 
 	pop_image_path_front();

@@ -58,7 +58,7 @@
     de))
 
 (let ((fallback (make-material "fallback" (list 1 0 0 1) (list 1 0 0 1) (list 0 0 0 1))))
-  (receive (min max) (if (not (string=? (basename (cmdline model) ".obj") (basename (cmdline model))))
+  (receive (min max) (if (not (string=? (basename (cmdline model) "obj") (basename (cmdline model))))
                          (if use-graph
                              (load-objfile-and-create-objects-with-single-vbo (cmdline model) (cmdline model) make-de-idx fallback (cmdline merge-factor))
                              (load-objfile-and-create-objects-with-separate-vbos (cmdline model) (cmdline model) make-de fallback))

@@ -38,7 +38,8 @@ drawelement_ref selected_de = { -1 };
 console_ref console;
 
 void display() {
-	start_debug_output();
+// 	start_debug_output();
+	stop_debug_output();
 
 	static struct timeval tv;
 	double curr_time;
